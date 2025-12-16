@@ -1,0 +1,198 @@
+# Production Docker Compose configuration
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.5-alpine
+    container_name: spannerwork-postgres
+    restart: unless-stopped
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-spannerwork}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # No ports exposed to host - only accessible within Docker network
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - spannerwork-internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: spannerwork-redis
+    restart: unless-stopped
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - redis_data:/data
+    # No ports exposed to host - only accessible within Docker network
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - spannerwork-internal
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: spannerwork-backend
+    restart: unless-stopped
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    # Run as non-root user (ensure Dockerfile creates this user)
+    user: "node"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    # Only expose backend internally - nginx will proxy to it
+    expose:
+      - "3000"
+    # Centralized logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service"
+    labels:
+      - "service=backend"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-spannerwork}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      PORT: 3000
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      CSRF_SECRET: ${CSRF_SECRET:?CSRF_SECRET is required}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@spannerwork.co.uk}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-SpannerWork}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-eu-west-2}
+      AWS_ENDPOINT: ${AWS_ENDPOINT:-}
+      S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC:-spannerwork-public}
+      S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:-spannerwork-private}
+      CDN_URL: ${CDN_URL:-}
+      PLATFORM_FEE_PERCENTAGE: ${PLATFORM_FEE_PERCENTAGE:-5}
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - spannerwork-internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nginx:
+    image: nginx:alpine
+    container_name: spannerwork-nginx
+    restart: unless-stopped
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+    ports:
+      # Only nginx exposes ports to the outside world
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./dist:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    networks:
+      - spannerwork-internal
+      - spannerwork-external
+    # Centralized logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+        labels: "service"
+    labels:
+      - "service=nginx"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  spannerwork-internal:
+    # Internal network - not accessible from host
+    internal: true
+  spannerwork-external:
+    # External network - nginx can receive traffic
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
