@@ -150,4 +150,31 @@ describe('Email Service (Mailtrap)', () => {
       expect(mockFetch).toHaveBeenCalled();
     });
   });
+
+  describe('sendInsuranceStatusUpdateEmail', () => {
+    it('sends insurance approved email via Mailtrap', async () => {
+      await emailService.sendInsuranceStatusUpdateEmail('user@example.com', {
+        userName: 'John',
+        status: 'APPROVED',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://send.api.mailtrap.io/api/send',
+        expect.any(Object)
+      );
+    });
+
+    it('sends insurance rejected email via Mailtrap and includes reason', async () => {
+      await emailService.sendInsuranceStatusUpdateEmail('user@example.com', {
+        userName: 'John',
+        status: 'REJECTED',
+        rejectionReason: 'Document is illegible',
+      });
+
+      const fetchCall = mockFetch.mock.calls[0];
+      const body = JSON.parse(fetchCall[1].body);
+      expect(body.to).toEqual([{ email: 'user@example.com' }]);
+      expect(body.subject).toContain('insurance');
+    });
+  });
 });

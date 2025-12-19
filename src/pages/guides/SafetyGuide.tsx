@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import MarketingFooter from "../../components/MarketingFooter";
 import SEO from "@/components/SEO";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface GuideSection {
   icon: React.ElementType;
@@ -154,14 +157,16 @@ export default function SafetyGuide(): JSX.Element {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      <SEO
-        title="Safety Best Practices - Stay Safe on SpannerWork"
-        description="Comprehensive safety guide for SpannerWork users. Learn verification tips, photo documentation, safe meeting practices, and how to protect yourself and your equipment."
-        keywords="tool rental safety, SpannerWork safety guide, peer to peer rental safety, equipment rental protection"
-      />
+    <>
+      <DocsMobileHeader />
+      <div className="min-h-screen bg-white">
+        <SEO
+          title="Safety Best Practices - Stay Safe on SpannerWork"
+          description="Comprehensive safety guide for SpannerWork users. Learn verification tips, photo documentation, safe meeting practices, and how to protect yourself and your equipment."
+          keywords="tool rental safety, SpannerWork safety guide, peer to peer rental safety, equipment rental protection"
+        />
 
-      {/* Hero */}
+        {/* Hero */}
       <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
         <div className="max-w-4xl mx-auto">
           <Button
@@ -184,6 +189,12 @@ export default function SafetyGuide(): JSX.Element {
         </div>
       </div>
 
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <DocsBreadcrumbs />
+        </div>
+      </div>
+
       {/* Trust Banner */}
       <div className="bg-green-50 border-b border-green-200">
         <div className="max-w-6xl mx-auto px-4 py-6">
@@ -197,8 +208,14 @@ export default function SafetyGuide(): JSX.Element {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        {/* Quick Safety Checklist */}
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div className="lg:flex lg:gap-8">
+          <div className="hidden lg:block w-[280px] flex-none">
+            <DocsSidebar />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            {/* Quick Safety Checklist */}
         <Card className="mb-12 border-none shadow-lg bg-gradient-to-br from-orange-50 to-amber-50">
           <CardContent className="p-8">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -327,16 +344,19 @@ export default function SafetyGuide(): JSX.Element {
                 onClick={() => navigate("/contact")}
                 variant="outline"
                 size="lg"
-                className="border-white text-white hover:bg-white/10 text-lg px-8 py-6"
+                className="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white text-lg px-8 py-6"
               >
                 Contact Support
               </Button>
             </div>
           </CardContent>
         </Card>
+          </div>
+        </div>
       </div>
 
       <MarketingFooter />
-    </div>
+      </div>
+    </>
   );
 }

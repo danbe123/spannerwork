@@ -52,7 +52,8 @@
       "Bash(tee:*)",
       "Bash(timeout 120 npm run test:*)",
       "Bash(npx tsx --version)",
-      "Bash(npm run db:seed:*)"
+      "Bash(npm run db:seed:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

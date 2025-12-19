@@ -12,6 +12,7 @@ import { prisma } from '../config/database.js';
 import { InsuranceStatus, InsuranceType } from '@prisma/client';
 import { logger } from '../config/logger.js';
 import { NotFoundError, BadRequestError, ForbiddenError } from '../utils/errors.js';
+import { emailService } from './email.service.js';
 
 // Minimum coverage amount required (£1M = 100,000,000 pence)
 // TODO: Use this for coverage validation in future
@@ -179,7 +180,15 @@ export class InsuranceService {
       userId: document.userId,
     });
 
-    // TODO: Send email notification to user about status change
+    try {
+      await emailService.sendInsuranceStatusUpdateEmail(updated.user.email, {
+        userName: updated.user.name,
+        status,
+        rejectionReason: status === 'REJECTED' ? rejectionReason : null,
+      });
+    } catch (error) {
+      logger.error('Failed to send insurance status update email', error);
+    }
 
     return updated;
   }

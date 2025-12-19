@@ -34,7 +34,8 @@ import {
   Smile,
   Inbox,
   Sparkles,
-  Zap
+  Zap,
+  Shield
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import { User, Conversation, Message, Request } from "@/types";
@@ -167,6 +168,33 @@ export default function Messages() {
     queryFn: () => authService.getCurrentUser(),
   });
   const currentUser = currentUserData?.user;
+
+  if (currentUser && !currentUser.emailVerified) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <SEO title="Verification Required - SpannerWork" description="Verify your account to use messaging" />
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-6">
+            <Shield className="w-8 h-8 text-amber-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">Verification Required</h1>
+          <p className="text-gray-600 mb-6">
+            To protect our community, please verify your email address before messaging other users.
+          </p>
+          <div className="space-y-3">
+            <Button onClick={() => navigate('/verification')} className="w-full bg-brand-800 hover:bg-brand-900">
+              <Shield className="w-4 h-4 mr-2" />
+              Go to Verification
+            </Button>
+            <Button variant="ghost" onClick={() => navigate(-1)} className="w-full">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Go Back
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Get conversations
   const { data: conversationsData, isLoading: loadingConversations } = useQuery({

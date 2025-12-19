@@ -388,7 +388,7 @@ export default function Create() {
             </p>
             <div className="space-y-3">
               <Button
-                onClick={() => navigate('/profile')}
+                onClick={() => navigate('/verification')}
                 className="w-full bg-brand hover:bg-brand-900"
               >
                 <Shield className="w-4 h-4 mr-2" />

@@ -18,6 +18,7 @@ export class ServiceService {
       calloutFee?: number;
       radius: number;
       photos?: string[];
+      requiresInsurance?: boolean;
       postcode: string;
     }
   ): Promise<Service> {
@@ -208,6 +209,7 @@ export class ServiceService {
       photos: string[];
       postcode: string;
       available: boolean;
+      requiresInsurance: boolean;
     }>
   ): Promise<Service> {
     // Check ownership

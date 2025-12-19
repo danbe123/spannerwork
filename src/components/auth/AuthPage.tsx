@@ -324,7 +324,6 @@ export default function AuthPage() {
   const shouldForceOnboarding = (user: User): boolean => {
     const isProfileCompleteForJob = !!(
       user &&
-      user.emailVerified &&
       user.name &&
       (user.locationAddress || user.postcode)
     );
@@ -341,7 +340,7 @@ export default function AuthPage() {
 
     return !!(
       user &&
-      (!user.emailVerified || !user.name || !(user.locationAddress || user.postcode))
+      (!user.name || !(user.locationAddress || user.postcode))
     );
   };
 
@@ -351,6 +350,10 @@ export default function AuthPage() {
     try {
       const currentUserResponse = await authService.getCurrentUser();
       const redirect = getSafeRedirect();
+      if (currentUserResponse?.user && !currentUserResponse.user.emailVerified) {
+        navigate('/verification', { replace: true });
+        return;
+      }
       if (currentUserResponse?.user && shouldForceOnboarding(currentUserResponse.user)) {
         navigate('/profile?welcome=1', { replace: true });
         return;
@@ -361,6 +364,10 @@ export default function AuthPage() {
       try {
         const currentUserResponse = await authService.getCurrentUser();
         const redirect = getSafeRedirect();
+        if (currentUserResponse?.user && !currentUserResponse.user.emailVerified) {
+          navigate('/verification', { replace: true });
+          return;
+        }
         if (currentUserResponse?.user && shouldForceOnboarding(currentUserResponse.user)) {
           navigate('/profile?welcome=1', { replace: true });
           return;
@@ -401,8 +408,8 @@ export default function AuthPage() {
         await refreshCsrfToken();
         const currentUser = await authService.getCurrentUser();
         queryClient.setQueryData(['currentUser'], currentUser);
-        toast.success("Welcome to SpannerWork! Complete your profile to post a job.");
-        navigate('/profile?welcome=1', { replace: true });
+        toast.success("Welcome to SpannerWork! Please verify your account to start messaging and booking.");
+        navigate('/verification', { replace: true });
       } catch {
         localStorage.setItem(ONBOARDING_STORAGE_KEY, '1');
         queryClient.setQueryData(['currentUser'], null);

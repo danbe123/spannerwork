@@ -1,13 +1,17 @@
-const { mockAuthService, mockDisputesService, mockTransactionsService } = vi.hoisted(() => ({
+const { mockAuthService, mockDisputesService, mockTransactionsService, mockUploadService } = vi.hoisted(() => ({
   mockAuthService: {
     getCurrentUser: vi.fn(),
   },
   mockDisputesService: {
+    create: vi.fn(),
     list: vi.fn(),
     resolve: vi.fn(),
   },
   mockTransactionsService: {
     list: vi.fn(),
+  },
+  mockUploadService: {
+    uploadFiles: vi.fn(),
   },
 }))
 
@@ -15,6 +19,7 @@ vi.mock('@/api/services', () => ({
   authService: mockAuthService,
   disputesService: mockDisputesService,
   transactionsService: mockTransactionsService,
+  uploadService: mockUploadService,
 }))
 
 vi.mock('sonner', () => ({
@@ -28,6 +33,7 @@ import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router-dom'
 import DisputeResolution from './DisputeResolution'
 
 beforeAll(() => {
@@ -49,9 +55,11 @@ function renderWithClient() {
   })
 
   return render(
-    <QueryClientProvider client={queryClient}>
-      <DisputeResolution />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <DisputeResolution />
+      </QueryClientProvider>
+    </MemoryRouter>,
   )
 }
 
@@ -67,10 +75,14 @@ const sampleDispute = {
 describe('DisputeResolution', () => {
   beforeEach(() => {
     mockAuthService.getCurrentUser.mockReset()
+    mockDisputesService.create.mockReset()
     mockDisputesService.list.mockReset()
     mockDisputesService.resolve.mockReset()
     mockTransactionsService.list.mockReset()
+    mockUploadService.uploadFiles.mockReset()
     mockDisputesService.resolve.mockResolvedValue({ success: true })
+    mockTransactionsService.list.mockResolvedValue({ data: [] })
+    mockUploadService.uploadFiles.mockResolvedValue({ data: { files: [] } })
   })
 
   it('fetches disputes for the logged-in user', async () => {
@@ -210,7 +222,7 @@ describe('DisputeResolution', () => {
     renderWithClient()
 
     await waitFor(() => {
-      expect(screen.getByText('Dispute Resolution')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Dispute Resolution', level: 1 })).toBeInTheDocument()
     })
     expect(screen.getByText('View and manage your disputes')).toBeInTheDocument()
   })
@@ -225,8 +237,10 @@ describe('DisputeResolution', () => {
       expect(screen.getByText('Resolution Type')).toBeInTheDocument()
     })
 
-    // Verify select trigger exists
-    const selectTrigger = screen.getByRole('combobox')
-    expect(selectTrigger).toBeInTheDocument()
+    const triggerText = screen.getByText('Select resolution')
+    expect(triggerText).toBeInTheDocument()
+
+    const triggerButton = triggerText.closest('button')
+    expect(triggerButton).toBeTruthy()
   })
 })

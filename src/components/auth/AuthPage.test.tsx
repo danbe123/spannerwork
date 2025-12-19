@@ -10,6 +10,7 @@ vi.mock('@/api/services', () => ({
     login: vi.fn(),
     register: vi.fn(),
     forgotPassword: vi.fn(),
+    getCurrentUser: vi.fn(),
   },
 }));
 
@@ -38,7 +39,7 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useLocation: () => ({ state: null }),
+    useLocation: () => ({ state: null, search: '' }),
   };
 });
 
@@ -61,6 +62,9 @@ function renderAuthPage() {
 describe('AuthPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(authService.getCurrentUser).mockResolvedValue({
+      user: { id: '1', emailVerified: false } as any,
+    } as any);
   });
 
   describe('Login form', () => {
@@ -91,7 +95,7 @@ describe('AuthPage', () => {
     });
 
     it('submits login form', async () => {
-      vi.mocked(authService.login).mockResolvedValue({ user: { id: '1' } });
+      vi.mocked(authService.login).mockResolvedValue({ user: { id: '1' } as any } as any);
       
       renderAuthPage();
       
@@ -156,7 +160,7 @@ describe('AuthPage', () => {
     });
 
     it('submits registration form', async () => {
-      vi.mocked(authService.register).mockResolvedValue({ user: { id: '1' } });
+      vi.mocked(authService.register).mockResolvedValue({ user: { id: '1' } as any } as any);
       
       renderAuthPage();
       
@@ -180,7 +184,7 @@ describe('AuthPage', () => {
     });
 
     it('submits forgot password form', async () => {
-      vi.mocked(authService.forgotPassword).mockResolvedValue({ success: true });
+      vi.mocked(authService.forgotPassword).mockResolvedValue({ message: 'ok' } as any);
       
       renderAuthPage();
       
@@ -252,7 +256,7 @@ describe('AuthPage', () => {
 
   describe('Navigation', () => {
     it('handles successful login', async () => {
-      vi.mocked(authService.login).mockResolvedValue({ user: { id: '1' } });
+      vi.mocked(authService.login).mockResolvedValue({ user: { id: '1' } as any } as any);
       
       renderAuthPage();
       

@@ -10,6 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
 import { Link } from "react-router-dom";
+import MarketingFooter from "@/components/MarketingFooter";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface SafetyFeature {
   icon: React.ElementType;
@@ -68,6 +72,8 @@ export default function Safety(): JSX.Element {
         title="Safety | SpannerWork"
         description="Learn about SpannerWork's safety features and best practices for secure tool rentals and service bookings."
       />
+
+      <DocsMobileHeader />
       
       <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100">
         {/* Hero Section */}
@@ -85,8 +91,22 @@ export default function Safety(): JSX.Element {
           </div>
         </div>
 
-        {/* Safety Features Grid */}
-        <div className="max-w-6xl mx-auto px-4 py-16">
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <DocsBreadcrumbs />
+          </div>
+        </div>
+
+        {/* Main Content with Docs Nav */}
+        <div className="max-w-6xl mx-auto px-4 py-10">
+          <div className="lg:flex lg:gap-8">
+            <div className="hidden lg:block w-[280px] flex-none">
+              <DocsSidebar />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              {/* Safety Features Grid */}
+              <div className="mb-16">
           <h2 className="text-2xl font-bold text-center mb-8">Built-in Safety Features</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {safetyFeatures.map((feature, idx) => (
@@ -144,7 +164,12 @@ export default function Safety(): JSX.Element {
               </div>
             </CardContent>
           </Card>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <MarketingFooter />
       </div>
     </>
   );

@@ -89,7 +89,7 @@ describe('Messages Page', () => {
     mockSearchParams = new URLSearchParams();
     
     mockGetCurrentUser.mockResolvedValue({
-      user: { id: 'user-1', name: 'Test User', email: 'test@example.com', avatar: null },
+      user: { id: 'user-1', name: 'Test User', email: 'test@example.com', avatar: null, emailVerified: true },
     });
     
     mockListConversations.mockResolvedValue({
@@ -131,6 +131,19 @@ describe('Messages Page', () => {
       renderWithProviders(<Messages />);
       await waitFor(() => {
         expect(document.body).toBeInTheDocument();
+      });
+    });
+
+    it('shows verification gate when email is not verified', async () => {
+      mockGetCurrentUser.mockResolvedValue({
+        user: { id: 'user-1', name: 'Test User', email: 'test@example.com', avatar: null, emailVerified: false },
+      });
+
+      renderWithProviders(<Messages />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/verification required/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /go to verification/i })).toBeInTheDocument();
       });
     });
 

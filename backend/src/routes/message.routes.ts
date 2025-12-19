@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { messageController } from '../controllers/message.controller.js';
-import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, requireEmailVerified } from '../middleware/auth.middleware.js';
 import { validateBody } from '../middleware/validate.middleware.js';
 import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
 import { sendMessageSchema } from '../utils/validation.schemas.js';
@@ -16,6 +16,7 @@ const router = Router();
 router.post(
   '/',
   requireAuth,
+  requireEmailVerified,
   verifyCsrfToken,
   validateBody(sendMessageSchema),
   messageController.send.bind(messageController)

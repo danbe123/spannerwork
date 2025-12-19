@@ -55,14 +55,16 @@ export class ServiceController {
         });
       }
 
-      // Check if provider has valid insurance before allowing service listing
-      const hasValidInsurance = await insuranceService.hasValidInsurance(req.user.id);
-      if (!hasValidInsurance) {
-        return res.status(403).json({
-          error: 'Insurance Required',
-          message: 'You must have valid, approved public liability insurance to list services. Please upload your insurance certificate in your provider settings.',
-          code: 'INSURANCE_REQUIRED',
-        });
+      const requiresInsurance = req.body?.requiresInsurance !== false;
+      if (requiresInsurance) {
+        const hasValidInsurance = await insuranceService.hasValidInsurance(req.user.id);
+        if (!hasValidInsurance) {
+          return res.status(403).json({
+            error: 'Insurance Required',
+            message: 'You must have valid, approved public liability insurance to list services that require insurance. Please upload your insurance certificate in your provider settings.',
+            code: 'INSURANCE_REQUIRED',
+          });
+        }
       }
 
       const service = await serviceService.create(req.user.id, req.body);
@@ -126,6 +128,17 @@ export class ServiceController {
       }
 
       const { id } = req.params;
+
+      if (req.body?.requiresInsurance === true) {
+        const hasValidInsurance = await insuranceService.hasValidInsurance(req.user.id);
+        if (!hasValidInsurance) {
+          return res.status(403).json({
+            error: 'Insurance Required',
+            message: 'You must have valid, approved public liability insurance to enable insurance-required services. Please upload your insurance certificate in your provider settings.',
+            code: 'INSURANCE_REQUIRED',
+          });
+        }
+      }
 
       const service = await serviceService.update(id, req.user.id, req.body);
 

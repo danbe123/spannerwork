@@ -11,6 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import SEO from "@/components/SEO";
 import { Link } from "react-router-dom";
+import MarketingFooter from "@/components/MarketingFooter";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface RefundScenario {
   title: string;
@@ -92,10 +96,12 @@ export default function RefundPolicy(): JSX.Element {
         title="Refund Policy | SpannerWork"
         description="Learn about SpannerWork's refund and cancellation policies for tool rentals, space bookings, and services."
       />
+
+      <DocsMobileHeader />
       
       <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100">
         {/* Hero Section */}
-        <div className="bg-gradient-to-br from-[#5E35B1] to-[#4527A0] text-white py-16 px-4">
+        <div className="bg-gradient-to-br from-brand-800 to-brand-900 text-white py-16 px-4">
           <div className="max-w-4xl mx-auto text-center">
             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <PoundSterling className="w-8 h-8" />
@@ -103,110 +109,125 @@ export default function RefundPolicy(): JSX.Element {
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Refund Policy
             </h1>
-            <p className="text-xl text-purple-100 max-w-2xl mx-auto">
+            <p className="text-xl text-orange-100 max-w-2xl mx-auto">
               We aim to be fair to both seekers and providers. Here's how refunds work on SpannerWork.
             </p>
           </div>
         </div>
 
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <DocsBreadcrumbs />
+          </div>
+        </div>
+
         {/* Last Updated */}
-        <div className="max-w-4xl mx-auto px-4 py-4">
+        <div className="max-w-6xl mx-auto px-4 py-4">
           <p className="text-sm text-gray-500 text-center">
             Last updated: December 2024
           </p>
         </div>
 
-        {/* Refund Scenarios */}
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Docs Navigation + Content */}
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <div className="lg:flex lg:gap-8">
+            <div className="hidden lg:block w-[280px] flex-none">
+              <DocsSidebar />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              {/* Refund Scenarios */}
+              <div className="mb-8">
           <h2 className="text-2xl font-bold text-center mb-8">Cancellation & Refund Scenarios</h2>
           <div className="space-y-4">
-            {refundScenarios.map((scenario, idx) => (
-              <Card key={idx} className="shadow-md">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 mt-1">
-                      <scenario.icon className={`w-6 h-6 ${scenario.iconColor}`} />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between">
-                        <h3 className="font-semibold text-gray-900">{scenario.title}</h3>
-                        <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-                          scenario.refundAmount.includes('100%') ? 'bg-green-100 text-green-700' :
-                          scenario.refundAmount.includes('50%') ? 'bg-yellow-100 text-yellow-700' :
-                          scenario.refundAmount.includes('No') ? 'bg-red-100 text-red-700' :
-                          'bg-orange-100 text-orange-700'
-                        }`}>
-                          {scenario.refundAmount}
-                        </span>
+                {refundScenarios.map((scenario, idx) => (
+                  <Card key={idx} className="shadow-md">
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 mt-1">
+                          <scenario.icon className={`w-6 h-6 ${scenario.iconColor}`} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between">
+                            <h3 className="font-semibold text-gray-900">{scenario.title}</h3>
+                            <span className={`text-sm font-medium px-3 py-1 rounded-full ${
+                              scenario.refundAmount.includes('100%') ? 'bg-green-100 text-green-700' :
+                              scenario.refundAmount.includes('50%') ? 'bg-yellow-100 text-yellow-700' :
+                              scenario.refundAmount.includes('No') ? 'bg-red-100 text-red-700' :
+                              'bg-orange-100 text-orange-700'
+                            }`}>
+                              {scenario.refundAmount}
+                            </span>
+                          </div>
+                          <p className="text-gray-600 mt-1">{scenario.description}</p>
+                        </div>
                       </div>
-                      <p className="text-gray-600 mt-1">{scenario.description}</p>
-                    </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              </div>
+
+              {/* Important Notes */}
+              <Card className="bg-amber-50 border-amber-200 mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-amber-800">
+                    <AlertCircle className="w-5 h-5" />
+                    Important Notes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-amber-900 space-y-2">
+                  <p>• Refund eligibility is based on the rental start time, not when you made the booking.</p>
+                  <p>• For services, cancellation policies may vary based on the provider's terms.</p>
+                  <p>• Disputes must be raised within 48 hours of the rental ending.</p>
+                  <p>• Fraudulent refund claims may result in account suspension.</p>
+                </CardContent>
+              </Card>
+
+              {/* FAQ Section */}
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-center mb-8">Frequently Asked Questions</h2>
+                <Accordion type="single" collapsible className="space-y-2">
+                  {faqs.map((faq, idx) => (
+                    <AccordionItem key={idx} value={`faq-${idx}`} className="bg-white rounded-lg border px-4">
+                      <AccordionTrigger className="text-left font-medium">
+                        {faq.question}
+                      </AccordionTrigger>
+                      <AccordionContent className="text-gray-600">
+                        {faq.answer}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+
+              {/* Contact CTA */}
+              <Card className="bg-gradient-to-r from-brand-50 to-orange-50 border-brand-100">
+                <CardContent className="p-8 text-center">
+                  <HelpCircle className="w-12 h-12 text-brand-800 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold mb-2">Need Help with a Refund?</h3>
+                  <p className="text-gray-600 mb-6">
+                    Our support team is here to help resolve any issues fairly and quickly.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Link to="/dispute-resolution">
+                      <Button className="bg-brand-800 hover:bg-brand-900">
+                        Open a Dispute
+                      </Button>
+                    </Link>
+                    <Link to="/contact">
+                      <Button variant="outline">
+                        Contact Support
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            </div>
           </div>
         </div>
 
-        {/* Important Notes */}
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <Card className="bg-amber-50 border-amber-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-amber-800">
-                <AlertCircle className="w-5 h-5" />
-                Important Notes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-amber-900 space-y-2">
-              <p>• Refund eligibility is based on the rental start time, not when you made the booking.</p>
-              <p>• For services, cancellation policies may vary based on the provider's terms.</p>
-              <p>• Disputes must be raised within 48 hours of the rental ending.</p>
-              <p>• Fraudulent refund claims may result in account suspension.</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* FAQ Section */}
-        <div className="max-w-3xl mx-auto px-4 py-8">
-          <h2 className="text-2xl font-bold text-center mb-8">Frequently Asked Questions</h2>
-          <Accordion type="single" collapsible className="space-y-2">
-            {faqs.map((faq, idx) => (
-              <AccordionItem key={idx} value={`faq-${idx}`} className="bg-white rounded-lg border px-4">
-                <AccordionTrigger className="text-left font-medium">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-gray-600">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
-
-        {/* Contact CTA */}
-        <div className="max-w-4xl mx-auto px-4 py-12">
-          <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
-            <CardContent className="p-8 text-center">
-              <HelpCircle className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">Need Help with a Refund?</h3>
-              <p className="text-gray-600 mb-6">
-                Our support team is here to help resolve any issues fairly and quickly.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link to="/dispute-resolution">
-                  <Button className="bg-purple-600 hover:bg-purple-700">
-                    Open a Dispute
-                  </Button>
-                </Link>
-                <Link to="/contact">
-                  <Button variant="outline">
-                    Contact Support
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <MarketingFooter />
       </div>
     </>
   );

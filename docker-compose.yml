@@ -92,7 +92,6 @@ services:
     volumes:
       - ./src:/app/src
       - ./public:/app/public
-      - /app/node_modules
     depends_on:
       - backend
     command: npm run dev -- --host 0.0.0.0

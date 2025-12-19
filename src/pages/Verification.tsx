@@ -1,5 +1,6 @@
 import { useState, useEffect, ChangeEvent } from "react";
 import { authService, uploadService } from "@/api/services";
+import { insuranceService } from "@/api/services/insurance";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -21,6 +22,8 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { User } from "@/types";
+import MarketingFooter from "@/components/MarketingFooter";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 export default function Verification() {
   const navigate = useNavigate();
@@ -125,6 +128,9 @@ export default function Verification() {
 
   const uploadInsuranceMutation = useMutation({
     mutationFn: async (fileUrl: string) => {
+      await insuranceService.uploadDocument({
+        documentUrl: fileUrl,
+      });
       return fileUrl;
     },
     onSuccess: () => {
@@ -136,7 +142,7 @@ export default function Verification() {
         // ignore
       }
       window.dispatchEvent(new CustomEvent('auth:updated'));
-      toast.success("Insurance document uploaded!");
+      toast.success("Insurance document uploaded! It will be reviewed by our team.");
     },
   });
 
@@ -166,16 +172,18 @@ export default function Verification() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto">
-        <Button
-          variant="ghost"
-          onClick={() => navigate(createPageUrl("Profile"))}
-          className="mb-6"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Profile
-        </Button>
+    <>
+      <DocsMobileHeader />
+      <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100 p-4 md:p-8">
+        <div className="max-w-3xl mx-auto">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(createPageUrl("Profile"))}
+            className="mb-6"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Profile
+          </Button>
 
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Verification Center</h1>
@@ -446,7 +454,10 @@ export default function Verification() {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
-    </div>
+
+      <MarketingFooter />
+    </>
   );
 }

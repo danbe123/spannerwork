@@ -21,6 +21,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
 import { Link } from "react-router-dom";
+import MarketingFooter from "@/components/MarketingFooter";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface EarningCategory {
   icon: React.ElementType;
@@ -79,6 +81,8 @@ export default function StartEarning(): JSX.Element {
         title="Start Earning | SpannerWork"
         description="Turn your tools, space, and skills into income. Join SpannerWork and start earning from what you already have."
       />
+
+      <DocsMobileHeader />
       
       <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100">
         {/* Hero Section */}
@@ -200,6 +204,8 @@ export default function StartEarning(): JSX.Element {
             </Link>
           </div>
         </div>
+
+        <MarketingFooter />
       </div>
     </>
   );

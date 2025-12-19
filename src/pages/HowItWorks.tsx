@@ -5,6 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, CheckCircle, MessageCircle, PoundSterling, Award, Wrench, Users, Shield, LucideIcon } from "lucide-react";
 import MarketingFooter from "../components/MarketingFooter";
 import SEO from "@/components/SEO";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface Step {
   step: string;
@@ -73,14 +76,16 @@ export default function HowItWorks(): JSX.Element {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      <SEO
-        title="How SpannerWork Works - Simple Tool Rental & Service Marketplace"
-        description="Learn how to rent tools, hire mechanics, and book workshop space on SpannerWork. Simple 4-step process: Post, Connect, Pay, Review. Join our growing community today."
-        keywords="how to rent tools, how to hire mechanic, tool rental process, service marketplace guide"
-      />
+    <>
+      <DocsMobileHeader />
+      <div className="min-h-screen bg-white">
+        <SEO
+          title="How SpannerWork Works - Simple Tool Rental & Service Marketplace"
+          description="Learn how to rent tools, hire mechanics, and book workshop space on SpannerWork. Simple 4-step process: Post, Connect, Pay, Review. Join our growing community today."
+          keywords="how to rent tools, how to hire mechanic, tool rental process, service marketplace guide"
+        />
 
-      {/* Header */}
+        {/* Header */}
       <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
         <div className="max-w-4xl mx-auto">
           <Button
@@ -96,8 +101,20 @@ export default function HowItWorks(): JSX.Element {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-16">
-        {/* For Job Seekers */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <DocsBreadcrumbs />
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div className="lg:flex lg:gap-8">
+          <div className="hidden lg:block w-[280px] flex-none">
+            <DocsSidebar />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            {/* For Job Seekers */}
         <div className="mb-20">
           <h2 className="text-3xl font-bold text-center mb-12">For People Needing Help</h2>
           <div className="grid md:grid-cols-2 gap-8">
@@ -167,9 +184,12 @@ export default function HowItWorks(): JSX.Element {
             </Button>
           </CardContent>
         </Card>
+          </div>
+        </div>
       </div>
 
       <MarketingFooter />
-    </div>
+      </div>
+    </>
   );
 }

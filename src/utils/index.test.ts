@@ -6,6 +6,10 @@ describe('createPageUrl', () => {
     expect(createPageUrl('ResetPassword')).toBe('/reset-password')
   })
 
+  it('returns root for Home', () => {
+    expect(createPageUrl('Home')).toBe('/')
+  })
+
   it('normalizes spaces and preserves uppercase letters in the query string', () => {
     expect(createPageUrl('Start Transaction')).toBe('/start-transaction')
     expect(createPageUrl('Chat?userId=ABC123&requestId=XYZ')).toBe('/chat?userId=ABC123&requestId=XYZ')

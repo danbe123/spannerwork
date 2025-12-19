@@ -288,7 +288,7 @@ export default function Home(): JSX.Element {
                 size="lg"
                 variant="outline"
                 onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
-                className="bg-white/10 backdrop-blur-sm border-2 border-white text-white hover:bg-white hover:text-brand-800 text-lg px-10 py-7 font-bold transition-all"
+                className="bg-white/10 backdrop-blur-sm border-2 border-white/40 text-white hover:bg-white hover:text-brand-800 text-lg px-10 py-7 font-bold transition-all"
               >
                 <Play className="w-5 h-5 mr-2" />
                 See How It Works

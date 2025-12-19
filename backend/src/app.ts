@@ -84,11 +84,32 @@ app.use(
 );
 
 // CORS
+const isAllowedDevOrigin = (origin: string): boolean => {
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return false;
+    }
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+      return true;
+    }
+    return origin === env.FRONTEND_URL;
+  } catch {
+    return false;
+  }
+};
+
 const corsOptions =
   env.NODE_ENV === 'development'
     ? {
         // Echo back the requesting origin in development so Vite can use any port
-        origin: true,
+        origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+          if (!origin) {
+            callback(null, true);
+            return;
+          }
+          callback(null, isAllowedDevOrigin(origin));
+        },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Request-Id'],
@@ -252,7 +273,7 @@ app.get('/health', async (_req: Request, res: Response) => {
     // S3 issues shouldn't degrade the API, but we log them
   }
 
-  const statusCode = health.status === 'ok' ? 200 : 503;
+  const statusCode = health.status === 'error' ? 503 : 200;
   res.status(statusCode).json(health);
 });
 

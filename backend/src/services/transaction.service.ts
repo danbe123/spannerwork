@@ -128,11 +128,34 @@ export class TransactionService {
       } else if (data.serviceId) {
         const service = await tx.service.findUnique({
           where: { id: data.serviceId },
-          select: { providerId: true, available: true, hourlyRate: true, calloutFee: true },
+          select: { providerId: true, available: true, hourlyRate: true, calloutFee: true, requiresInsurance: true },
         });
         if (!service) throw new NotFoundError('Service not found');
         if (!service.available) throw new ConflictError('Service is not available');
         providerId = service.providerId;
+
+        if (service.requiresInsurance) {
+          const now = new Date();
+          const validInsurance = await tx.insuranceDocument.findFirst({
+            where: {
+              userId: providerId,
+              status: 'APPROVED',
+              documentType: 'PUBLIC_LIABILITY',
+              OR: [
+                { expiryDate: null },
+                { expiryDate: { gt: now } },
+              ],
+            },
+            select: { id: true },
+          });
+
+          if (!validInsurance) {
+            throw new ForbiddenError(
+              'This service cannot be booked because the provider does not have valid public liability insurance.',
+              'PROVIDER_INSURANCE_REQUIRED'
+            );
+          }
+        }
         
         // Calculate service fee: hourly rate * hours + callout fee
         rentalFee = (hours * service.hourlyRate) + (service.calloutFee || 0);

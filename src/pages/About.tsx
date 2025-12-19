@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Users, Heart, Target, Lightbulb, MapPin, Calendar, LucideIcon } from "lucide-react";
 import MarketingFooter from "../components/MarketingFooter";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface ValueItem {
   icon: LucideIcon;
@@ -50,23 +51,25 @@ export default function About() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
-        <div className="max-w-4xl mx-auto">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(createPageUrl("Home"))}
-            className="mb-6 text-white hover:bg-white/20"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
-          </Button>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">About SpannerWork</h1>
-          <p className="text-xl text-orange-100">Built by mechanics, for mechanics</p>
+    <>
+      <DocsMobileHeader />
+      <div className="min-h-screen bg-white">
+        <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
+          <div className="max-w-4xl mx-auto">
+            <Button
+              variant="ghost"
+              onClick={() => navigate(createPageUrl("Home"))}
+              className="mb-6 text-white hover:bg-white/20"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">About SpannerWork</h1>
+            <p className="text-xl text-orange-100">Built by mechanics, for mechanics</p>
+          </div>
         </div>
-      </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-16">
+        <div className="max-w-4xl mx-auto px-4 py-16">
         {/* Beta Badge */}
         <Card className="mb-8 border-2 border-[#FFC107] bg-gradient-to-r from-yellow-50 to-orange-50">
           <CardContent className="p-6">
@@ -202,7 +205,8 @@ export default function About() {
         </Card>
       </div>
 
-      <MarketingFooter />
-    </div>
+        <MarketingFooter />
+      </div>
+    </>
   );
 }

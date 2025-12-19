@@ -228,7 +228,7 @@ export async function getRevenueTimeSeries(
     
     // Initialize all dates in range
     const allDates = eachDayOfInterval({ start: range.startDate, end: range.endDate });
-    allDates.forEach(date => {
+    allDates.forEach((date: Date) => {
       const key = format(date, 'yyyy-MM-dd');
       byDate[key] = { gmv: 0, platformFee: 0, count: 0 };
     });
@@ -282,7 +282,7 @@ export async function getUserGrowthTimeSeries(
     const allDates = eachDayOfInterval({ start: range.startDate, end: range.endDate });
     let runningTotal = usersBeforeStart;
     
-    return allDates.map(date => {
+    return allDates.map((date: Date) => {
       const dateStr = format(date, 'yyyy-MM-dd');
       const dayStart = startOfDay(date);
       const dayEnd = endOfDay(date);
@@ -332,7 +332,7 @@ export async function getListingTrends(
 
     const allDates = eachDayOfInterval({ start: range.startDate, end: range.endDate });
     
-    return allDates.map(date => {
+    return allDates.map((date: Date) => {
       const dayStart = startOfDay(date);
       const dayEnd = endOfDay(date);
       

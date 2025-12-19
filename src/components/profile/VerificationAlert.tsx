@@ -43,7 +43,7 @@ export default function VerificationAlert({ emailVerified, phoneVerified }: Veri
         <Button
           size="sm"
           className="bg-brand-800 hover:bg-brand-900"
-          onClick={() => navigate("/Verification")}
+          onClick={() => navigate("/verification")}
         >
           Manage verification
         </Button>

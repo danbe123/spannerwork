@@ -12,6 +12,9 @@ vi.mock('../../src/config/database.js', () => ({
     service: {
       findUnique: vi.fn(),
     },
+    insuranceDocument: {
+      findFirst: vi.fn(),
+    },
     transaction: {
       create: vi.fn(),
       findUnique: vi.fn(),
@@ -806,11 +809,13 @@ describe('TransactionService', () => {
         available: true,
         hourlyRate: 3000, // £30/hour
         calloutFee: 2000, // £20 callout
+        requiresInsurance: false,
       };
 
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           service: { findUnique: vi.fn().mockResolvedValue(service as any) },
+          insuranceDocument: { findFirst: vi.fn().mockResolvedValue(null) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -843,11 +848,13 @@ describe('TransactionService', () => {
         available: true,
         hourlyRate: 5000, // £50/hour
         calloutFee: null, // No callout fee
+        requiresInsurance: false,
       };
 
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           service: { findUnique: vi.fn().mockResolvedValue(service as any) },
+          insuranceDocument: { findFirst: vi.fn().mockResolvedValue(null) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -877,11 +884,13 @@ describe('TransactionService', () => {
         providerId: 'provider-123',
         available: false,
         hourlyRate: 5000,
+        requiresInsurance: false,
       };
 
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           service: { findUnique: vi.fn().mockResolvedValue(service as any) },
+          insuranceDocument: { findFirst: vi.fn().mockResolvedValue(null) },
         };
         return callback(mockTx);
       });
@@ -894,6 +903,38 @@ describe('TransactionService', () => {
           endDate: new Date(),
         })
       ).rejects.toThrow('Service is not available');
+    });
+
+    it('should block booking when service requires insurance but provider has no valid insurance', async () => {
+      const service = {
+        id: 'service-123',
+        providerId: 'provider-123',
+        available: true,
+        hourlyRate: 3000,
+        calloutFee: 0,
+        requiresInsurance: true,
+      };
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          service: { findUnique: vi.fn().mockResolvedValue(service as any) },
+          insuranceDocument: { findFirst: vi.fn().mockResolvedValue(null) },
+          transaction: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+          booking: { create: vi.fn().mockResolvedValue({}) },
+        };
+        return callback(mockTx);
+      });
+
+      await expect(
+        transactionService.create({
+          userId: 'user-123',
+          serviceId: 'service-123',
+          startDate: new Date('2024-01-01T10:00:00'),
+          endDate: new Date('2024-01-01T12:00:00'),
+        })
+      ).rejects.toThrow('provider does not have valid public liability insurance');
     });
   });
 

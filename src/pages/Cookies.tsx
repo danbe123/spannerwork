@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Cookie } from "lucide-react";
 import MarketingFooter from "../components/MarketingFooter";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface Subsection {
   subtitle: string;
@@ -104,8 +107,10 @@ export default function Cookies() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
+    <>
+      <DocsMobileHeader />
+      <div className="min-h-screen bg-white">
+        <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
         <div className="max-w-4xl mx-auto">
           <Button
             variant="ghost"
@@ -123,8 +128,20 @@ export default function Cookies() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-16">
-        <div className="space-y-8">
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <DocsBreadcrumbs />
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div className="lg:flex lg:gap-8">
+          <div className="hidden lg:block w-[280px] flex-none">
+            <DocsSidebar />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="space-y-8">
           {sections.map((section, index) => (
             <Card key={index} className="border-none shadow-lg">
               <CardContent className="p-8">
@@ -170,24 +187,27 @@ export default function Cookies() {
           ))}
         </div>
 
-        {/* Fun fact box */}
-        <Card className="border-none shadow-lg bg-gradient-to-br from-orange-50 to-yellow-50 mt-8">
-          <CardContent className="p-8">
-            <div className="flex items-start gap-4">
-              <Cookie className="w-12 h-12 text-brand-800 flex-shrink-0" />
-              <div>
-                <h3 className="text-xl font-bold mb-2 text-gray-900">Fun Cookie Fact! 🍪</h3>
-                <p className="text-gray-700">
-                  The term &quot;cookie&quot; comes from &quot;magic cookie,&quot; a packet of data a program receives and sends back unchanged. 
-                  The first web cookies were created in 1994 by Lou Montulli to make online shopping carts possible!
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Fun fact box */}
+            <Card className="border-none shadow-lg bg-gradient-to-br from-orange-50 to-yellow-50 mt-8">
+              <CardContent className="p-8">
+                <div className="flex items-start gap-4">
+                  <Cookie className="w-12 h-12 text-brand-800 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-xl font-bold mb-2 text-gray-900">Fun Cookie Fact! 🍪</h3>
+                    <p className="text-gray-700">
+                      The term &quot;cookie&quot; comes from &quot;magic cookie,&quot; a packet of data a program receives and sends back unchanged. 
+                      The first web cookies were created in 1994 by Lou Montulli to make online shopping carts possible!
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
       <MarketingFooter />
-    </div>
+      </div>
+    </>
   );
 }

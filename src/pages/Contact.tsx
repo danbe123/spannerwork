@@ -9,6 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Mail, MessageSquare, Send, Loader2, Phone } from "lucide-react";
 import MarketingFooter from "../components/MarketingFooter";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface FormData {
   name: string;
@@ -58,8 +61,10 @@ export default function Contact() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
+    <>
+      <DocsMobileHeader />
+      <div className="min-h-screen bg-white">
+        <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
         <div className="max-w-4xl mx-auto">
           <Button
             variant="ghost"
@@ -74,8 +79,19 @@ export default function Contact() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-16">
-        <div className="grid md:grid-cols-2 gap-12 mb-16">
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <DocsBreadcrumbs />
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div className="lg:flex lg:gap-8">
+          <div className="hidden lg:block w-[280px] flex-none">
+            <DocsSidebar />
+          </div>
+
+          <div className="min-w-0 flex-1 grid md:grid-cols-2 gap-12 mb-16">
           {/* Contact Info */}
           <div>
             <h2 className="text-2xl font-bold mb-6">Contact Information</h2>
@@ -251,10 +267,12 @@ export default function Contact() {
               </Card>
             )}
           </div>
+          </div>
         </div>
       </div>
 
       <MarketingFooter />
-    </div>
+      </div>
+    </>
   );
 }

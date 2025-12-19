@@ -10,6 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import SEO from "@/components/SEO";
 import { Link } from "react-router-dom";
+import MarketingFooter from "@/components/MarketingFooter";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface PricingFeature {
   text: string;
@@ -93,6 +97,8 @@ export default function Pricing(): JSX.Element {
         title="Pricing | SpannerWork"
         description="Simple, transparent pricing. No subscription fees, no hidden costs. Just a 5% platform fee on successful transactions."
       />
+
+      <DocsMobileHeader />
       
       <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100">
         {/* Hero Section */}
@@ -107,8 +113,22 @@ export default function Pricing(): JSX.Element {
           </div>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="max-w-5xl mx-auto px-4 -mt-8">
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <DocsBreadcrumbs />
+          </div>
+        </div>
+
+        {/* Main Content with Docs Nav */}
+        <div className="max-w-6xl mx-auto px-4 py-10">
+          <div className="lg:flex lg:gap-8">
+            <div className="hidden lg:block w-[280px] flex-none">
+              <DocsSidebar />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              {/* Pricing Cards */}
+              <div className="-mt-8 mb-8">
           <div className="grid md:grid-cols-2 gap-6">
             {pricingTiers.map((tier) => (
               <Card 
@@ -196,7 +216,12 @@ export default function Pricing(): JSX.Element {
               </AccordionItem>
             ))}
           </Accordion>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <MarketingFooter />
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, type ComponentType } from "react";
 import { requestsService, authService } from "@/api/services";
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
@@ -13,6 +13,13 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Request, User } from "@/types";
 import { brandColors } from "@/lib/colors";
+import MarketingFooter from "@/components/MarketingFooter";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
+
+const MapContainerAny = MapContainer as unknown as ComponentType<any>;
+const TileLayerAny = TileLayer as unknown as ComponentType<any>;
+const MarkerAny = Marker as unknown as ComponentType<any>;
+const PopupAny = Popup as unknown as ComponentType<any>;
 
 type LatLngTuple = [number, number];
 
@@ -149,8 +156,10 @@ export default function MapView() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100">
+      <DocsMobileHeader />
+
       {/* Header */}
-      <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-6">
+      <div className="hidden lg:block bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -192,13 +201,13 @@ export default function MapView() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-800" />
           </div>
         ) : (
-          <MapContainer
+          <MapContainerAny
             center={mapCenter}
             zoom={mapZoom}
             style={{ height: "100%", width: "100%" }}
             className="z-0"
           >
-            <TileLayer
+            <TileLayerAny
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
@@ -207,19 +216,18 @@ export default function MapView() {
 
             {/* User Location Marker */}
             {userLocation && (
-              <Marker position={userLocation}>
-                <Popup>
+              <MarkerAny position={userLocation}>
+                <PopupAny>
                   <div className="text-center">
                     <Navigation className="w-6 h-6 text-blue-500 mx-auto mb-1" />
                     <p className="font-semibold">You are here</p>
                   </div>
-                </Popup>
-              </Marker>
+                </PopupAny>
+              </MarkerAny>
             )}
 
             {/* Request Markers */}
             {requestsWithCoords.map((request) => {
-              // @ts-expect-error - leaflet types
               const markerIcon = new L.Icon({
                 iconUrl: `data:image/svg+xml;base64,${btoa(`
                   <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -233,8 +241,8 @@ export default function MapView() {
               });
 
               return (
-                <Marker key={request.id} position={request.coords} icon={markerIcon}>
-                  <Popup maxWidth={300}>
+                <MarkerAny key={request.id} position={request.coords} icon={markerIcon}>
+                  <PopupAny maxWidth={300}>
                     <div className="p-2">
                       <h3 className="font-bold text-lg mb-2">{request.title}</h3>
                       <div className="flex flex-wrap gap-1 mb-2">
@@ -254,11 +262,11 @@ export default function MapView() {
                         </Button>
                       </Link>
                     </div>
-                  </Popup>
-                </Marker>
+                  </PopupAny>
+                </MarkerAny>
               );
             })}
-          </MapContainer>
+          </MapContainerAny>
         )}
 
         {/* Floating Stats Card */}
@@ -281,6 +289,8 @@ export default function MapView() {
           </CardContent>
         </Card>
       </div>
+
+      <MarketingFooter />
     </div>
   );
 }

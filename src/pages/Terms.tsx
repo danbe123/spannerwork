@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import MarketingFooter from "../components/MarketingFooter";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface Subsection {
   subtitle: string;
@@ -159,8 +162,10 @@ export default function Terms() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
+    <>
+      <DocsMobileHeader />
+      <div className="min-h-screen bg-white">
+        <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
         <div className="max-w-4xl mx-auto">
           <Button
             variant="ghost"
@@ -175,8 +180,20 @@ export default function Terms() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-16">
-        <Card className="border-none shadow-lg mb-8 bg-orange-50">
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <DocsBreadcrumbs />
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div className="lg:flex lg:gap-8">
+          <div className="hidden lg:block w-[280px] flex-none">
+            <DocsSidebar />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <Card className="border-none shadow-lg mb-8 bg-orange-50">
           <CardContent className="p-6">
             <p className="text-gray-700">
               <strong>Important:</strong> Please read these terms carefully before using SpannerWork. 
@@ -235,21 +252,24 @@ export default function Terms() {
           ))}
         </div>
 
-        <Card className="mt-12 border-2 border-brand-800">
-          <CardContent className="p-8 text-center">
-            <h3 className="text-xl font-bold mb-4">Questions About These Terms?</h3>
-            <p className="text-gray-600 mb-6">We're happy to clarify anything you're unsure about</p>
-            <Button
-              onClick={() => navigate(createPageUrl("Contact"))}
-              className="bg-brand-800 hover:bg-brand-900"
-            >
-              Contact Us
-            </Button>
-          </CardContent>
-        </Card>
+            <Card className="mt-12 border-2 border-brand-800">
+              <CardContent className="p-8 text-center">
+                <h3 className="text-xl font-bold mb-4">Questions About These Terms?</h3>
+                <p className="text-gray-600 mb-6">We're happy to clarify anything you're unsure about</p>
+                <Button
+                  onClick={() => navigate(createPageUrl("Contact"))}
+                  className="bg-brand-800 hover:bg-brand-900"
+                >
+                  Contact Us
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
       <MarketingFooter />
-    </div>
+      </div>
+    </>
   );
 }

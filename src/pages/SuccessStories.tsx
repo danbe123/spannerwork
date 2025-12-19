@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import SEO from "@/components/SEO";
 import { Link } from "react-router-dom";
+import MarketingFooter from "@/components/MarketingFooter";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface SuccessStory {
   id: string;
@@ -102,6 +104,8 @@ export default function SuccessStories(): JSX.Element {
         title="Success Stories | SpannerWork"
         description="Real stories from SpannerWork users who are earning money and saving on tools, spaces, and services."
       />
+
+      <DocsMobileHeader />
       
       <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100">
         {/* Hero Section */}
@@ -204,6 +208,8 @@ export default function SuccessStories(): JSX.Element {
             </div>
           </div>
         </div>
+
+        <MarketingFooter />
       </div>
     </>
   );

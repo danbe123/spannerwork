@@ -254,6 +254,95 @@ export const emailService = {
     });
   },
 
+  async sendInsuranceStatusUpdateEmail(to: string, data: {
+    userName: string | null;
+    status: 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'PENDING_REVIEW';
+    rejectionReason?: string | null;
+  }) {
+    const insuranceUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/verification`;
+    const safeName = data.userName ? escapeHtml(data.userName) : '';
+    const greeting = safeName ? `Hi ${safeName},` : 'Hi,';
+
+    if (data.status === 'APPROVED') {
+      const subject = 'Your insurance has been approved';
+      const previewText = 'You can now list and accept bookings for services that require insurance.';
+      const text = [
+        greeting,
+        '',
+        'Good news — your insurance document has been approved.',
+        '',
+        `View status: ${insuranceUrl}`,
+        '',
+        '- The SpannerWork Team',
+      ].join('\n');
+
+      const bodyHtml = `
+        <p style="margin: 0 0 20px; font-size: 18px; font-weight: 500; color: #111827;">${greeting}</p>
+        <p style="margin: 0 0 24px; color: #4B5563;">Good news — your insurance document has been <strong>approved</strong>.</p>
+        <p style="margin: 0 0 24px; color: #4B5563;">You can now list and accept bookings for services that require insurance.</p>
+      `;
+
+      await safeSend({
+        to,
+        subject,
+        html: renderEmailLayout({
+          title: subject,
+          previewText,
+          heading: 'Insurance approved',
+          subheading: 'You are good to go',
+          bodyHtml,
+          ctaText: 'View Insurance Status',
+          ctaUrl: insuranceUrl,
+        }),
+        text,
+        category: 'insurance-status',
+        senderType: 'support',
+      });
+      return;
+    }
+
+    if (data.status === 'REJECTED') {
+      const subject = 'Your insurance needs attention';
+      const previewText = 'Your insurance document was rejected. Please upload an updated document.';
+      const safeReason = data.rejectionReason ? escapeHtml(data.rejectionReason) : '';
+      const reasonLine = safeReason ? `Reason: ${safeReason}` : '';
+      const text = [
+        greeting,
+        '',
+        'Your insurance document was rejected.',
+        reasonLine,
+        '',
+        `Upload a new document: ${insuranceUrl}`,
+        '',
+        '- The SpannerWork Team',
+      ].filter(Boolean).join('\n');
+
+      const bodyHtml = `
+        <p style="margin: 0 0 20px; font-size: 18px; font-weight: 500; color: #111827;">${greeting}</p>
+        <p style="margin: 0 0 16px; color: #4B5563;">Your insurance document was <strong>rejected</strong>.</p>
+        ${safeReason ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px; background: #FEF3C7; border-radius: 12px; border-left: 4px solid #F59E0B;"><tr><td style="padding: 16px 20px;"><p style="margin: 0; font-size: 14px; color: #92400E;"><strong>Reason:</strong> ${safeReason}</p></td></tr></table>` : ''}
+        <p style="margin: 0 0 24px; color: #4B5563;">Please upload an updated document so you can continue offering services that require insurance.</p>
+      `;
+
+      await safeSend({
+        to,
+        subject,
+        html: renderEmailLayout({
+          title: subject,
+          previewText,
+          heading: 'Insurance rejected',
+          subheading: 'Action required',
+          bodyHtml,
+          ctaText: 'Upload New Document',
+          ctaUrl: insuranceUrl,
+        }),
+        text,
+        category: 'insurance-status',
+        senderType: 'support',
+      });
+    }
+  },
+
   async sendContactNotification(name: string, fromEmail: string, subject: string, message: string) {
     const fullSubject = `Contact form: ${subject}`;
     const previewText = 'New contact form submission from your SpannerWork site.';

@@ -101,6 +101,7 @@ function PagesContent(): JSX.Element {
                     <Routes>            
                         {/* Home - eagerly loaded */}
                         <Route path="/" element={<Home />} />
+                        <Route path="/home" element={<Navigate to="/" replace />} />
                         
                         {/* Profile - eagerly loaded (auth landing) */}
                         <Route path="/profile" element={<Profile />} />

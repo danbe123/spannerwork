@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import MarketingFooter from "../../components/MarketingFooter";
 import SEO from "@/components/SEO";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface PricingCategory {
   category: string;
@@ -171,14 +174,16 @@ export default function PricingGuide(): JSX.Element {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      <SEO
-        title="Pricing Guide - Set Competitive Rates | SpannerWork"
-        description="Complete pricing guide for SpannerWork providers. Learn how to set daily rates, offer discounts, determine deposits, and maximise your rental income."
-        keywords="tool rental pricing, how to price rentals, equipment rental rates UK, SpannerWork pricing guide"
-      />
+    <>
+      <DocsMobileHeader />
+      <div className="min-h-screen bg-white">
+        <SEO
+          title="Pricing Guide - Set Competitive Rates | SpannerWork"
+          description="Complete pricing guide for SpannerWork providers. Learn how to set daily rates, offer discounts, determine deposits, and maximise your rental income."
+          keywords="tool rental pricing, how to price rentals, equipment rental rates UK, SpannerWork pricing guide"
+        />
 
-      {/* Hero */}
+        {/* Hero */}
       <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
         <div className="max-w-4xl mx-auto">
           <Button
@@ -198,6 +203,12 @@ export default function PricingGuide(): JSX.Element {
               <p className="text-xl text-orange-100 mt-2">Simple tips to help you price your listings with confidence</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <DocsBreadcrumbs />
         </div>
       </div>
 
@@ -240,8 +251,14 @@ export default function PricingGuide(): JSX.Element {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        {/* Quick Pricing Tip */}
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div className="lg:flex lg:gap-8">
+          <div className="hidden lg:block w-[280px] flex-none">
+            <DocsSidebar />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            {/* Quick Pricing Tip */}
         <Card className="mb-12 border-none shadow-lg bg-gradient-to-br from-orange-50 to-amber-50">
           <CardContent className="p-8">
             <div className="flex items-start gap-4">
@@ -347,16 +364,19 @@ export default function PricingGuide(): JSX.Element {
                 onClick={() => navigate("/guides/provider")}
                 variant="outline"
                 size="lg"
-                className="border-white text-white hover:bg-white/10 text-lg px-8 py-6"
+                className="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white text-lg px-8 py-6"
               >
                 Provider's Guide
               </Button>
             </div>
           </CardContent>
         </Card>
+          </div>
+        </div>
       </div>
 
       <MarketingFooter />
-    </div>
+      </div>
+    </>
   );
 }

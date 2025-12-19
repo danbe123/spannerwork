@@ -51,6 +51,7 @@ import useAuth from "@/hooks/use-auth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService, gamificationService, messagesService } from "@/api/services";
 import { User as UserType, Conversation } from "@/types";
+import BackToTopFab from "@/components/BackToTopFab";
 
 // Types
 interface UserStats {
@@ -72,6 +73,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/create': 'Create',
   '/messages': 'Messages',
   '/profile': 'Profile',
+  '/resources': 'Resources',
   '/admin': 'Admin',
   '/provider-dashboard': 'Dashboard',
   '/saved-searches': 'Saved Searches',
@@ -80,12 +82,48 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 // Marketing pages that don't show app navigation
-const MARKETING_PAGES = [
-  "Home", "HowItWorks", "Pricing", "Safety", "StartEarning", "SuccessStories",
-  "Resources", "About", "Contact", "Terms", "Privacy", "Cookies", "RefundPolicy",
-  "Auth", "Login", "Register", "ForgotPassword", "ResetPassword",
-  "guides/provider", "guides/renter", "guides/safety", "guides/pricing"
+const MARKETING_PATHS = [
+  '/',
+  '/home',
+  '/how-it-works',
+  '/pricing',
+  '/safety',
+  '/start-earning',
+  '/success-stories',
+  '/resources',
+  '/about',
+  '/contact',
+  '/terms',
+  '/privacy',
+  '/cookies',
+  '/refund-policy',
+  '/dispute-resolution',
+  '/verification',
+  '/map',
+  '/reset-password',
+  '/guides/provider',
+  '/guides/renter',
+  '/guides/safety',
+  '/guides/pricing',
 ];
+
+const MARKETING_PREFIXES = [
+  '/request/',
+  '/tool/',
+  '/space/',
+  '/service/',
+];
+
+function isMarketingRoute(pathname: string): boolean {
+  const original = pathname || '';
+  const trimmed = original !== '/' ? original.replace(/\/+$/, '') : original;
+  const normalized = (trimmed || '').toLowerCase();
+
+  if (MARKETING_PATHS.includes(normalized)) return true;
+  if (MARKETING_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return true;
+
+  return false;
+}
 
 // Navigation items generator
 const getNavigationItems = (userRole: string | undefined, unreadMessages: number): NavigationItem[] => {
@@ -93,6 +131,7 @@ const getNavigationItems = (userRole: string | undefined, unreadMessages: number
     { title: "Feed", url: "/feed", icon: Home, shortTitle: "Feed" },
     { title: "Create", url: "/create", icon: Plus, shortTitle: "Post" },
     { title: "Messages", url: "/messages", icon: MessageSquare, shortTitle: "Chat", badge: unreadMessages },
+    { title: "Resources", url: "/resources", icon: HelpCircle, shortTitle: "Help" },
     { title: "Profile", url: "/profile", icon: User, shortTitle: "Me" },
   ];
 
@@ -125,7 +164,7 @@ function DesktopSidebar({ items, currentPath, currentUser, onLogout, userStats }
 
   return (
     <aside 
-      className="hidden md:flex md:flex-col w-72 border-r border-gray-100 bg-gradient-to-b from-white via-white to-gray-50/50 relative"
+      className="hidden md:flex md:flex-col w-72 h-screen sticky top-0 self-start shrink-0 border-r border-gray-100 bg-gradient-to-b from-white via-white to-gray-50/50 relative overflow-hidden"
     >
       {/* Decorative gradient line */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-800 via-brand-500 to-[#FFC107]" />
@@ -151,127 +190,131 @@ function DesktopSidebar({ items, currentPath, currentUser, onLogout, userStats }
         </Link>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-2">
-        <div className="space-y-1">
-          {items.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentPath.toLowerCase() === item.url.toLowerCase();
-            
-            return (
-              <Link key={item.title} to={item.url}>
-                <motion.div
-                  className={`
-                    flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative group
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25' 
-                      : 'hover:bg-orange-50 text-gray-700 hover:text-brand-800'
-                    }
-                  `}
-                  whileHover={{ x: isActive ? 0 : 4 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : ''}`} />
-                  <span className="font-medium flex-1">{item.title}</span>
-                  {(item.badge || 0) > 0 && (
-                    <Badge 
-                      className={`
-                        px-2 py-0.5 text-xs font-bold
-                        ${isActive 
-                          ? 'bg-white text-orange-600' 
-                          : 'bg-brand-800 text-white'
-                        }
-                      `}
-                    >
-                      {(item.badge || 0) > 99 ? '99+' : item.badge}
-                    </Badge>
-                  )}
-                  {!isActive && (
-                    <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400" />
-                  )}
-                </motion.div>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+      <div className="flex-1 min-h-0 flex flex-col">
+        {/* Navigation */}
+        <nav className="flex-1 min-h-0 px-3 py-2 overflow-y-auto">
+          <div className="space-y-1">
+            {items.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentPath.toLowerCase() === item.url.toLowerCase();
+              
+              return (
+                <Link key={item.title} to={item.url}>
+                  <motion.div
+                    className={`
+                      flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative group
+                      ${isActive 
+                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25' 
+                        : 'hover:bg-orange-50 text-gray-700 hover:text-brand-800'
+                      }
+                    `}
+                    whileHover={{ x: isActive ? 0 : 4 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Icon className={`w-5 h-5 ${isActive ? 'text-white' : ''}`} />
+                    <span className="font-medium flex-1">{item.title}</span>
+                    {(item.badge || 0) > 0 && (
+                      <Badge 
+                        className={`
+                          px-2 py-0.5 text-xs font-bold
+                          ${isActive 
+                            ? 'bg-white text-orange-600' 
+                            : 'bg-brand-800 text-white'
+                          }
+                        `}
+                      >
+                        {(item.badge || 0) > 99 ? '99+' : item.badge}
+                      </Badge>
+                    )}
+                    {!isActive && (
+                      <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400" />
+                    )}
+                  </motion.div>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
 
-      {/* Quick Stats */}
-      {userStats && (
-        <div className="px-4 pb-4">
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span className="text-sm font-semibold text-gray-700">Your Stats</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-brand-800">{userStats.totalTransactions || 0}</p>
-                <p className="text-xs text-gray-500">Completed</p>
+        {/* Quick Stats */}
+        {userStats && (
+          <div className="px-4 pb-4">
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span className="text-sm font-semibold text-gray-700">Your Stats</span>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-emerald-600">{userStats.totalListings || 0}</p>
-                <p className="text-xs text-gray-500">Listings</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-brand-800">{userStats.totalTransactions || 0}</p>
+                  <p className="text-xs text-gray-500">Completed</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-emerald-600">{userStats.totalListings || 0}</p>
+                  <p className="text-xs text-gray-500">Listings</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* User Section - Above Help */}
-      {currentUser && (
-        <div className="px-4 pb-4">
-          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-4 border border-orange-100">
-            <div className="flex items-center gap-3">
-              <Avatar className="w-12 h-12 ring-2 ring-white shadow-md">
-                <AvatarImage src={currentUser.avatar || undefined} />
-                <AvatarFallback className="bg-gradient-to-br from-brand-800 to-brand-900 text-white font-semibold">
-                  {currentUser.name?.charAt(0) || currentUser.email?.charAt(0) || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">
-                  {currentUser.name || 'Welcome!'}
-                </p>
-                <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
+      <div className="mt-auto">
+        {/* User Section - Above Help */}
+        {currentUser && (
+          <div className="px-4 pb-4">
+            <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-4 border border-orange-100">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-12 h-12 ring-2 ring-white shadow-md">
+                  <AvatarImage src={currentUser.avatar || undefined} />
+                  <AvatarFallback className="bg-gradient-to-br from-brand-800 to-brand-900 text-white font-semibold">
+                    {currentUser.name?.charAt(0) || currentUser.email?.charAt(0) || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">
+                    {currentUser.name || 'Welcome!'}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                      <Settings className="w-4 h-4 text-gray-500" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="flex items-center gap-2">
+                        <User className="w-4 h-4" /> View Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/provider-dashboard" className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4" /> Provider Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={onLogout} className="text-red-600">
+                      <LogOut className="w-4 h-4 mr-2" /> Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                    <Settings className="w-4 h-4 text-gray-500" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile" className="flex items-center gap-2">
-                      <User className="w-4 h-4" /> View Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/provider-dashboard" className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4" /> Provider Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onLogout} className="text-red-600">
-                    <LogOut className="w-4 h-4 mr-2" /> Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Help Link */}
-      <div className="p-4 border-t border-gray-100">
-        <Link 
-          to="/resources"
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-brand-800 transition-colors"
-        >
-          <HelpCircle className="w-4 h-4" />
-          Help & Resources
-        </Link>
+        {/* Help Link */}
+        <div className="p-4 border-t border-gray-100">
+          <Link 
+            to="/resources"
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-brand-800 transition-colors"
+          >
+            <HelpCircle className="w-4 h-4" />
+            Help & Resources
+          </Link>
+        </div>
       </div>
     </aside>
   );
@@ -632,13 +675,11 @@ export default function Layout({ children }: LayoutProps) {
 
       const path = window.location.pathname;
       const currentPath = path + window.location.search;
-      const lowerPath = path.toLowerCase();
 
       const isProfilePage = path === '/Profile' || path === '/profile';
-      const isMarketingRoute = path === '/' || 
-        MARKETING_PAGES.some((page) => lowerPath === `/${page.toLowerCase()}`);
+      const isMarketingPath = isMarketingRoute(path);
 
-      if (isProfilePage || isMarketingRoute) return;
+      if (isProfilePage || isMarketingPath) return;
 
       toast.error('Session expired', { description: 'Please sign in again.' });
       const params = new URLSearchParams();
@@ -652,8 +693,7 @@ export default function Layout({ children }: LayoutProps) {
 
   // Check if marketing page
   const pathNameLower = location.pathname.toLowerCase();
-  const isMarketingPage = location.pathname === "/" ||
-    MARKETING_PAGES.some((page) => pathNameLower === `/${page.toLowerCase()}`);
+  const isMarketingPage = isMarketingRoute(location.pathname);
   const isAuthLanding = pathNameLower === "/profile" && !isAuthenticated;
 
   // Marketing pages render without app shell
@@ -662,6 +702,7 @@ export default function Layout({ children }: LayoutProps) {
       <>
         <ScrollToTop />
         {children}
+        <BackToTopFab bottomClassName="bottom-6" />
         <CookieConsent />
         <Toaster position="top-right" />
       </>
@@ -728,6 +769,8 @@ export default function Layout({ children }: LayoutProps) {
           onLogout={handleLogout}
         />
       </div>
+
+      <BackToTopFab bottomClassName="bottom-24" />
     </div>
   );
 }

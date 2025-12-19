@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 
-const { mockAuthService, mockUploadService, mockToast } = vi.hoisted(() => ({
+const { mockAuthService, mockUploadService, mockInsuranceService, mockToast } = vi.hoisted(() => ({
   mockAuthService: {
     getCurrentUser: vi.fn(),
     sendVerificationEmail: vi.fn(),
@@ -14,6 +14,9 @@ const { mockAuthService, mockUploadService, mockToast } = vi.hoisted(() => ({
   mockUploadService: {
     uploadFile: vi.fn(),
   },
+  mockInsuranceService: {
+    uploadDocument: vi.fn(),
+  },
   mockToast: { success: vi.fn(), error: vi.fn() },
 }))
 
@@ -23,6 +26,10 @@ vi.mock('@/api/services', () => ({
   authService: mockAuthService,
   uploadService: mockUploadService,
   usersService: { update: vi.fn() },
+}))
+
+vi.mock('@/api/services/insurance', () => ({
+  insuranceService: mockInsuranceService,
 }))
 
 vi.mock('@/utils', () => ({
@@ -71,6 +78,7 @@ beforeEach(() => {
   mockAuthService.verifyPhone.mockResolvedValue({ ok: true })
   mockAuthService.verifyEmail.mockResolvedValue({ ok: true })
   mockUploadService.uploadFile.mockResolvedValue({ data: { fileUrl: 'https://example.com/doc.pdf' } })
+  mockInsuranceService.uploadDocument.mockResolvedValue({ success: true })
 })
 
 describe('Verification page', () => {
@@ -196,6 +204,12 @@ describe('Verification page', () => {
       
       await waitFor(() => {
         expect(mockUploadService.uploadFile).toHaveBeenCalledWith(file)
+      })
+
+      await waitFor(() => {
+        expect(mockInsuranceService.uploadDocument).toHaveBeenCalledWith({
+          documentUrl: 'https://example.com/doc.pdf',
+        })
       })
     })
   })

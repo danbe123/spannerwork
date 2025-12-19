@@ -457,6 +457,20 @@ export default function Feed() {
     setSearchQuery("");
   };
 
+  const scrollToFilters = useCallback(() => {
+    setShowFilters(true);
+
+    requestAnimationFrame(() => {
+      const el = document.getElementById('feed-filters');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }, []);
+
   // Reset all filters
   const resetFilters = () => {
     setActiveCategory("all");
@@ -481,7 +495,7 @@ export default function Feed() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-orange-50/10">
       {/* Premium Header */}
-      <div className="bg-white/90 backdrop-blur border-b border-gray-100 sticky top-0 z-20 md:relative">
+      <div id="feed-filters" className="bg-white/90 backdrop-blur border-b border-gray-100 sticky top-0 z-20 md:relative">
         <div className="max-w-7xl mx-auto px-4 py-5">
           {/* Top row: Title + CTA */}
           <div className="flex items-center justify-between mb-6">
@@ -894,11 +908,12 @@ export default function Feed() {
       </div>
 
       {/* Mobile FAB for filters (shown when scrolled) */}
-      <div className="fixed bottom-24 right-4 md:hidden z-30">
+      <div className="fixed bottom-40 right-4 md:hidden z-30">
         <motion.button
           className="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center border border-gray-200"
           whileTap={{ scale: 0.9 }}
-          onClick={() => setShowFilters(!showFilters)}
+          onClick={scrollToFilters}
+          aria-label="Scroll to filters"
         >
           <Filter className="w-5 h-5 text-gray-700" />
         </motion.button>

@@ -208,6 +208,7 @@ export const createServiceSchema = z.object({
   calloutFee: z.number().int().nonnegative().max(20000).optional(),
   radius: z.number().int().min(1).max(100),
   photos: z.array(z.string().url()).max(10).optional(),
+  requiresInsurance: z.boolean().optional(),
   postcode: z
     .string()
     .regex(

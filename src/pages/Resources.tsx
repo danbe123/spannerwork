@@ -19,6 +19,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
 import { Link } from "react-router-dom";
+import MarketingFooter from "@/components/MarketingFooter";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
 interface ResourceCategory {
   icon: React.ElementType;
@@ -88,10 +92,12 @@ export default function Resources(): JSX.Element {
         title="Resources | SpannerWork"
         description="Guides, tutorials, and FAQs to help you get the most out of SpannerWork."
       />
+
+      <DocsMobileHeader />
       
       <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100">
         {/* Hero Section */}
-        <div className="bg-gradient-to-br from-[#1565C0] to-[#0D47A1] text-white py-16 px-4">
+        <div className="bg-gradient-to-br from-brand-800 to-brand-900 text-white py-16 px-4">
           <div className="max-w-4xl mx-auto text-center">
             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <BookOpen className="w-8 h-8" />
@@ -99,45 +105,59 @@ export default function Resources(): JSX.Element {
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Resource Centre
             </h1>
-            <p className="text-xl text-blue-100 max-w-2xl mx-auto">
+            <p className="text-xl text-orange-100 max-w-2xl mx-auto">
               Everything you need to succeed on SpannerWork. Guides, tips, and answers to common questions.
             </p>
           </div>
         </div>
 
-        {/* Resource Categories */}
-        <div className="max-w-6xl mx-auto px-4 py-16">
-          <div className="grid md:grid-cols-2 gap-6">
-            {resourceCategories.map((category, idx) => (
-              <Card key={idx} className="shadow-lg">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <category.icon className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{category.title}</CardTitle>
-                      <CardDescription>{category.description}</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {category.links.map((link, i) => (
-                      <li key={i}>
-                        <Link 
-                          to={link.href}
-                          className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors group"
-                        >
-                          <span className="text-gray-700 group-hover:text-blue-600">{link.title}</span>
-                          <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))}
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <DocsBreadcrumbs />
+          </div>
+        </div>
+
+        {/* Docs Navigation + Resource Categories */}
+        <div className="max-w-6xl mx-auto px-4 py-10">
+          <div className="lg:flex lg:gap-8">
+            <div className="hidden lg:block w-[280px] flex-none">
+              <DocsSidebar />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="grid md:grid-cols-2 gap-6">
+                {resourceCategories.map((category, idx) => (
+                  <Card key={idx} className="shadow-lg">
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center">
+                          <category.icon className="w-5 h-5 text-brand-800" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{category.title}</CardTitle>
+                          <CardDescription>{category.description}</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-2">
+                        {category.links.map((link, i) => (
+                          <li key={i}>
+                            <Link 
+                              to={link.href}
+                              className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors group"
+                            >
+                              <span className="text-gray-700 group-hover:text-brand-800">{link.title}</span>
+                              <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-800" />
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -151,8 +171,8 @@ export default function Resources(): JSX.Element {
                   key={idx}
                   className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
                 >
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <article.icon className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <article.icon className="w-5 h-5 text-brand-800" />
                   </div>
                   <span className="font-medium text-gray-700">{article.title}</span>
                 </div>
@@ -163,21 +183,23 @@ export default function Resources(): JSX.Element {
 
         {/* Contact CTA */}
         <div className="max-w-4xl mx-auto px-4 py-16">
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <Card className="bg-gradient-to-r from-brand-50 to-orange-50 border-brand-100">
             <CardContent className="p-8 text-center">
-              <HelpCircle className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+              <HelpCircle className="w-12 h-12 text-brand-800 mx-auto mb-4" />
               <h3 className="text-xl font-bold mb-2">Can't Find What You're Looking For?</h3>
               <p className="text-gray-600 mb-6">
                 Our support team is here to help. Get in touch and we'll get back to you within 24 hours.
               </p>
               <Link to="/contact">
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-brand-800 hover:bg-brand-900">
                   Contact Support
                 </Button>
               </Link>
             </CardContent>
           </Card>
         </div>
+
+        <MarketingFooter />
       </div>
     </>
   );

@@ -9,6 +9,7 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { Application, Request, Response } from 'express';
 import { env } from './env.js';
+import { COOKIE_NAMES } from './cookie.js';
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -64,7 +65,7 @@ const options: swaggerJsdoc.Options = {
         sessionAuth: {
           type: 'apiKey',
           in: 'cookie',
-          name: 'sessionId',
+          name: COOKIE_NAMES.SESSION,
           description: 'Session-based authentication via httpOnly cookie',
         },
         csrfToken: {

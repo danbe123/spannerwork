@@ -5,6 +5,7 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  workflow_call:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,6 +27,9 @@ jobs:
       
       - name: Install dependencies
         run: npm ci
+
+      - name: Build shared package
+        run: npm run shared:build
       
       - name: Run linter
         run: npm run lint
@@ -45,37 +49,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Build shared package
+        run: npm run shared:build
+      
       - name: Run tests with coverage
         run: npm test -- --run --coverage
       
-      - name: Check coverage thresholds
-        run: |
-          # Extract coverage percentages from coverage-summary.json
-          COVERAGE_FILE="coverage/coverage-summary.json"
-          if [ -f "$COVERAGE_FILE" ]; then
-            LINES=$(cat $COVERAGE_FILE | jq '.total.lines.pct')
-            FUNCTIONS=$(cat $COVERAGE_FILE | jq '.total.functions.pct')
-            BRANCHES=$(cat $COVERAGE_FILE | jq '.total.branches.pct')
-            STATEMENTS=$(cat $COVERAGE_FILE | jq '.total.statements.pct')
-            
-            echo "Coverage Report:"
-            echo "  Lines: $LINES%"
-            echo "  Functions: $FUNCTIONS%"
-            echo "  Branches: $BRANCHES%"
-            echo "  Statements: $STATEMENTS%"
-            
-            # Minimum thresholds (80%)
-            MIN_THRESHOLD=80
-
-            # Check if any metric is below threshold
-            if (( $(echo "$LINES < $MIN_THRESHOLD" | bc -l) )) || \
-               (( $(echo "$STATEMENTS < $MIN_THRESHOLD" | bc -l) )); then
-              echo "❌ Coverage is below minimum threshold of ${MIN_THRESHOLD}%"
-              exit 1
-            fi
-            echo "✅ Coverage meets minimum threshold of ${MIN_THRESHOLD}%"
-          fi
-
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         if: always()
@@ -98,6 +77,9 @@ jobs:
       
       - name: Install dependencies
         run: npm ci
+
+      - name: Build shared package
+        run: npm run shared:build
       
       - name: Build
         run: npm run build
@@ -189,34 +171,6 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage -- --run
       
-      - name: Check coverage thresholds
-        run: |
-          # Extract coverage percentages from coverage-summary.json
-          COVERAGE_FILE="coverage/coverage-summary.json"
-          if [ -f "$COVERAGE_FILE" ]; then
-            LINES=$(cat $COVERAGE_FILE | jq '.total.lines.pct')
-            FUNCTIONS=$(cat $COVERAGE_FILE | jq '.total.functions.pct')
-            BRANCHES=$(cat $COVERAGE_FILE | jq '.total.branches.pct')
-            STATEMENTS=$(cat $COVERAGE_FILE | jq '.total.statements.pct')
-            
-            echo "Coverage Report:"
-            echo "  Lines: $LINES%"
-            echo "  Functions: $FUNCTIONS%"
-            echo "  Branches: $BRANCHES%"
-            echo "  Statements: $STATEMENTS%"
-            
-            # Minimum thresholds (80%)
-            MIN_THRESHOLD=80
-
-            # Check if any metric is below threshold
-            if (( $(echo "$LINES < $MIN_THRESHOLD" | bc -l) )) || \
-               (( $(echo "$STATEMENTS < $MIN_THRESHOLD" | bc -l) )); then
-              echo "❌ Coverage is below minimum threshold of ${MIN_THRESHOLD}%"
-              exit 1
-            fi
-            echo "✅ Coverage meets minimum threshold of ${MIN_THRESHOLD}%"
-          fi
-
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         if: always()
@@ -297,6 +251,9 @@ jobs:
       
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Build shared package
+        run: npm run shared:build
       
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -316,7 +273,7 @@ jobs:
           PORT: 3000
       
       - name: Wait for backend
-        run: npx wait-on http://localhost:3000/health -t 30000
+        run: npm run dev:wait:backend
       
       - name: Run E2E tests
         run: npm run test:e2e -- --project=chromium

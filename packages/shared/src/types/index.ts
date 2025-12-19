@@ -140,6 +140,7 @@ export interface Service {
   offersFreeQuote?: boolean;
   certifications?: string[];
   hasInsurance?: boolean;
+  requiresInsurance?: boolean;
   createdDate: string;
   updatedDate: string;
 }
@@ -472,6 +473,7 @@ export interface CreateServiceData {
   calloutFee?: number;
   radius: number;
   photos?: string[];
+  requiresInsurance?: boolean;
   postcode: string;
 }
 

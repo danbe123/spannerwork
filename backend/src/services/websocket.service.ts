@@ -73,10 +73,31 @@ export function getConnectionStats(): {
  * Initialize WebSocket server
  */
 export function initializeWebSocket(httpServer: HttpServer): Server {
+  const isAllowedDevOrigin = (origin: string): boolean => {
+    try {
+      const url = new URL(origin);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return false;
+      }
+      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+        return true;
+      }
+      return origin === env.FRONTEND_URL;
+    } catch {
+      return false;
+    }
+  };
+
   io = new Server(httpServer, {
     cors: {
       origin: env.NODE_ENV === 'development'
-        ? true
+        ? (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+            if (!origin) {
+              callback(null, true);
+              return;
+            }
+            callback(null, isAllowedDevOrigin(origin));
+          }
         : env.FRONTEND_URL,
       credentials: true,
     },

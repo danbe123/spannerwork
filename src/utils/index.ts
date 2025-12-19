@@ -19,6 +19,9 @@ export function createPageUrl(pageName: string) {
 
     const [rawPath, rawQuery] = pageName.split('?');
     const slug = slugifySegment(rawPath || '');
+    if (slug === 'home') {
+        return rawQuery ? `/?${rawQuery}` : '/';
+    }
     const normalizedPath = slug ? `/${slug}` : '/';
 
     return rawQuery ? `${normalizedPath}?${rawQuery}` : normalizedPath;
