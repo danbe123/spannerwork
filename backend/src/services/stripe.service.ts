@@ -194,33 +194,36 @@ export class StripeService {
    */
   async createConnectAccount(params: CreateConnectAccountParams): Promise<ConnectAccountResult> {
     this.ensureConfigured();
-    
+    const stripe = this.getStripe();
+
     logger.info(`Creating Stripe Connect account for user ${params.userId}`);
 
-    // TODO: Implement when Stripe is integrated
-    // const stripe = new Stripe(this.secretKey);
-    // const account = await stripe.accounts.create({
-    //   type: 'express',
-    //   country: params.country || 'GB',
-    //   email: params.email,
-    //   business_type: params.businessType || 'individual',
-    //   capabilities: {
-    //     card_payments: { requested: true },
-    //     transfers: { requested: true },
-    //   },
-    //   metadata: {
-    //     userId: params.userId,
-    //   },
-    // });
-    // 
-    // const accountLink = await stripe.accountLinks.create({
-    //   account: account.id,
-    //   refresh_url: `${env.FRONTEND_URL}/provider/onboarding/refresh`,
-    //   return_url: `${env.FRONTEND_URL}/provider/onboarding/complete`,
-    //   type: 'account_onboarding',
-    // });
+    const account = await stripe.accounts.create({
+      type: 'express',
+      country: params.country || 'GB',
+      email: params.email,
+      business_type: params.businessType || 'individual',
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      metadata: {
+        userId: params.userId,
+      },
+    });
 
-    throw new Error('Stripe integration not yet implemented. Set STRIPE_SECRET_KEY to enable.');
+    const accountLink = await stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: `${env.FRONTEND_URL}/provider/onboarding/refresh`,
+      return_url: `${env.FRONTEND_URL}/provider/onboarding/complete`,
+      type: 'account_onboarding',
+    });
+
+    return {
+      accountId: account.id,
+      onboardingUrl: accountLink.url,
+      expiresAt: new Date(accountLink.expires_at * 1000),
+    };
   }
 
   /**
@@ -228,60 +231,54 @@ export class StripeService {
    */
   async createOnboardingLink(accountId: string): Promise<string> {
     this.ensureConfigured();
+    const stripe = this.getStripe();
 
     logger.info(`Creating onboarding link for account ${accountId}`);
 
-    // TODO: Implement when Stripe is integrated
-    // const stripe = new Stripe(this.secretKey);
-    // const accountLink = await stripe.accountLinks.create({
-    //   account: accountId,
-    //   refresh_url: `${env.FRONTEND_URL}/provider/onboarding/refresh`,
-    //   return_url: `${env.FRONTEND_URL}/provider/onboarding/complete`,
-    //   type: 'account_onboarding',
-    // });
-    // return accountLink.url;
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${env.FRONTEND_URL}/provider/onboarding/refresh`,
+      return_url: `${env.FRONTEND_URL}/provider/onboarding/complete`,
+      type: 'account_onboarding',
+    });
 
-    throw new Error('Stripe integration not yet implemented');
+    return accountLink.url;
   }
 
   /**
    * Get the status of a Connect account
    */
-  async getAccountStatus(_accountId: string): Promise<AccountStatus> {
+  async getAccountStatus(accountId: string): Promise<AccountStatus> {
     this.ensureConfigured();
+    const stripe = this.getStripe();
 
-    logger.info(`Getting status for account ${_accountId}`);
+    logger.info(`Getting status for account ${accountId}`);
 
-    // TODO: Implement when Stripe is integrated
-    // const stripe = new Stripe(this.secretKey);
-    // const account = await stripe.accounts.retrieve(accountId);
-    // return {
-    //   accountId: account.id,
-    //   chargesEnabled: account.charges_enabled,
-    //   payoutsEnabled: account.payouts_enabled,
-    //   detailsSubmitted: account.details_submitted,
-    //   requirements: {
-    //     currentlyDue: account.requirements?.currently_due || [],
-    //     eventuallyDue: account.requirements?.eventually_due || [],
-    //     pastDue: account.requirements?.past_due || [],
-    //   },
-    // };
+    const account = await stripe.accounts.retrieve(accountId);
 
-    throw new Error('Stripe integration not yet implemented');
+    return {
+      accountId: account.id,
+      chargesEnabled: account.charges_enabled ?? false,
+      payoutsEnabled: account.payouts_enabled ?? false,
+      detailsSubmitted: account.details_submitted ?? false,
+      requirements: {
+        currentlyDue: account.requirements?.currently_due || [],
+        eventuallyDue: account.requirements?.eventually_due || [],
+        pastDue: account.requirements?.past_due || [],
+      },
+    };
   }
 
   /**
    * Create a login link for the Connect Express dashboard
    */
-  async createDashboardLink(_accountId: string): Promise<string> {
+  async createDashboardLink(accountId: string): Promise<string> {
     this.ensureConfigured();
+    const stripe = this.getStripe();
 
-    // TODO: Implement when Stripe is integrated
-    // const stripe = new Stripe(this.secretKey);
-    // const loginLink = await stripe.accounts.createLoginLink(accountId);
-    // return loginLink.url;
+    const loginLink = await stripe.accounts.createLoginLink(accountId);
 
-    throw new Error('Stripe integration not yet implemented');
+    return loginLink.url;
   }
 
   // ==========================================================================
@@ -424,21 +421,20 @@ export class StripeService {
    */
   async confirmPaymentIntent(paymentIntentId: string): Promise<PaymentIntentResult> {
     this.ensureConfigured();
+    const stripe = this.getStripe();
 
     logger.info(`Confirming payment intent ${paymentIntentId}`);
 
-    // TODO: Implement when Stripe is integrated
-    // const stripe = new Stripe(this.secretKey);
-    // const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId);
-    // return {
-    //   paymentIntentId: paymentIntent.id,
-    //   clientSecret: paymentIntent.client_secret!,
-    //   status: paymentIntent.status as PaymentIntentStatus,
-    //   amount: paymentIntent.amount,
-    //   currency: paymentIntent.currency,
-    // };
+    const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId);
 
-    throw new Error('Stripe integration not yet implemented');
+    return {
+      paymentIntentId: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret!,
+      status: paymentIntent.status as PaymentIntentStatus,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      requiresCapture: paymentIntent.status === 'requires_capture',
+    };
   }
 
   /**
@@ -446,28 +442,30 @@ export class StripeService {
    */
   async cancelPaymentIntent(paymentIntentId: string): Promise<void> {
     this.ensureConfigured();
+    const stripe = this.getStripe();
 
     logger.info(`Canceling payment intent ${paymentIntentId}`);
 
-    // TODO: Implement when Stripe is integrated
-    // const stripe = new Stripe(this.secretKey);
-    // await stripe.paymentIntents.cancel(paymentIntentId);
-
-    throw new Error('Stripe integration not yet implemented');
+    await stripe.paymentIntents.cancel(paymentIntentId);
   }
 
   /**
    * Retrieve a payment intent
    */
-  async getPaymentIntent(_paymentIntentId: string): Promise<PaymentIntentResult> {
+  async getPaymentIntent(paymentIntentId: string): Promise<PaymentIntentResult> {
     this.ensureConfigured();
+    const stripe = this.getStripe();
 
-    // TODO: Implement when Stripe is integrated
-    // const stripe = new Stripe(this.secretKey);
-    // const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-    // return { ... };
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-    throw new Error('Stripe integration not yet implemented');
+    return {
+      paymentIntentId: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret!,
+      status: paymentIntent.status as PaymentIntentStatus,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      requiresCapture: paymentIntent.status === 'requires_capture',
+    };
   }
 
   // ==========================================================================
@@ -479,26 +477,23 @@ export class StripeService {
    */
   async createRefund(params: RefundParams): Promise<RefundResult> {
     this.ensureConfigured();
+    const stripe = this.getStripe();
 
     logger.info(`Creating refund for payment ${params.paymentIntentId}`);
 
-    // TODO: Implement when Stripe is integrated
-    // const stripe = new Stripe(this.secretKey);
-    // const refund = await stripe.refunds.create({
-    //   payment_intent: params.paymentIntentId,
-    //   amount: params.amount, // undefined = full refund
-    //   reason: params.reason,
-    //   reverse_transfer: true, // Reverse the transfer to provider
-    //   refund_application_fee: true, // Refund the platform fee too
-    // });
-    // 
-    // return {
-    //   refundId: refund.id,
-    //   amount: refund.amount,
-    //   status: refund.status as RefundResult['status'],
-    // };
+    const refund = await stripe.refunds.create({
+      payment_intent: params.paymentIntentId,
+      amount: params.amount, // undefined = full refund
+      reason: params.reason,
+      reverse_transfer: true, // Reverse the transfer to provider
+      refund_application_fee: true, // Refund the platform fee too
+    });
 
-    throw new Error('Stripe integration not yet implemented');
+    return {
+      refundId: refund.id,
+      amount: refund.amount ?? 0,
+      status: (refund.status ?? 'pending') as RefundResult['status'],
+    };
   }
 
   // ==========================================================================
@@ -511,27 +506,24 @@ export class StripeService {
    */
   async createTransfer(params: TransferParams): Promise<TransferResult> {
     this.ensureConfigured();
+    const stripe = this.getStripe();
 
     logger.info(`Creating transfer of ${params.amount} to ${params.destinationAccountId}`);
 
-    // TODO: Implement when Stripe is integrated
-    // const stripe = new Stripe(this.secretKey);
-    // const transfer = await stripe.transfers.create({
-    //   amount: params.amount,
-    //   currency: 'gbp',
-    //   destination: params.destinationAccountId,
-    //   transfer_group: params.transactionId,
-    //   description: params.description,
-    // });
-    // 
-    // return {
-    //   transferId: transfer.id,
-    //   amount: transfer.amount,
-    //   destinationAccountId: transfer.destination as string,
-    //   status: 'pending',
-    // };
+    const transfer = await stripe.transfers.create({
+      amount: params.amount,
+      currency: 'gbp',
+      destination: params.destinationAccountId,
+      transfer_group: params.transactionId,
+      description: params.description,
+    });
 
-    throw new Error('Stripe integration not yet implemented');
+    return {
+      transferId: transfer.id,
+      amount: transfer.amount,
+      destinationAccountId: transfer.destination as string,
+      status: 'pending',
+    };
   }
 
   // ==========================================================================
@@ -541,19 +533,17 @@ export class StripeService {
   /**
    * Verify and parse a webhook event from Stripe
    */
-  verifyWebhookSignature(_payload: string | Buffer, _signature: string): WebhookEvent {
+  verifyWebhookSignature(payload: string | Buffer, signature: string): WebhookEvent {
     this.ensureConfigured();
+    const stripe = this.getStripe();
 
-    // TODO: Implement when Stripe is integrated
-    // const stripe = new Stripe(this.secretKey);
-    // const event = stripe.webhooks.constructEvent(
-    //   payload,
-    //   signature,
-    //   this.webhookSecret
-    // );
-    // return event as WebhookEvent;
+    const event = stripe.webhooks.constructEvent(
+      payload,
+      signature,
+      this.webhookSecret
+    );
 
-    throw new Error('Stripe integration not yet implemented');
+    return event as unknown as WebhookEvent;
   }
 
   /**

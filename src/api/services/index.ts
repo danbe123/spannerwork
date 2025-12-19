@@ -58,6 +58,18 @@ export type { Badge, UserStats, LeaderboardEntry, NextBadge } from './gamificati
 export { quickAcceptService } from './quickAccept';
 export type { MatchingProvider, PendingResponse } from './quickAccept';
 
+// Payment service (Stripe)
+export { paymentsService } from './payments';
+export type {
+  StripeConfig,
+  ConnectAccountResponse,
+  AccountStatus,
+  PaymentIntentResponse,
+  EscrowStatus,
+  CaptureResponse,
+  RefundResponse,
+} from './payments';
+
 // Admin analytics service (TypeScript)
 export { analyticsService } from './analytics.service';
 export type {

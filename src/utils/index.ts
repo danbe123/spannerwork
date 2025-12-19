@@ -37,3 +37,16 @@ export function mapPathToPageName(pathname: string, pageNames: readonly string[]
     const match = pageNames.find((page) => slugifySegment(page) === slug);
     return match || fallback;
 }
+
+/**
+ * Format price in pence to GBP currency string
+ * @param pence - Amount in pence
+ * @returns Formatted price string (e.g., "£12.50")
+ */
+export function formatPrice(pence: number): string {
+    const pounds = pence / 100;
+    return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+    }).format(pounds);
+}

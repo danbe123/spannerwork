@@ -1,133 +1,256 @@
-import { useState, ChangeEvent, FormEvent } from "react";
+/**
+ * Payment Page
+ *
+ * Handles secure payment collection using Stripe Elements.
+ * Supports escrow payments where funds are held until job completion.
+ */
+
+import { useState, useEffect } from "react";
 import { transactionsService, usersService } from "@/api/services";
+import { paymentsService } from "@/api/services/payments";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { createPageUrl, formatPrice } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { 
-  ArrowLeft, 
-  CreditCard,
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ArrowLeft,
   Shield,
   Lock,
   CheckCircle,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  ShieldCheck
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Transaction, User } from "@/types";
+import { toast } from "sonner";
+
+// Cache Stripe promise
+let stripePromise: ReturnType<typeof loadStripe> | null = null;
+
+async function getStripePromise() {
+  if (!stripePromise) {
+    try {
+      const config = await paymentsService.getConfig();
+      if (config.publishableKey) {
+        stripePromise = loadStripe(config.publishableKey);
+      }
+    } catch (error) {
+      console.error("Failed to load Stripe:", error);
+    }
+  }
+  return stripePromise;
+}
+
+// ============================================================================
+// Payment Form Component (uses Stripe Elements)
+// ============================================================================
+
+interface PaymentFormProps {
+  transaction: Transaction;
+  clientSecret: string;
+  onSuccess: () => void;
+  onError: (message: string) => void;
+}
+
+function PaymentFormInner({ transaction, clientSecret, onSuccess, onError }: PaymentFormProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      setError("Payment system not ready. Please refresh and try again.");
+      return;
+    }
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/payment/complete?transactionId=${transaction.id}`,
+        },
+        redirect: "if_required",
+      });
+
+      if (stripeError) {
+        setError(stripeError.message || "Payment failed. Please try again.");
+        onError(stripeError.message || "Payment failed");
+        setProcessing(false);
+      } else if (paymentIntent) {
+        if (paymentIntent.status === "succeeded" || paymentIntent.status === "requires_capture") {
+          onSuccess();
+        } else {
+          setError("Payment requires additional verification.");
+          setProcessing(false);
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred";
+      setError(message);
+      onError(message);
+      setProcessing(false);
+    }
+  };
+
+  const totalAmount = (transaction.rentalFee || 0) + (transaction.platformFee || 0);
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Security Notice */}
+      <Alert className="bg-green-50 border-green-200">
+        <Shield className="h-4 w-4 text-green-600" />
+        <AlertDescription className="text-sm text-green-800">
+          Your payment is secure. Funds are held until service completion.
+        </AlertDescription>
+      </Alert>
+
+      {/* Stripe Payment Element */}
+      <div className="p-4 border rounded-lg bg-white">
+        <PaymentElement
+          options={{
+            layout: "tabs",
+            paymentMethodOrder: ["card", "apple_pay", "google_pay"],
+          }}
+        />
+      </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <Button
+        type="submit"
+        disabled={!stripe || processing}
+        className="w-full bg-green-600 hover:bg-green-700 text-lg py-6"
+      >
+        {processing ? (
+          <>
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            Processing Payment...
+          </>
+        ) : (
+          <>
+            <Lock className="w-5 h-5 mr-2" />
+            Pay {formatPrice(totalAmount)}
+          </>
+        )}
+      </Button>
+
+      <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
+        <Shield className="w-4 h-4" />
+        <span>Secured by Stripe</span>
+      </div>
+    </form>
+  );
+}
+
+// ============================================================================
+// Main Payment Page
+// ============================================================================
 
 export default function Payment() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  
+
   const urlParams = new URLSearchParams(window.location.search);
-  const transactionId = urlParams.get('transactionId');
+  const transactionId = urlParams.get("transactionId");
 
-  const [cardDetails, setCardDetails] = useState({
-    number: "",
-    expiry: "",
-    cvc: "",
-    name: "",
-  });
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [stripe, setStripe] = useState<Awaited<ReturnType<typeof loadStripe>>>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  const { data: transactionData, isLoading } = useQuery({
-    queryKey: ['transaction', transactionId],
-    queryFn: async (): Promise<{ transaction: Transaction | undefined }> => 
-      transactionId 
-        ? transactionsService.getById(transactionId) 
+  // Load Stripe on mount
+  useEffect(() => {
+    getStripePromise().then(setStripe);
+  }, []);
+
+  // Fetch transaction
+  const { data: transactionData, isLoading: transactionLoading } = useQuery({
+    queryKey: ["transaction", transactionId],
+    queryFn: async (): Promise<{ transaction: Transaction | undefined }> =>
+      transactionId
+        ? transactionsService.getById(transactionId)
         : { transaction: undefined },
     enabled: !!transactionId,
   });
 
-  const transaction = transactionData?.transaction as Transaction | undefined;
+  const transaction = transactionData?.transaction;
 
+  // Fetch provider info
   const { data: providerData } = useQuery({
-    queryKey: ['provider', transaction?.providerId],
-    queryFn: async (): Promise<{ user: User | undefined }> => 
-      transaction?.providerId 
-        ? usersService.getById(transaction.providerId) 
+    queryKey: ["provider", transaction?.providerId],
+    queryFn: async (): Promise<{ user: User | undefined }> =>
+      transaction?.providerId
+        ? usersService.getById(transaction.providerId)
         : { user: undefined },
     enabled: !!transaction?.providerId,
   });
 
-  const provider = providerData?.user as User | undefined;
+  const provider = providerData?.user;
 
-  const rentalAmountPence = transaction?.rentalFee || 0;
-  const platformFeeAmountPence = transaction?.platformFee || 0;
-  const finalAmountPence = rentalAmountPence + platformFeeAmountPence;
-
-  const formatPounds = (pence: number | undefined) => (pence || 0) / 100;
-
-  const processPaymentMutation = useMutation({
-    mutationFn: async () => {
-      setProcessing(true);
-      setError(null);
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      if (!transactionId) throw new Error("No transaction ID");
-      await transactionsService.updateStatus(transactionId, 'CONFIRMED');
-
-      // Backend handles email confirmations automatically
-
-      return transaction;
+  // Create payment intent when transaction is loaded
+  const createPaymentIntentMutation = useMutation({
+    mutationFn: (txId: string) => paymentsService.createPaymentIntent(txId),
+    onSuccess: (data) => {
+      setClientSecret(data.clientSecret);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transaction', transactionId] });
-      navigate(createPageUrl(`TransactionDetail?id=${transactionId}`));
-    },
-    onError: () => {
-      setError("Payment failed. Please try again or contact support.");
-      setProcessing(false);
+    onError: (error: Error) => {
+      setPaymentError(error.message || "Failed to initialize payment");
     },
   });
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    
-    if (!cardDetails.number || !cardDetails.expiry || !cardDetails.cvc || !cardDetails.name) {
-      setError("Please fill in all card details");
-      return;
+  // Create payment intent when transaction is available
+  useEffect(() => {
+    if (transaction?.id && !clientSecret && !createPaymentIntentMutation.isPending) {
+      // Only create intent if payment is not already made
+      if (transaction.paymentStatus === "PENDING") {
+        createPaymentIntentMutation.mutate(transaction.id);
+      }
     }
+  }, [transaction?.id, transaction?.paymentStatus, clientSecret]);
 
-    if (cardDetails.number.replace(/\s/g, '').length !== 16) {
-      setError("Please enter a valid 16-digit card number");
-      return;
-    }
-
-    processPaymentMutation.mutate();
+  const handlePaymentSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ["transaction", transactionId] });
+    toast.success("Payment successful!");
+    navigate(createPageUrl(`TransactionDetail?id=${transactionId}`));
   };
 
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || '';
-    const parts = [];
-
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-
-    if (parts.length) {
-      return parts.join(' ');
-    } else {
-      return value;
-    }
+  const handlePaymentError = (message: string) => {
+    toast.error(message);
   };
 
-  if (isLoading) {
+  // Loading states
+  if (transactionLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100 p-4 md:p-8 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-800" />
+      <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100 p-4 md:p-8">
+        <div className="max-w-3xl mx-auto">
+          <Skeleton className="h-10 w-24 mb-6" />
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              <Skeleton className="h-96 rounded-lg" />
+            </div>
+            <Skeleton className="h-64 rounded-lg" />
+          </div>
+        </div>
       </div>
     );
   }
 
+  // Transaction not found
   if (!transaction) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100 p-4 md:p-8">
@@ -141,6 +264,26 @@ export default function Payment() {
       </div>
     );
   }
+
+  // Already paid
+  if (transaction.paymentStatus !== "PENDING") {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100 p-4 md:p-8">
+        <div className="max-w-2xl mx-auto text-center py-12">
+          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Payment Already Processed</h2>
+          <p className="text-gray-600 mb-4">This transaction has already been paid.</p>
+          <Button onClick={() => navigate(createPageUrl(`TransactionDetail?id=${transactionId}`))}>
+            View Transaction
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const rentalAmountPence = transaction.rentalFee || 0;
+  const platformFeeAmountPence = transaction.platformFee || 0;
+  const totalAmountPence = rentalAmountPence + platformFeeAmountPence;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100 p-4 md:p-8">
@@ -165,109 +308,57 @@ export default function Payment() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Security Notice */}
-                  <Alert className="bg-green-50 border-green-200">
-                    <Shield className="h-4 w-4 text-green-600" />
-                    <AlertDescription className="text-sm text-green-800">
-                      Your payment is secure. Funds are held until service completion.
+                {paymentError ? (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      {paymentError}
+                      <Button
+                        variant="link"
+                        className="p-0 h-auto ml-2"
+                        onClick={() => {
+                          setPaymentError(null);
+                          if (transactionId) {
+                            createPaymentIntentMutation.mutate(transactionId);
+                          }
+                        }}
+                      >
+                        Try again
+                      </Button>
                     </AlertDescription>
                   </Alert>
-
-                  {/* Card Details */}
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="cardName">Cardholder Name</Label>
-                      <Input
-                        id="cardName"
-                        placeholder="John Smith"
-                        value={cardDetails.name}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setCardDetails({...cardDetails, name: e.target.value})}
-                        className="mt-2"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="cardNumber">Card Number</Label>
-                      <div className="relative mt-2">
-                        <Input
-                          id="cardNumber"
-                          placeholder="1234 5678 9012 3456"
-                          value={cardDetails.number}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => setCardDetails({...cardDetails, number: formatCardNumber(e.target.value)})}
-                          maxLength={19}
-                          required
-                        />
-                        <CreditCard className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="expiry">Expiry Date</Label>
-                        <Input
-                          id="expiry"
-                          placeholder="MM/YY"
-                          value={cardDetails.expiry}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                            let value = e.target.value.replace(/\D/g, '');
-                            if (value.length >= 2) {
-                              value = value.slice(0, 2) + '/' + value.slice(2, 4);
-                            }
-                            setCardDetails({...cardDetails, expiry: value});
-                          }}
-                          maxLength={5}
-                          className="mt-2"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="cvc">CVC</Label>
-                        <Input
-                          id="cvc"
-                          placeholder="123"
-                          value={cardDetails.cvc}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => setCardDetails({...cardDetails, cvc: e.target.value.replace(/\D/g, '')})}
-                          maxLength={3}
-                          className="mt-2"
-                          required
-                        />
-                      </div>
-                    </div>
+                ) : !stripe || !clientSecret ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-4">
+                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                    <p className="text-gray-500">Initializing secure payment...</p>
                   </div>
-
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <Button
-                    type="submit"
-                    disabled={processing}
-                    className="w-full bg-green-600 hover:bg-green-700 text-lg py-6"
+                ) : (
+                  <Elements
+                    stripe={stripe}
+                    options={{
+                      clientSecret,
+                      appearance: {
+                        theme: "stripe",
+                        variables: {
+                          colorPrimary: "#16a34a",
+                          colorBackground: "#ffffff",
+                          colorText: "#1f2937",
+                          colorDanger: "#dc2626",
+                          fontFamily: "system-ui, -apple-system, sans-serif",
+                          borderRadius: "8px",
+                        },
+                      },
+                      locale: "en-GB",
+                    }}
                   >
-                    {processing ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Processing Payment...
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-5 h-5 mr-2" />
-                        Pay £{formatPounds(finalAmountPence).toFixed(2)}
-                      </>
-                    )}
-                  </Button>
-
-                  <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
-                    <Shield className="w-4 h-4" />
-                    <span>256-bit SSL encrypted</span>
-                  </div>
-                </form>
+                    <PaymentFormInner
+                      transaction={transaction}
+                      clientSecret={clientSecret}
+                      onSuccess={handlePaymentSuccess}
+                      onError={handlePaymentError}
+                    />
+                  </Elements>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -281,19 +372,21 @@ export default function Payment() {
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Provider</p>
-                  <p className="font-semibold">{provider?.name || provider?.email || 'Provider'}</p>
+                  <p className="font-semibold">
+                    {provider?.name || provider?.email || "Provider"}
+                  </p>
                 </div>
 
                 <div className="pt-4 border-t space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Service Fee</span>
-                    <span className="font-medium">£{formatPounds(rentalAmountPence).toFixed(2)}</span>
+                    <span className="font-medium">{formatPrice(rentalAmountPence)}</span>
                   </div>
 
                   {platformFeeAmountPence > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Platform Fee</span>
-                      <span className="font-medium">£{formatPounds(platformFeeAmountPence).toFixed(2)}</span>
+                      <span className="font-medium">{formatPrice(platformFeeAmountPence)}</span>
                     </div>
                   )}
                 </div>
@@ -302,10 +395,11 @@ export default function Payment() {
                   <div className="flex justify-between mb-2">
                     <span className="font-semibold">Total</span>
                     <span className="font-bold text-xl text-brand-800">
-                      £{formatPounds(finalAmountPence).toFixed(2)}
+                      {formatPrice(totalAmountPence)}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <ShieldCheck className="h-3 w-3" />
                     Funds held securely until completion
                   </p>
                 </div>
@@ -313,7 +407,10 @@ export default function Payment() {
                 <div className="pt-4 border-t">
                   <div className="flex items-start gap-2 text-xs text-gray-600">
                     <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                    <p>Payment protected by SpannerWork. Funds only released when you confirm completion.</p>
+                    <p>
+                      Payment protected by SpannerWork. Funds only released when
+                      you confirm completion.
+                    </p>
                   </div>
                 </div>
               </CardContent>
