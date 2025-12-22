@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { authService, adminService } from "@/api/services";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queryKeys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +51,7 @@ export default function Admin() {
   const [resolution, setResolution] = useState("");
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
   const currentUser = currentUserData?.user;
@@ -59,25 +60,25 @@ export default function Admin() {
   const isAdmin = currentUser?.role === 'ADMIN';
 
   const { data: allUsersData } = useQuery({
-    queryKey: ['allUsers'],
+    queryKey: queryKeys.allUsers(),
     queryFn: () => adminService.listUsers(),
     enabled: isAdmin,
   });
 
   const { data: allTransactionsData } = useQuery({
-    queryKey: ['allTransactions'],
+    queryKey: queryKeys.allTransactions(),
     queryFn: () => adminService.listTransactions({ sort: '-created_date' }),
     enabled: isAdmin,
   });
 
   const { data: allDisputesData } = useQuery({
-    queryKey: ['allDisputes'],
+    queryKey: queryKeys.allDisputes(),
     queryFn: () => adminService.listDisputes({ sort: '-created_date' }),
     enabled: isAdmin,
   });
 
   const { data: allRequestsData } = useQuery({
-    queryKey: ['allRequests'],
+    queryKey: queryKeys.allRequests(),
     queryFn: () => adminService.listRequests(),
     enabled: isAdmin,
   });
@@ -97,7 +98,7 @@ export default function Admin() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allDisputes'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allDisputes() });
       setSelectedDispute(null);
       setResolution("");
     },
@@ -108,7 +109,7 @@ export default function Admin() {
       await adminService.suspendUser(userId, "Admin action");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allUsers() });
     },
   });
 
@@ -667,7 +668,7 @@ export default function Admin() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => queryClient.invalidateQueries({ queryKey: ['allRequests'] })}
+                      onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.allRequests() })}
                     >
                       <RefreshCw className="w-4 h-4" />
                     </Button>

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service.js';
-import { COOKIE_NAMES } from '../config/cookie.js';
+import { COOKIE_NAMES, SESSION_COOKIE_CLEAR_OPTIONS } from '../config/cookie.js';
 import { setContextUserId } from './requestId.middleware.js';
 
 /**
@@ -26,7 +26,7 @@ export async function requireAuth(
 
     if (!user) {
       // Clear invalid cookie
-      res.clearCookie(COOKIE_NAMES.SESSION);
+      res.clearCookie(COOKIE_NAMES.SESSION, SESSION_COOKIE_CLEAR_OPTIONS);
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Invalid or expired session',

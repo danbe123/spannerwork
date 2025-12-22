@@ -3,6 +3,7 @@ import { authService, transactionsService, usersService, toolsService, reviewsSe
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { queryKeys } from "@/lib/queryKeys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,8 @@ export default function TransactionDetail() {
   const transactionIdFromQuery = urlParams.get('id');
   const transactionId = transactionIdFromPath || transactionIdFromQuery;
 
+  const transactionIdKey = transactionId ?? '';
+
   const [pickupPhoto, setPickupPhoto] = useState<string | null>(null);
   const [returnPhoto, setReturnPhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -36,7 +39,7 @@ export default function TransactionDetail() {
   const [review, setReview] = useState("");
 
   const { data: transactionData, isLoading } = useQuery({
-    queryKey: ['transaction', transactionId],
+    queryKey: queryKeys.transaction(transactionIdKey),
     queryFn: async () => transactionId ? transactionsService.getById(transactionId) : Promise.resolve(undefined),
     enabled: !!transactionId,
   });
@@ -44,14 +47,18 @@ export default function TransactionDetail() {
   const transaction = transactionData?.transaction;
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
   const currentUser = currentUserData?.user;
 
+  const providerId = transaction?.providerId ?? '';
+  const userId = transaction?.userId ?? '';
+  const toolId = transaction?.toolId ?? '';
+
   const { data: providerData } = useQuery({
-    queryKey: ['provider', transaction?.providerId],
+    queryKey: transaction?.providerId ? queryKeys.provider(providerId) : queryKeys.providerRoot(),
     queryFn: async () => transaction?.providerId ? usersService.getById(transaction.providerId) : Promise.resolve(undefined),
     enabled: !!transaction?.providerId,
   });
@@ -59,7 +66,7 @@ export default function TransactionDetail() {
   const provider = providerData?.user;
 
   const { data: userIdData } = useQuery({
-    queryKey: ['userId', transaction?.userId],
+    queryKey: transaction?.userId ? queryKeys.userId(userId) : queryKeys.userIdRoot(),
     queryFn: async () => transaction?.userId ? usersService.getById(transaction.userId) : Promise.resolve(undefined),
     enabled: !!transaction?.userId,
   });
@@ -67,7 +74,7 @@ export default function TransactionDetail() {
   const user = userIdData?.user;
 
   const { data: toolData } = useQuery({
-    queryKey: ['tool', transaction?.toolId],
+    queryKey: transaction?.toolId ? queryKeys.tool(toolId) : queryKeys.tools(),
     queryFn: async () => transaction?.toolId ? toolsService.getById(transaction.toolId) : Promise.resolve(undefined),
     enabled: !!transaction?.toolId,
   });
@@ -100,9 +107,10 @@ export default function TransactionDetail() {
       await transactionsService.updateStatus(transactionId, 'IN_PROGRESS');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transaction', transactionId] });
-      queryClient.invalidateQueries({ queryKey: ['myTools'] });
-      queryClient.invalidateQueries({ queryKey: ['myListings'] });
+      if (!transactionId) return;
+      queryClient.invalidateQueries({ queryKey: queryKeys.transaction(transactionId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myTools() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myListings() });
     },
   });
 
@@ -126,12 +134,13 @@ export default function TransactionDetail() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transaction', transactionId] });
-      queryClient.invalidateQueries({ queryKey: ['myTools'] });
-      queryClient.invalidateQueries({ queryKey: ['myListings'] });
-      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
-      queryClient.invalidateQueries({ queryKey: ['provider'] });
-      queryClient.invalidateQueries({ queryKey: ['userId'] });
+      if (!transactionId) return;
+      queryClient.invalidateQueries({ queryKey: queryKeys.transaction(transactionId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myTools() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myListings() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.providerRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.userIdRoot() });
       navigate(createPageUrl("Profile"));
     },
   });

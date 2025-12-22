@@ -20,7 +20,7 @@ vi.mock('../../src/config/redis.js', () => ({
   safeDel: mockSafeDel,
 }));
 
-import { loginAttemptService, LoginAttemptService } from '../../src/services/loginAttempt.service.js';
+import { loginAttemptService, LoginAttemptService as _LoginAttemptService } from '../../src/services/loginAttempt.service.js';
 import { logger } from '../../src/config/logger.js';
 
 describe('Login Attempt Service', () => {

@@ -30,8 +30,17 @@ vi.mock('../../src/config/env.js', () => ({
 }));
 
 vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn(() => mocks.mockS3Client),
-  HeadBucketCommand: vi.fn(),
+  S3Client: class S3Client {
+    constructor() {
+      return mocks.mockS3Client as unknown as object;
+    }
+  },
+  HeadBucketCommand: class HeadBucketCommand {
+    input: unknown;
+    constructor(input: unknown) {
+      this.input = input;
+    }
+  },
 }));
 
 import { isS3Configured, getS3Client, checkS3Health, resetS3Client } from '../../src/config/s3.js';

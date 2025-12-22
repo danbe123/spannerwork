@@ -2,7 +2,8 @@ import { useState, FormEvent, ChangeEvent } from "react";
 import { requestsService, transactionsService, toolsService } from "@/api/services";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { createPageUrl, formatPrice } from "@/utils";
+import { queryKeys } from "@/lib/queryKeys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,9 @@ export default function StartTransaction() {
   const urlParams = new URLSearchParams(window.location.search);
   const requestId = urlParams.get('requestId');
   const helperId = urlParams.get('helperId');
-  const _seekerId = urlParams.get('seekerId');
+
+  const requestIdKey = requestId ?? '';
+  const helperIdKey = helperId ?? '';
 
   const [selectedToolId, setSelectedToolId] = useState("");
   const [depositAmount, setDepositAmount] = useState(0);
@@ -30,15 +33,15 @@ export default function StartTransaction() {
   const [helperNotes, setHelperNotes] = useState("");
 
   const { data: requestData } = useQuery({
-    queryKey: ['request', requestId],
-    queryFn: () => requestsService.getById(requestId!),
+    queryKey: queryKeys.request(requestIdKey),
+    queryFn: () => requestsService.getById(requestIdKey),
     enabled: !!requestId,
   });
 
   const request: Request | undefined = requestData?.request;
 
   const { data: myToolsData } = useQuery({
-    queryKey: ['providerTools', helperId],
+    queryKey: queryKeys.providerTools(helperIdKey),
     queryFn: () => toolsService.list({}),
     enabled: !!helperId,
   });
@@ -61,9 +64,11 @@ export default function StartTransaction() {
       return result.transaction;
     },
     onSuccess: (transaction) => {
-      queryClient.invalidateQueries({ queryKey: ['request', requestId] });
-      queryClient.invalidateQueries({ queryKey: ['requests'] });
-      queryClient.invalidateQueries({ queryKey: ['myListings'] });
+      if (requestId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.request(requestId) });
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.requests() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myListings() });
       navigate(createPageUrl(`Payment?transactionId=${transaction.id}`));
     },
   });
@@ -103,7 +108,7 @@ export default function StartTransaction() {
               <p className="text-sm text-gray-600 mb-2">{request.description}</p>
               {request.budget && (
                 <Badge className="bg-green-100 text-green-800">
-                  Requested Budget: £{request.budget}
+                  Requested Budget: {formatPrice(request.budget)}
                   {request.rateType === 'HOURLY' && '/hr'}
                   {request.rateType === 'DAILY' && '/day'}
                 </Badge>

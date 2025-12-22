@@ -12,6 +12,7 @@ import { io, Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from './use-auth';
+import { queryKeys } from '@/lib/queryKeys';
 
 // Prefer dedicated SOCKET_URL, fallback to deriving from API_URL
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
@@ -67,8 +68,8 @@ export function useSocket(): UseSocketReturn {
   // Handle new message - stable callback with no dependencies
   const handleNewMessage = useCallback((message: NewMessageEvent) => {
     // Invalidate messages query to refresh
-    queryClientRef.current.invalidateQueries({ queryKey: ['messages'] });
-    queryClientRef.current.invalidateQueries({ queryKey: ['conversations'] });
+    queryClientRef.current.invalidateQueries({ queryKey: queryKeys.messages() });
+    queryClientRef.current.invalidateQueries({ queryKey: queryKeys.conversations() });
 
     // Show toast notification
     toast.info(`New message from ${message.senderName}`, {
@@ -85,9 +86,9 @@ export function useSocket(): UseSocketReturn {
   // Handle booking update - stable callback with no dependencies
   const handleBookingUpdate = useCallback((booking: BookingUpdateEvent) => {
     // Invalidate relevant queries
-    queryClientRef.current.invalidateQueries({ queryKey: ['bookings'] });
-    queryClientRef.current.invalidateQueries({ queryKey: ['calendar'] });
-    queryClientRef.current.invalidateQueries({ queryKey: ['transactions'] });
+    queryClientRef.current.invalidateQueries({ queryKey: queryKeys.bookings() });
+    queryClientRef.current.invalidateQueries({ queryKey: queryKeys.calendar() });
+    queryClientRef.current.invalidateQueries({ queryKey: queryKeys.transactions() });
 
     const statusMessages: Record<string, string> = {
       CONFIRMED: `Your ${booking.type} booking for "${booking.itemName}" has been confirmed!`,
@@ -107,8 +108,8 @@ export function useSocket(): UseSocketReturn {
   // Handle transaction update - stable callback with no dependencies
   const handleTransactionUpdate = useCallback((transaction: TransactionUpdateEvent) => {
     // Invalidate relevant queries
-    queryClientRef.current.invalidateQueries({ queryKey: ['transactions'] });
-    queryClientRef.current.invalidateQueries({ queryKey: ['transaction', transaction.id] });
+    queryClientRef.current.invalidateQueries({ queryKey: queryKeys.transactions() });
+    queryClientRef.current.invalidateQueries({ queryKey: queryKeys.transaction(transaction.id) });
 
     toast.info(`Transaction ${transaction.id.slice(0, 8)}... status: ${transaction.status}`);
   }, []);

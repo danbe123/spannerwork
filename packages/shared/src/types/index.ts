@@ -20,6 +20,8 @@ export type DisputeStatus = 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'CLOSED';
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
 export type ReferralStatus = 'PENDING' | 'COMPLETED' | 'EXPIRED';
 export type ToolCondition = 'NEW' | 'LIKE_NEW' | 'GOOD' | 'FAIR' | 'POOR';
+export type ProviderPlan = 'FREE' | 'PRO' | 'BUSINESS';
+export type PayoutSpeed = 'STANDARD' | 'INSTANT';
 
 // ============================================================================
 // USER
@@ -48,6 +50,8 @@ export interface User {
   rating?: number | null;
   totalTransactions: number;
   totalReviews: number;
+  providerPlan?: ProviderPlan;
+  defaultPayoutSpeed?: PayoutSpeed;
   createdDate: string;
   updatedDate: string;
 }
@@ -189,6 +193,17 @@ export interface Transaction {
   rentalFee: number;
   platformFee: number;
   totalAmount: number;
+  providerPlanAtBooking?: ProviderPlan;
+  platformFeePercent?: number;
+  applicationFeeAmount?: number;
+  instantPayoutSelected?: boolean;
+  instantPayoutFee?: number;
+  insuranceDamageProtectionSelected?: boolean;
+  insuranceDamageProtectionFee?: number;
+  insuranceLiabilitySelected?: boolean;
+  insuranceLiabilityFee?: number;
+  insuranceCancellationSelected?: boolean;
+  insuranceCancellationFee?: number;
   status: TransactionStatus;
   paymentStatus: PaymentStatus;
   notes?: string | null;

@@ -94,11 +94,11 @@ describe('BundleSuggestions Component', () => {
 
     it('returns null when there are no suggestions', async () => {
       mockAiService.getBundles.mockResolvedValue({ suggestions: [] });
-      
-      const { container } = renderWithProviders(
+
+      renderWithProviders(
         <BundleSuggestions {...defaultProps} />
       );
-      
+
       await waitFor(() => {
         expect(mockAiService.getBundles).toHaveBeenCalled();
       });
@@ -106,11 +106,11 @@ describe('BundleSuggestions Component', () => {
 
     it('returns null on error', async () => {
       mockAiService.getBundles.mockRejectedValue(new Error('API Error'));
-      
-      const { container } = renderWithProviders(
+
+      renderWithProviders(
         <BundleSuggestions {...defaultProps} />
       );
-      
+
       await waitFor(() => {
         expect(mockAiService.getBundles).toHaveBeenCalled();
       });

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Wrench, Trash2 } from "lucide-react";
 import { Tool, User } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface MyToolsProps {
   tools: Tool[];
@@ -31,7 +32,7 @@ export default function MyTools({ tools, currentUser: _currentUser }: MyToolsPro
   const deleteToolMutation = useMutation({
     mutationFn: (toolId: string) => toolsService.delete(toolId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myTools'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myTools() });
       setDeleteConfirm(null);
     },
   });

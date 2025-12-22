@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { app } from '../../src/app.js';
 import { authService } from '../../src/services/auth.service.js';
-import { prisma } from '../../src/config/database.js';
+import { prisma as _prisma } from '../../src/config/database.js';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { getCsrfToken, resetRateLimits } from '../utils/test-helpers.js';
 

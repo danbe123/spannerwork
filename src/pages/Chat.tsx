@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { User, Message, Request } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface SendMessageData {
   message: string;
@@ -28,20 +29,23 @@ export default function Chat() {
   const otherUserId = urlParams.get('userId');
   const requestId = urlParams.get('requestId');
 
+  const otherUserIdKey = otherUserId ?? '';
+  const requestIdKey = requestId ?? '';
+
   const [messageText, setMessageText] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // All hooks must be called before any conditional returns
   const { data: currentUserData, isLoading: loadingCurrentUser } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
   const currentUser = currentUserData?.user;
 
   const { data: conversationData, isLoading } = useQuery({
-    queryKey: ['conversation', otherUserId],
-    queryFn: () => messagesService.getConversation(otherUserId!),
+    queryKey: queryKeys.conversation(otherUserIdKey),
+    queryFn: () => messagesService.getConversation(otherUserIdKey),
     enabled: !!currentUser && !!otherUserId,
     refetchInterval: 3000,
   });
@@ -50,8 +54,8 @@ export default function Chat() {
   const otherUserInfo: User | null = conversationData?.otherUser || null;
 
   const { data: requestData } = useQuery({
-    queryKey: ['request', requestId],
-    queryFn: () => requestsService.getById(requestId as string),
+    queryKey: queryKeys.request(requestIdKey),
+    queryFn: () => requestsService.getById(requestIdKey),
     enabled: !!requestId,
   });
 
@@ -62,23 +66,25 @@ export default function Chat() {
 
     messagesService.markConversationAsRead(otherUserId)
       .then(() => {
-        queryClient.invalidateQueries({ queryKey: ['conversations'] });
-        queryClient.invalidateQueries({ queryKey: ['conversation', otherUserId] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.conversation(otherUserIdKey) });
       })
       .catch(err => console.error('Failed to mark conversation as read:', err));
   }, [otherUserId, currentUser, queryClient]);
 
+  const recipientId = otherUserId ?? "";
+
   const sendMessageMutation = useMutation({
     mutationFn: async (data: SendMessageData) => {
       return messagesService.send({
-        recipientId: otherUserId,
+        recipientId,
         content: data.message,
         requestId: requestId || undefined,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversation', otherUserId] });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversation(recipientId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
       setMessageText("");
     },
     onError: (error) => {
@@ -87,7 +93,7 @@ export default function Chat() {
   });
 
   const handleSendMessage = () => {
-    if (!messageText.trim() || !currentUser) return;
+    if (!messageText.trim() || !currentUser || !otherUserId) return;
     sendMessageMutation.mutate({ message: messageText });
   };
 
@@ -119,8 +125,8 @@ export default function Chat() {
       }
 
       if (fileUrls.length > 0) {
-        queryClient.invalidateQueries({ queryKey: ['conversation', otherUserId] });
-        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.conversation(otherUserIdKey) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
       }
     } catch (error) {
       console.error('Error uploading photo(s):', error);

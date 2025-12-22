@@ -92,6 +92,7 @@ export const updateUserSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores')
     .optional(),
   phone: z.string().max(20).optional(),
+  defaultPayoutSpeed: z.enum(['STANDARD', 'INSTANT']).optional(),
   bio: z
     .string()
     .max(500)
@@ -238,6 +239,30 @@ export const updateTransactionStatusSchema = z.object({
   status: z.enum(['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'], {
     errorMap: () => ({ message: 'Invalid status. Must be one of: CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED' }),
   }),
+});
+
+export const updateTransactionAddOnsSchema = z
+  .object({
+    insuranceDamageProtectionSelected: z.boolean().optional(),
+    insuranceLiabilitySelected: z.boolean().optional(),
+    insuranceCancellationSelected: z.boolean().optional(),
+  })
+  .refine(
+    (data) =>
+      data.insuranceDamageProtectionSelected !== undefined ||
+      data.insuranceLiabilitySelected !== undefined ||
+      data.insuranceCancellationSelected !== undefined,
+    {
+      message: 'At least one add-on field is required',
+    }
+  );
+
+export const subscriptionCheckoutSchema = z.object({
+  plan: z.enum(['PRO', 'BUSINESS']),
+});
+
+export const subscriptionPortalSchema = z.object({
+  returnUrl: z.string().url().optional(),
 });
 
 // ============================================================================

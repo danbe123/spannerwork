@@ -59,6 +59,9 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required - create a .env file with a 32+ char secret}
       CSRF_SECRET: ${CSRF_SECRET:?CSRF_SECRET is required - create a .env file with a 32+ char secret}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       MAILTRAP_API_KEY: ${MAILTRAP_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-noreply@spannerwork.co.uk}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-SpannerWork}

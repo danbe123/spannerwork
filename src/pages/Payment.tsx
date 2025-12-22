@@ -26,8 +26,10 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Transaction, User } from "@/types";
 import { toast } from "sonner";
+import { queryKeys } from "@/lib/queryKeys";
 
 // Cache Stripe promise
 let stripePromise: ReturnType<typeof loadStripe> | null = null;
@@ -57,7 +59,7 @@ interface PaymentFormProps {
   onError: (message: string) => void;
 }
 
-function PaymentFormInner({ transaction, clientSecret, onSuccess, onError }: PaymentFormProps) {
+function PaymentFormInner({ transaction, clientSecret: _clientSecret, onSuccess, onError }: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
@@ -103,7 +105,10 @@ function PaymentFormInner({ transaction, clientSecret, onSuccess, onError }: Pay
     }
   };
 
-  const totalAmount = (transaction.rentalFee || 0) + (transaction.platformFee || 0);
+  const totalAmount =
+    typeof transaction.totalAmount === 'number'
+      ? transaction.totalAmount
+      : (transaction.rentalFee || 0) + (transaction.platformFee || 0);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -168,10 +173,14 @@ export default function Payment() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const transactionId = urlParams.get("transactionId");
+  const transactionIdKey = transactionId ?? "";
 
   const [stripe, setStripe] = useState<Awaited<ReturnType<typeof loadStripe>>>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [insuranceDamageProtectionSelected, setInsuranceDamageProtectionSelected] = useState(false);
+  const [insuranceLiabilitySelected, setInsuranceLiabilitySelected] = useState(false);
+  const [insuranceCancellationSelected, setInsuranceCancellationSelected] = useState(false);
 
   // Load Stripe on mount
   useEffect(() => {
@@ -180,7 +189,7 @@ export default function Payment() {
 
   // Fetch transaction
   const { data: transactionData, isLoading: transactionLoading } = useQuery({
-    queryKey: ["transaction", transactionId],
+    queryKey: queryKeys.transaction(transactionIdKey),
     queryFn: async (): Promise<{ transaction: Transaction | undefined }> =>
       transactionId
         ? transactionsService.getById(transactionId)
@@ -190,9 +199,20 @@ export default function Payment() {
 
   const transaction = transactionData?.transaction;
 
+  useEffect(() => {
+    if (!transaction) return;
+    if (clientSecret) return;
+
+    setInsuranceDamageProtectionSelected(Boolean(transaction.insuranceDamageProtectionSelected));
+    setInsuranceLiabilitySelected(Boolean(transaction.insuranceLiabilitySelected));
+    setInsuranceCancellationSelected(Boolean(transaction.insuranceCancellationSelected));
+  }, [transaction?.id, clientSecret]);
+
+  const providerIdKey = transaction?.providerId ?? "";
+
   // Fetch provider info
   const { data: providerData } = useQuery({
-    queryKey: ["provider", transaction?.providerId],
+    queryKey: transaction?.providerId ? queryKeys.provider(providerIdKey) : queryKeys.providerRoot(),
     queryFn: async (): Promise<{ user: User | undefined }> =>
       transaction?.providerId
         ? usersService.getById(transaction.providerId)
@@ -213,18 +233,29 @@ export default function Payment() {
     },
   });
 
-  // Create payment intent when transaction is available
-  useEffect(() => {
-    if (transaction?.id && !clientSecret && !createPaymentIntentMutation.isPending) {
-      // Only create intent if payment is not already made
-      if (transaction.paymentStatus === "PENDING") {
-        createPaymentIntentMutation.mutate(transaction.id);
+  const updateAddOnsMutation = useMutation({
+    mutationFn: async () => {
+      if (!transaction?.id) {
+        throw new Error('Transaction not loaded');
       }
-    }
-  }, [transaction?.id, transaction?.paymentStatus, clientSecret]);
+      return transactionsService.updateAddOns(transaction.id, {
+        insuranceDamageProtectionSelected,
+        insuranceLiabilitySelected,
+        insuranceCancellationSelected,
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.transaction(transactionIdKey), { transaction: data.transaction });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to update add-ons');
+    },
+  });
 
   const handlePaymentSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ["transaction", transactionId] });
+    if (transactionId) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.transaction(transactionId) });
+    }
     toast.success("Payment successful!");
     navigate(createPageUrl(`TransactionDetail?id=${transactionId}`));
   };
@@ -283,7 +314,13 @@ export default function Payment() {
 
   const rentalAmountPence = transaction.rentalFee || 0;
   const platformFeeAmountPence = transaction.platformFee || 0;
-  const totalAmountPence = rentalAmountPence + platformFeeAmountPence;
+  const insuranceDamageProtectionFee = transaction.insuranceDamageProtectionFee || 0;
+  const insuranceLiabilityFee = transaction.insuranceLiabilityFee || 0;
+  const insuranceCancellationFee = transaction.insuranceCancellationFee || 0;
+  const totalAmountPence =
+    typeof transaction.totalAmount === 'number'
+      ? transaction.totalAmount
+      : rentalAmountPence + platformFeeAmountPence + insuranceDamageProtectionFee + insuranceLiabilityFee + insuranceCancellationFee;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAFAF9] to-gray-100 p-4 md:p-8">
@@ -389,9 +426,90 @@ export default function Payment() {
                       <span className="font-medium">{formatPrice(platformFeeAmountPence)}</span>
                     </div>
                   )}
+
+                  {insuranceDamageProtectionFee > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Damage Protection</span>
+                      <span className="font-medium">{formatPrice(insuranceDamageProtectionFee)}</span>
+                    </div>
+                  )}
+
+                  {insuranceLiabilityFee > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Liability Cover</span>
+                      <span className="font-medium">{formatPrice(insuranceLiabilityFee)}</span>
+                    </div>
+                  )}
+
+                  {insuranceCancellationFee > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Cancellation Protection</span>
+                      <span className="font-medium">{formatPrice(insuranceCancellationFee)}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t">
+                  <div className="space-y-3 mb-4">
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        checked={insuranceDamageProtectionSelected}
+                        disabled={!!clientSecret || updateAddOnsMutation.isPending}
+                        onCheckedChange={(checked) => setInsuranceDamageProtectionSelected(Boolean(checked))}
+                      />
+                      <div className="flex-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-700">Damage Protection</span>
+                          <span className="text-gray-700">5%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        checked={insuranceLiabilitySelected}
+                        disabled={!!clientSecret || updateAddOnsMutation.isPending}
+                        onCheckedChange={(checked) => setInsuranceLiabilitySelected(Boolean(checked))}
+                      />
+                      <div className="flex-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-700">Liability Cover</span>
+                          <span className="text-gray-700">£3.00</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        checked={insuranceCancellationSelected}
+                        disabled={!!clientSecret || updateAddOnsMutation.isPending}
+                        onCheckedChange={(checked) => setInsuranceCancellationSelected(Boolean(checked))}
+                      />
+                      <div className="flex-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-700">Cancellation Protection</span>
+                          <span className="text-gray-700">3%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {!clientSecret && (
+                      <Button
+                        className="w-full"
+                        disabled={createPaymentIntentMutation.isPending || updateAddOnsMutation.isPending}
+                        onClick={async () => {
+                          setPaymentError(null);
+                          await updateAddOnsMutation.mutateAsync();
+                          if (transactionId) {
+                            createPaymentIntentMutation.mutate(transactionId);
+                          }
+                        }}
+                      >
+                        Continue to payment
+                      </Button>
+                    )}
+                  </div>
+
                   <div className="flex justify-between mb-2">
                     <span className="font-semibold">Total</span>
                     <span className="font-bold text-xl text-brand-800">

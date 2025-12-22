@@ -48,6 +48,7 @@ export interface CreatePaymentIntentParams {
   currency?: string;
   customerId?: string;
   providerAccountId: string;
+  applicationFeeAmount?: number; // In pence/cents
   metadata?: Record<string, string>;
   /** 
    * If true, uses manual capture (escrow) - payment is authorized but not captured.
@@ -106,6 +107,7 @@ export interface TransferParams {
   destinationAccountId: string;
   transactionId: string;
   description?: string;
+  idempotencyKey?: string;
 }
 
 export interface TransferResult {
@@ -158,6 +160,117 @@ export class StripeService {
     } else {
       logger.warn('Stripe is not configured. Payment features will be disabled.');
     }
+
+  }
+
+  async ensureCustomerId(params: { userId: string; email: string }): Promise<string> {
+    this.ensureConfigured();
+    const stripe = this.getStripe();
+
+    const existing = await prisma.user.findUnique({
+      where: { id: params.userId },
+      select: { stripeCustomerId: true },
+    });
+
+    if (existing?.stripeCustomerId) {
+      return existing.stripeCustomerId;
+    }
+
+    const customer = await stripe.customers.create({
+      email: params.email,
+      metadata: {
+        userId: params.userId,
+      },
+    });
+
+    await prisma.user.update({
+      where: { id: params.userId },
+      data: { stripeCustomerId: customer.id },
+    });
+
+    return customer.id;
+  }
+
+  async createSubscriptionCheckoutSession(params: {
+    userId: string;
+    email: string;
+    plan: 'PRO' | 'BUSINESS';
+    successUrl: string;
+    cancelUrl: string;
+  }): Promise<{ url: string; sessionId: string }> {
+    this.ensureConfigured();
+    const stripe = this.getStripe();
+
+    const customerId = await this.ensureCustomerId({ userId: params.userId, email: params.email });
+
+    const priceId = params.plan === 'PRO' ? env.STRIPE_PRO_PRICE_ID : env.STRIPE_BUSINESS_PRICE_ID;
+    if (!priceId) {
+      throw new Error('Stripe price is not configured');
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      customer: customerId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: params.successUrl,
+      cancel_url: params.cancelUrl,
+      metadata: {
+        userId: params.userId,
+        plan: params.plan,
+      },
+    });
+
+    if (!session.url) {
+      throw new Error('Stripe did not return a checkout URL');
+    }
+
+    return { url: session.url, sessionId: session.id };
+  }
+
+  async createBillingPortalSession(params: {
+    userId: string;
+    email: string;
+    returnUrl: string;
+  }): Promise<{ url: string }> {
+    this.ensureConfigured();
+    const stripe = this.getStripe();
+
+    const customerId = await this.ensureCustomerId({ userId: params.userId, email: params.email });
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: params.returnUrl,
+    });
+
+    return { url: session.url };
+  }
+
+  async createInstantPayout(params: {
+    stripeAccountId: string;
+    amount: number;
+    currency?: string;
+    transactionId: string;
+    idempotencyKey?: string;
+  }): Promise<{ payoutId: string }> {
+    this.ensureConfigured();
+    const stripe = this.getStripe();
+
+    const payout = await stripe.payouts.create(
+      {
+        amount: params.amount,
+        currency: params.currency || 'gbp',
+        method: 'instant',
+        metadata: {
+          transactionId: params.transactionId,
+        },
+      },
+      {
+        stripeAccount: params.stripeAccountId,
+        idempotencyKey: params.idempotencyKey,
+      }
+    );
+
+    return { payoutId: payout.id };
   }
 
   /**
@@ -305,13 +418,19 @@ export class StripeService {
     const useEscrow = params.useEscrow !== false; // Default to escrow mode
     logger.info(`Creating payment intent for transaction ${params.transactionId} (escrow: ${useEscrow})`);
 
-    const platformFee = Math.round(params.amount * (this.platformFeePercent / 100));
+    const applicationFeeAmount = typeof params.applicationFeeAmount === 'number'
+      ? params.applicationFeeAmount
+      : Math.round(params.amount * (this.platformFeePercent / 100));
+
+    if (applicationFeeAmount < 0 || applicationFeeAmount > params.amount) {
+      throw new Error('Invalid application fee amount');
+    }
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: params.amount,
       currency: params.currency || 'gbp',
       customer: params.customerId,
-      application_fee_amount: platformFee,
+      application_fee_amount: applicationFeeAmount,
       // ESCROW: Use manual capture so we can hold funds until job completion
       capture_method: useEscrow ? 'manual' : 'automatic',
       transfer_data: {
@@ -510,13 +629,16 @@ export class StripeService {
 
     logger.info(`Creating transfer of ${params.amount} to ${params.destinationAccountId}`);
 
-    const transfer = await stripe.transfers.create({
-      amount: params.amount,
-      currency: 'gbp',
-      destination: params.destinationAccountId,
-      transfer_group: params.transactionId,
-      description: params.description,
-    });
+    const transfer = await stripe.transfers.create(
+      {
+        amount: params.amount,
+        currency: 'gbp',
+        destination: params.destinationAccountId,
+        transfer_group: params.transactionId,
+        description: params.description,
+      },
+      params.idempotencyKey ? { idempotencyKey: params.idempotencyKey } : undefined
+    );
 
     return {
       transferId: transfer.id,
@@ -576,6 +698,18 @@ export class StripeService {
       
       case 'payout.paid':
         await this.handlePayoutPaid(event);
+        break;
+
+      case 'checkout.session.completed':
+        await this.handleCheckoutSessionCompleted(event);
+        break;
+
+      case 'customer.subscription.updated':
+        await this.handleCustomerSubscriptionUpdated(event);
+        break;
+
+      case 'customer.subscription.deleted':
+        await this.handleCustomerSubscriptionDeleted(event);
         break;
       
       case 'charge.refunded':
@@ -671,6 +805,78 @@ export class StripeService {
   private async handlePayoutPaid(event: WebhookEvent): Promise<void> {
     const payout = event.data.object as { id: string; amount: number };
     logger.info(`Payout completed: ${payout.id}, amount: ${payout.amount}`);
+  }
+
+  private async handleCheckoutSessionCompleted(event: WebhookEvent): Promise<void> {
+    const session = event.data.object as {
+      id: string;
+      mode?: string;
+      metadata?: { userId?: string; plan?: string };
+      customer?: string;
+      subscription?: string;
+    };
+
+    if (session.mode !== 'subscription') {
+      return;
+    }
+
+    const userId = session.metadata?.userId;
+    const plan = session.metadata?.plan;
+    if (!userId || (plan !== 'PRO' && plan !== 'BUSINESS')) {
+      return;
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        providerPlan: plan,
+        stripeCustomerId: session.customer || undefined,
+        stripeSubscriptionId: session.subscription || undefined,
+        stripeSubscriptionStatus: 'active',
+      } as unknown as Record<string, unknown>,
+    });
+  }
+
+  private async handleCustomerSubscriptionUpdated(event: WebhookEvent): Promise<void> {
+    const subscription = event.data.object as {
+      id: string;
+      customer: string;
+      status: string;
+      items?: { data?: Array<{ price?: { id?: string } }> };
+    };
+
+    const priceId = subscription.items?.data?.[0]?.price?.id;
+    let providerPlan: 'FREE' | 'PRO' | 'BUSINESS' = 'FREE';
+
+    if (subscription.status === 'active' || subscription.status === 'trialing') {
+      if (priceId && env.STRIPE_BUSINESS_PRICE_ID && priceId === env.STRIPE_BUSINESS_PRICE_ID) {
+        providerPlan = 'BUSINESS';
+      } else if (priceId && env.STRIPE_PRO_PRICE_ID && priceId === env.STRIPE_PRO_PRICE_ID) {
+        providerPlan = 'PRO';
+      }
+    }
+
+    await prisma.user.updateMany({
+      where: { stripeCustomerId: subscription.customer },
+      data: {
+        providerPlan,
+        stripeSubscriptionId: subscription.id,
+        stripeSubscriptionStatus: subscription.status,
+      } as unknown as Record<string, unknown>,
+    });
+  }
+
+  private async handleCustomerSubscriptionDeleted(event: WebhookEvent): Promise<void> {
+    const subscription = event.data.object as { id: string; customer: string; status: string };
+
+    await prisma.user.updateMany({
+      where: { stripeCustomerId: subscription.customer },
+      data: {
+        providerPlan: 'FREE',
+        stripeSubscriptionId: null,
+        stripeSubscriptionStatus: subscription.status,
+      } as unknown as Record<string, unknown>,
+    });
   }
 
   private async handleChargeRefunded(event: WebhookEvent): Promise<void> {

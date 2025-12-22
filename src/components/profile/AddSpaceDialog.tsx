@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Upload, X } from "lucide-react";
 import { User } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 const AVAILABLE_FEATURES = [
   "Vehicle Ramp",
@@ -108,7 +109,7 @@ export default function AddSpaceDialog({ onClose, currentUser }: AddSpaceDialogP
       locationLng: currentUser.locationLng || undefined,
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mySpaces'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.mySpaces() });
       onClose();
     },
   });

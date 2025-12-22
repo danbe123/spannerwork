@@ -24,6 +24,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { User } from "@/types";
 import MarketingFooter from "@/components/MarketingFooter";
 import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
+import { queryKeys } from "@/lib/queryKeys";
 
 export default function Verification() {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ export default function Verification() {
   const [uploadingDoc, setUploadingDoc] = useState(false);
 
   const { data: currentUserData, isLoading } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
@@ -52,8 +53,8 @@ export default function Verification() {
       try {
         await authService.verifyEmail(token);
         toast.success("Email verified successfully!");
-        queryClient.invalidateQueries({ queryKey: ['currentUser'] });
-        void queryClient.refetchQueries({ queryKey: ['currentUser'] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() });
+        void queryClient.refetchQueries({ queryKey: queryKeys.currentUser() });
         try {
           localStorage.setItem('spannerwork:authUpdated', String(Date.now()));
         } catch {
@@ -102,8 +103,8 @@ export default function Verification() {
       await authService.verifyPhone(phoneNumber, code);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
-      void queryClient.refetchQueries({ queryKey: ['currentUser'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() });
+      void queryClient.refetchQueries({ queryKey: queryKeys.currentUser() });
       try {
         localStorage.setItem('spannerwork:authUpdated', String(Date.now()));
       } catch {
@@ -134,8 +135,8 @@ export default function Verification() {
       return fileUrl;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
-      void queryClient.refetchQueries({ queryKey: ['currentUser'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() });
+      void queryClient.refetchQueries({ queryKey: queryKeys.currentUser() });
       try {
         localStorage.setItem('spannerwork:authUpdated', String(Date.now()));
       } catch {

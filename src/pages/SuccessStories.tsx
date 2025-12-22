@@ -12,6 +12,8 @@ import SEO from "@/components/SEO";
 import { Link } from "react-router-dom";
 import MarketingFooter from "@/components/MarketingFooter";
 import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsSidebar from "@/components/docs/DocsSidebar";
 
 interface SuccessStory {
   id: string;
@@ -125,6 +127,20 @@ export default function SuccessStories(): JSX.Element {
           </div>
         </div>
 
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <DocsBreadcrumbs />
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 py-10">
+          <div className="lg:flex lg:gap-8">
+            <div className="hidden lg:block w-[280px] flex-none">
+              <DocsSidebar />
+            </div>
+
+            <div className="min-w-0 flex-1">
+
         {/* Stories Grid */}
         <div className="max-w-6xl mx-auto px-4 py-16">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -205,6 +221,10 @@ export default function SuccessStories(): JSX.Element {
                   Find What You Need
                 </Button>
               </Link>
+            </div>
+          </div>
+        </div>
+
             </div>
           </div>
         </div>

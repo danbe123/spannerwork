@@ -13,6 +13,12 @@ export interface ListTransactionsParams {
   requestId?: string;
 }
 
+export interface UpdateTransactionAddOnsData {
+  insuranceDamageProtectionSelected?: boolean;
+  insuranceLiabilitySelected?: boolean;
+  insuranceCancellationSelected?: boolean;
+}
+
 // ============================================================================
 // Service
 // ============================================================================
@@ -51,6 +57,17 @@ export const transactionsService = {
   async cancel(id: string): Promise<{ message: string; transaction: Transaction }> {
     const response = await apiClient.post<{ message: string; transaction: Transaction }>(
       `/transactions/${id}/cancel`
+    );
+    return response.data;
+  },
+
+  async updateAddOns(
+    id: string,
+    data: UpdateTransactionAddOnsData
+  ): Promise<{ message: string; transaction: Transaction }> {
+    const response = await apiClient.patch<{ message: string; transaction: Transaction }>(
+      `/transactions/${id}/add-ons`,
+      data
     );
     return response.data;
   },

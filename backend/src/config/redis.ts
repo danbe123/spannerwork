@@ -302,16 +302,12 @@ export async function safeHgetall(key: string): Promise<Record<string, string>> 
 }
 
 // Graceful shutdown
-async function gracefulShutdown() {
+export async function closeRedis(): Promise<void> {
   try {
     await redis.quit();
-    logger.info('Redis connection closed');
   } catch (error) {
     logger.error('Error closing Redis connection:', error);
   }
 }
-
-process.on('SIGINT', gracefulShutdown);
-process.on('SIGTERM', gracefulShutdown);
 
 export default redis;

@@ -32,6 +32,13 @@ export const SESSION_COOKIE_OPTIONS: CookieOptions = {
   ...(env.NODE_ENV === 'production' ? {} : {}),
 };
 
+export const SESSION_COOKIE_CLEAR_OPTIONS: CookieOptions = {
+  httpOnly: true,
+  secure: env.NODE_ENV === 'production',
+  sameSite: env.NODE_ENV === 'production' ? 'strict' : 'lax',
+  path: '/',
+};
+
 /**
  * Get session cookie options
  * Can optionally extend the session duration
@@ -51,5 +58,5 @@ export function getSessionCookieOptions(extendSession = false): CookieOptions {
  */
 export const COOKIE_NAMES = {
   SESSION: env.NODE_ENV === 'production' ? '__Host-spannerwork.session' : 'sessionId',
-  CSRF: '_csrf',
+  CSRF: env.NODE_ENV === 'production' ? '__Host-spannerwork.csrf' : 'spannerwork.csrf',
 } as const;

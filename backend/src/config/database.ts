@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from './logger.js';
 import { env } from './env.js';
+import { createHash } from 'crypto';
 
 /**
  * Database Connection Pooling Configuration
@@ -104,13 +105,16 @@ export const prisma = new PrismaClient({
 // Backwards-compatible alias used by some services/controllers
 export const db = prisma;
 
+function hashQuery(query: string): string {
+  return createHash('sha256').update(query).digest('hex').slice(0, 12);
+}
+
 // Log database queries
 // In development: detailed query logs
 // In production: only slow queries (> 100ms) for performance monitoring
 if (process.env.NODE_ENV === 'development') {
   prisma.$on('query', (e) => {
-    logger.debug('Query: ' + e.query);
-    logger.debug('Params: ' + e.params);
+    logger.debug('Query: ' + hashQuery(e.query));
     logger.debug('Duration: ' + e.duration + 'ms');
   });
 } else if (process.env.NODE_ENV === 'production') {
@@ -119,7 +123,7 @@ if (process.env.NODE_ENV === 'development') {
   prisma.$on('query', (e) => {
     if (e.duration > SLOW_QUERY_THRESHOLD_MS) {
       logger.warn(`Slow query detected (${e.duration}ms):`, {
-        query: e.query.substring(0, 200), // Truncate for log size
+        query: hashQuery(e.query),
         duration: e.duration,
         timestamp: new Date().toISOString(),
       });
@@ -143,14 +147,9 @@ prisma.$on('info', (e) => {
 });
 
 // Graceful shutdown
-async function gracefulShutdown() {
+export async function closeDatabase(): Promise<void> {
   await prisma.$disconnect();
-  logger.info('Database connection closed');
-  process.exit(0);
 }
-
-process.on('SIGINT', gracefulShutdown);
-process.on('SIGTERM', gracefulShutdown);
 
 // =============================================================================
 // Database Connection Pool Monitoring
@@ -201,7 +200,7 @@ if (process.env.NODE_ENV === 'production') {
     if (e.duration > SLOW_QUERY_THRESHOLD_MS) {
       metricsData.slowQueryCount++;
       metricsData.lastSlowQuery = {
-        query: e.query.substring(0, 200),
+        query: hashQuery(e.query),
         duration: e.duration,
         timestamp: new Date().toISOString(),
       };

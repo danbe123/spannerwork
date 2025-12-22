@@ -16,13 +16,15 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { authService, requestsService, activityService } from "@/api/services";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigationType } from "react-router-dom";
+import { queryKeys } from "@/lib/queryKeys";
 import { motion, AnimatePresence } from "framer-motion";
 import { List, type RowComponentProps } from "react-window";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Search,
   PlusCircle,
@@ -37,6 +39,7 @@ import {
   X,
   SlidersHorizontal,
   ArrowUpRight,
+  ArrowUpDown,
   LucideIcon,
   RefreshCw
 } from "lucide-react";
@@ -309,7 +312,54 @@ function StatsBanner({ totalJobs }: StatsBannerProps) {
 // Items per page for pagination
 const ITEMS_PER_PAGE = 12;
 
+const FEED_SCROLL_STORAGE_KEY = 'spannerwork_feed_scroll_v1';
+const FEED_RESTORE_HINT_KEY = 'spannerwork_feed_restore_hint_v1';
+
+type SortMode = 'recommended' | 'newest' | 'closest' | 'budget_high' | 'responses_low';
+
 export default function Feed() {
+  const navigationType = useNavigationType();
+
+  const shouldRestoreFromHint = useMemo(() => {
+    try {
+      return sessionStorage.getItem(FEED_RESTORE_HINT_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const savedFeedScrollState = useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem(FEED_SCROLL_STORAGE_KEY);
+      if (!raw) return {} as { displayCount?: number; virtualizedOffset?: number; windowY?: number };
+      const parsed = JSON.parse(raw) as
+        | { type?: string; offset?: number; displayCount?: number }
+        | { displayCount?: number; virtualizedOffset?: number; windowY?: number };
+
+      if ('type' in parsed) {
+        if (parsed.type === 'virtualized') {
+          return {
+            displayCount: parsed.displayCount,
+            virtualizedOffset: typeof parsed.offset === 'number' ? parsed.offset : undefined,
+          };
+        }
+        if (parsed.type === 'window') {
+          return {
+            displayCount: parsed.displayCount,
+            windowY: typeof parsed.offset === 'number' ? parsed.offset : undefined,
+          };
+        }
+      }
+
+      return {
+        displayCount: parsed.displayCount,
+        virtualizedOffset: (parsed as { virtualizedOffset?: number }).virtualizedOffset,
+        windowY: (parsed as { windowY?: number }).windowY,
+      };
+    } catch {
+      return {} as { displayCount?: number; virtualizedOffset?: number; windowY?: number };
+    }
+  }, []);
   // Search and category state
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
@@ -323,9 +373,27 @@ export default function Feed() {
   const [radiusFilter, setRadiusFilter] = useState(25);
   const [nationwideSearch, setNationwideSearch] = useState(true);
 
+  const [sortMode, setSortMode] = useState<SortMode>('recommended');
+
   // Pagination state
-  const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
+  const [displayCount, setDisplayCount] = useState(() => {
+    try {
+      const saved = savedFeedScrollState.displayCount;
+      if (typeof saved === 'number' && Number.isFinite(saved) && saved > ITEMS_PER_PAGE) {
+        return Math.max(ITEMS_PER_PAGE, Math.floor(saved));
+      }
+    } catch {
+      // ignore
+    }
+    return ITEMS_PER_PAGE;
+  });
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const hasInitializedRef = useRef(false);
+  const hasRestoredWindowScrollRef = useRef(false);
+  const hasRestoredVirtualizedScrollRef = useRef(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FixedSizeList ref type is complex
+  const virtualListRef = useRef<any>(null);
 
   // Debounced search query for better performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -335,7 +403,7 @@ export default function Feed() {
 
   // Fetch requests
   const { data: requestsData, isLoading } = useQuery({
-    queryKey: ['requests', { status: 'ACTIVE' }],
+    queryKey: queryKeys.requestsList({ status: 'ACTIVE' }),
     queryFn: () => requestsService.list({ status: 'ACTIVE' }),
   });
 
@@ -343,7 +411,7 @@ export default function Feed() {
 
   // Fetch current user
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
@@ -351,7 +419,7 @@ export default function Feed() {
 
   // Fetch live stats for market insights
   const { data: liveStats } = useQuery({
-    queryKey: ['liveStats'],
+    queryKey: queryKeys.liveStats(),
     queryFn: () => activityService.getStats(),
     refetchInterval: 60000, // Refresh every minute
   });
@@ -407,7 +475,8 @@ export default function Feed() {
 
       // Budget filter
       if (budgetRange && typeof budgetRange === 'number') {
-        if (!request.budget || request.budget > budgetRange) {
+        const maxBudgetPence = Math.round(budgetRange * 100);
+        if (!request.budget || request.budget > maxBudgetPence) {
           return false;
         }
       }
@@ -429,18 +498,304 @@ export default function Feed() {
     });
   }, [requests, activeCategory, debouncedSearchQuery, urgencyFilter, rateTypeFilter, budgetRange, nationwideSearch, radiusFilter, currentUser, calculateDistance]);
 
+  const sortedRequests = useMemo(() => {
+    const getCreatedTs = (r: Request) => {
+      const ts = r.createdDate ? Date.parse(r.createdDate) : 0;
+      return Number.isFinite(ts) ? ts : 0;
+    };
+
+    const urgencyScore = (urgency?: string | null) => {
+      switch ((urgency || '').toUpperCase()) {
+        case 'ASAP':
+          return 1;
+        case 'TODAY':
+          return 0.75;
+        case 'THIS_WEEKEND':
+          return 0.5;
+        case 'FLEXIBLE':
+        default:
+          return 0.25;
+      }
+    };
+
+    const getDistanceMiles = (r: Request) => {
+      if (!currentUser?.locationLat || !currentUser?.locationLng) return null;
+      return calculateDistance(
+        currentUser.locationLat,
+        currentUser.locationLng,
+        r.locationLat,
+        r.locationLng
+      );
+    };
+
+    const recommendedScore = (r: Request) => {
+      const u = urgencyScore(r.urgency);
+
+      const createdTs = getCreatedTs(r);
+      const hoursSince = createdTs ? (Date.now() - createdTs) / (1000 * 60 * 60) : 9999;
+      const recency = Math.exp(-Math.max(0, hoursSince) / 48);
+
+      const distance = !nationwideSearch ? getDistanceMiles(r) : null;
+      const distanceScore = distance === null ? 0 : 1 / (1 + distance / 10);
+
+      const budgetPence = typeof r.budget === 'number' ? r.budget : 0;
+      const budgetPounds = budgetPence / 100;
+      const budgetScore = budgetPounds > 0 ? Math.min(1, Math.log10(1 + budgetPounds) / 3) : 0;
+
+      const responses = typeof r.responseCount === 'number' ? r.responseCount : 0;
+      const competitionScore = 1 / (1 + responses);
+
+      return (
+        u * 0.35 +
+        recency * 0.25 +
+        distanceScore * 0.2 +
+        budgetScore * 0.15 +
+        competitionScore * 0.05
+      );
+    };
+
+    const stableTieBreak = (a: Request, b: Request) => {
+      const createdDiff = getCreatedTs(b) - getCreatedTs(a);
+      if (createdDiff !== 0) return createdDiff;
+      return a.id.localeCompare(b.id);
+    };
+
+    const sorted = [...filteredRequests];
+
+    sorted.sort((a, b) => {
+      if (sortMode === 'newest') {
+        return stableTieBreak(a, b);
+      }
+
+      if (sortMode === 'closest') {
+        const da = getDistanceMiles(a);
+        const db = getDistanceMiles(b);
+        if (da === null && db === null) return stableTieBreak(a, b);
+        if (da === null) return 1;
+        if (db === null) return -1;
+        if (da !== db) return da - db;
+        return stableTieBreak(a, b);
+      }
+
+      if (sortMode === 'budget_high') {
+        const ba = typeof a.budget === 'number' ? a.budget : 0;
+        const bb = typeof b.budget === 'number' ? b.budget : 0;
+        if (ba !== bb) return bb - ba;
+        return stableTieBreak(a, b);
+      }
+
+      if (sortMode === 'responses_low') {
+        const ra = typeof a.responseCount === 'number' ? a.responseCount : 0;
+        const rb = typeof b.responseCount === 'number' ? b.responseCount : 0;
+        if (ra !== rb) return ra - rb;
+        return stableTieBreak(a, b);
+      }
+
+      const sa = recommendedScore(a);
+      const sb = recommendedScore(b);
+      if (sa !== sb) return sb - sa;
+      return stableTieBreak(a, b);
+    });
+
+    return sorted;
+  }, [filteredRequests, sortMode, nationwideSearch, currentUser, calculateDistance]);
+
   // Paginated requests for display
   const paginatedRequests = useMemo(() => {
-    return filteredRequests.slice(0, displayCount);
-  }, [filteredRequests, displayCount]);
+    return sortedRequests.slice(0, displayCount);
+  }, [sortedRequests, displayCount]);
 
   // Check if there are more items to load
-  const hasMore = displayCount < filteredRequests.length;
+  const hasMore = displayCount < sortedRequests.length;
 
   // Reset display count when filters change
   useEffect(() => {
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      return;
+    }
     setDisplayCount(ITEMS_PER_PAGE);
+    try {
+      sessionStorage.removeItem(FEED_RESTORE_HINT_KEY);
+      sessionStorage.removeItem(FEED_SCROLL_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
   }, [activeCategory, debouncedSearchQuery, urgencyFilter, rateTypeFilter, budgetRange, nationwideSearch, radiusFilter]);
+
+  useEffect(() => {
+    if (hasRestoredWindowScrollRef.current) return;
+    if (navigationType !== 'POP' && !shouldRestoreFromHint) return;
+    const target = typeof savedFeedScrollState.windowY === 'number' ? savedFeedScrollState.windowY : 0;
+    if (!Number.isFinite(target) || target <= 0) return;
+    if (isLoading) return;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo(0, Math.max(0, Math.round(target)));
+        hasRestoredWindowScrollRef.current = true;
+        try {
+          sessionStorage.removeItem(FEED_RESTORE_HINT_KEY);
+        } catch {
+          // ignore
+        }
+      });
+    });
+  }, [navigationType, shouldRestoreFromHint, savedFeedScrollState.windowY, isLoading]);
+
+  const savedVirtualizedScrollOffset = useMemo(() => {
+    const offset = typeof savedFeedScrollState.virtualizedOffset === 'number' ? savedFeedScrollState.virtualizedOffset : 0;
+    return Number.isFinite(offset) && offset > 0 ? offset : 0;
+  }, []);
+
+  useEffect(() => {
+    if (hasRestoredVirtualizedScrollRef.current) return;
+    if (navigationType !== 'POP' && !shouldRestoreFromHint) return;
+    if (isLoading) return;
+    if (savedVirtualizedScrollOffset <= 0) return;
+    if (paginatedRequests.length <= VIRTUALIZATION_THRESHOLD) return;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FixedSizeList API type varies
+        const api = virtualListRef.current as any;
+        const method = api?.scrollTo ?? api?.scrollToOffset;
+        if (typeof method === 'function') {
+          method.call(api, savedVirtualizedScrollOffset);
+          hasRestoredVirtualizedScrollRef.current = true;
+          try {
+            sessionStorage.removeItem(FEED_RESTORE_HINT_KEY);
+          } catch {
+            // ignore
+          }
+        }
+      });
+    });
+  }, [navigationType, shouldRestoreFromHint, isLoading, paginatedRequests.length, savedVirtualizedScrollOffset]);
+
+  const persistVirtualizedScrollOffset = useCallback((offset: number) => {
+    try {
+      const safeOffset = Number.isFinite(offset) ? Math.max(0, Math.round(offset)) : 0;
+
+      let existing: { displayCount?: number; virtualizedOffset?: number; windowY?: number } = {};
+      try {
+        const raw = sessionStorage.getItem(FEED_SCROLL_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as
+            | { type?: string; offset?: number; displayCount?: number }
+            | { displayCount?: number; virtualizedOffset?: number; windowY?: number };
+          if ('type' in parsed) {
+            if (parsed.type === 'window') {
+              existing = { displayCount: parsed.displayCount, windowY: parsed.offset };
+            } else if (parsed.type === 'virtualized') {
+              existing = { displayCount: parsed.displayCount, virtualizedOffset: parsed.offset };
+            }
+          } else {
+            existing = parsed;
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      sessionStorage.setItem(
+        FEED_SCROLL_STORAGE_KEY,
+        JSON.stringify({
+          ...existing,
+          displayCount,
+          virtualizedOffset: safeOffset,
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }, [displayCount]);
+
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        try {
+          if (window.location.pathname.toLowerCase() !== '/feed') return;
+          const safeY = Number.isFinite(window.scrollY) ? Math.max(0, Math.round(window.scrollY)) : 0;
+
+          let existing: { displayCount?: number; virtualizedOffset?: number; windowY?: number } = {};
+          try {
+            const raw = sessionStorage.getItem(FEED_SCROLL_STORAGE_KEY);
+            if (raw) {
+              const parsed = JSON.parse(raw) as
+                | { type?: string; offset?: number; displayCount?: number }
+                | { displayCount?: number; virtualizedOffset?: number; windowY?: number };
+              if ('type' in parsed) {
+                if (parsed.type === 'window') {
+                  existing = { displayCount: parsed.displayCount, windowY: parsed.offset };
+                } else if (parsed.type === 'virtualized') {
+                  existing = { displayCount: parsed.displayCount, virtualizedOffset: parsed.offset };
+                }
+              } else {
+                existing = parsed;
+              }
+            }
+          } catch {
+            // ignore
+          }
+
+          sessionStorage.setItem(
+            FEED_SCROLL_STORAGE_KEY,
+            JSON.stringify({
+              ...existing,
+              displayCount,
+              windowY: safeY,
+            })
+          );
+        } catch {
+          // ignore
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [displayCount]);
+
+  useEffect(() => {
+    try {
+      if (window.location.pathname.toLowerCase() !== '/feed') return;
+      let existing: { displayCount?: number; virtualizedOffset?: number; windowY?: number } = {};
+      try {
+        const raw = sessionStorage.getItem(FEED_SCROLL_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as
+            | { type?: string; offset?: number; displayCount?: number }
+            | { displayCount?: number; virtualizedOffset?: number; windowY?: number };
+          if ('type' in parsed) {
+            if (parsed.type === 'window') {
+              existing = { displayCount: parsed.displayCount, windowY: parsed.offset };
+            } else if (parsed.type === 'virtualized') {
+              existing = { displayCount: parsed.displayCount, virtualizedOffset: parsed.offset };
+            }
+          } else {
+            existing = parsed;
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      sessionStorage.setItem(
+        FEED_SCROLL_STORAGE_KEY,
+        JSON.stringify({
+          ...existing,
+          displayCount,
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }, [displayCount]);
 
   // Load more handler
   const handleLoadMore = useCallback(() => {
@@ -480,6 +835,7 @@ export default function Feed() {
     setBudgetRange("");
     setRadiusFilter(25);
     setNationwideSearch(true);
+    setSortMode('recommended');
     setShowFilters(false);
   };
 
@@ -604,25 +960,44 @@ export default function Feed() {
               );
             })}
 
-            {/* Advanced filters button */}
-            <motion.button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all ml-auto ${
-                showFilters || hasActiveFilters
-                  ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-              }`}
-              whileTap={{ scale: 0.95 }}
-              aria-expanded={showFilters}
-              aria-controls="advanced-filters"
-              aria-label={`${showFilters ? 'Hide' : 'Show'} advanced filters${hasActiveFilters ? ' (filters active)' : ''}`}
-            >
-              <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
-              Filters
-              {hasActiveFilters && !showFilters && (
-                <span className="w-2 h-2 bg-orange-500 rounded-full" aria-hidden="true" />
-              )}
-            </motion.button>
+            <div className="ml-auto flex items-center gap-2">
+              <Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}>
+                <SelectTrigger
+                  className="h-9 px-4 rounded-full font-medium text-sm whitespace-nowrap border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                  aria-label="Sort jobs"
+                >
+                  <ArrowUpDown className="w-4 h-4 mr-2" aria-hidden="true" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recommended">Recommended</SelectItem>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="closest" disabled={nationwideSearch || !currentUser?.locationLat || !currentUser?.locationLng}>Closest</SelectItem>
+                  <SelectItem value="budget_high">Highest budget</SelectItem>
+                  <SelectItem value="responses_low">Fewest responses</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Advanced filters button */}
+              <motion.button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all ${
+                  showFilters || hasActiveFilters
+                    ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+                whileTap={{ scale: 0.95 }}
+                aria-expanded={showFilters}
+                aria-controls="advanced-filters"
+                aria-label={`${showFilters ? 'Hide' : 'Show'} advanced filters${hasActiveFilters ? ' (filters active)' : ''}`}
+              >
+                <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
+                Filters
+                {hasActiveFilters && !showFilters && (
+                  <span className="w-2 h-2 bg-orange-500 rounded-full" aria-hidden="true" />
+                )}
+              </motion.button>
+            </div>
           </motion.div>
 
           {/* Advanced Filters Panel */}
@@ -731,6 +1106,7 @@ export default function Feed() {
             ) : paginatedRequests.length > VIRTUALIZATION_THRESHOLD ? (
               // Virtualized list for large datasets
               <List
+                ref={virtualListRef}
                 rowCount={Math.ceil(paginatedRequests.length / columnCount)}
                 rowHeight={ROW_HEIGHT + GAP}
                 rowComponent={VirtualizedRow}
@@ -739,6 +1115,19 @@ export default function Feed() {
                   currentUser,
                   categoryIcons: CATEGORY_ICONS,
                   columnCount,
+                }}
+                initialScrollOffset={savedVirtualizedScrollOffset}
+                onScroll={(args: unknown) => {
+                  const a = args as { scrollOffset?: number; scrollTop?: number } | number | null | undefined;
+                  const offset =
+                    typeof a === 'number'
+                      ? a
+                      : typeof a?.scrollOffset === 'number'
+                        ? a.scrollOffset
+                        : typeof a?.scrollTop === 'number'
+                          ? a.scrollTop
+                          : 0;
+                  persistVirtualizedScrollOffset(offset);
                 }}
                 style={{ height: Math.min(800, window.innerHeight - 300), width: '100%' }}
                 className="scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"

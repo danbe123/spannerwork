@@ -15,6 +15,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { authService, messagesService, requestsService, uploadService } from "@/api/services";
+import { queryKeys } from "@/lib/queryKeys";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -155,6 +156,9 @@ export default function Messages() {
   // Get active chat from URL
   const activeUserId = searchParams.get('userId');
   const activeRequestId = searchParams.get('requestId');
+
+  const activeUserIdKey = activeUserId ?? '';
+  const activeRequestIdKey = activeRequestId ?? '';
   
   // State
   const [searchQuery, setSearchQuery] = useState("");
@@ -164,52 +168,27 @@ export default function Messages() {
   
   // Get current user
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
   const currentUser = currentUserData?.user;
 
-  if (currentUser && !currentUser.emailVerified) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <SEO title="Verification Required - SpannerWork" description="Verify your account to use messaging" />
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-6">
-            <Shield className="w-8 h-8 text-amber-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">Verification Required</h1>
-          <p className="text-gray-600 mb-6">
-            To protect our community, please verify your email address before messaging other users.
-          </p>
-          <div className="space-y-3">
-            <Button onClick={() => navigate('/verification')} className="w-full bg-brand-800 hover:bg-brand-900">
-              <Shield className="w-4 h-4 mr-2" />
-              Go to Verification
-            </Button>
-            <Button variant="ghost" onClick={() => navigate(-1)} className="w-full">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Go Back
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const requiresVerification = currentUser?.emailVerified === false;
 
   // Get conversations
   const { data: conversationsData, isLoading: loadingConversations } = useQuery({
-    queryKey: ['conversations'],
+    queryKey: queryKeys.conversations(),
     queryFn: () => messagesService.listConversations(),
-    enabled: !!currentUser,
+    enabled: !!currentUser && !requiresVerification,
     refetchInterval: 10000, // Refresh every 10s
   });
   const conversations = (conversationsData?.conversations || []) as ExtendedConversation[];
 
   // Get active conversation messages
   const { data: conversationData, isLoading: loadingMessages } = useQuery({
-    queryKey: ['conversation', activeUserId],
+    queryKey: queryKeys.conversation(activeUserIdKey),
     queryFn: () => activeUserId ? messagesService.getConversation(activeUserId) : Promise.resolve({ messages: [], otherUser: {} as User }),
-    enabled: !!currentUser && !!activeUserId,
+    enabled: !!currentUser && !!activeUserId && !requiresVerification,
     refetchInterval: 3000, // Refresh every 3s when chat is open
   });
   
@@ -218,12 +197,12 @@ export default function Messages() {
 
   // Get request info if available
   const { data: requestData } = useQuery({
-    queryKey: ['request', activeRequestId],
+    queryKey: queryKeys.request(activeRequestIdKey),
     queryFn: async (): Promise<{ request: Request | undefined }> => 
       activeRequestId 
         ? requestsService.getById(activeRequestId) 
         : { request: undefined },
-    enabled: !!activeRequestId,
+    enabled: !!activeRequestId && !requiresVerification,
   });
   const request = requestData?.request;
 
@@ -240,10 +219,10 @@ export default function Messages() {
 
   // Mark as read when opening conversation
   useEffect(() => {
-    if (currentUser && activeUserId) {
+    if (currentUser && activeUserId && !requiresVerification) {
       messagesService.markConversationAsRead(activeUserId)
         .then(() => {
-          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
         })
         .catch(console.error);
     }
@@ -271,8 +250,8 @@ export default function Messages() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversation', activeUserId] });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversation(activeUserIdKey) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
       setMessageText("");
     },
   });
@@ -295,8 +274,8 @@ export default function Messages() {
         // @ts-expect-error - types need alignment
         requestId: activeRequestId || undefined,
       });
-      queryClient.invalidateQueries({ queryKey: ['conversation', activeUserId] });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversation(activeUserIdKey) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
     } catch (error) {
       console.error('Upload failed:', error);
     }
@@ -328,7 +307,30 @@ export default function Messages() {
            /^https?:\/\/.*\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(content);
   };
 
-  return (
+  return requiresVerification ? (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <SEO title="Verification Required - SpannerWork" description="Verify your account to use messaging" />
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+        <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-6">
+          <Shield className="w-8 h-8 text-amber-600" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-3">Verification Required</h1>
+        <p className="text-gray-600 mb-6">
+          To protect our community, please verify your email address before messaging other users.
+        </p>
+        <div className="space-y-3">
+          <Button onClick={() => navigate('/verification')} className="w-full bg-brand-800 hover:bg-brand-900">
+            <Shield className="w-4 h-4 mr-2" />
+            Go to Verification
+          </Button>
+          <Button variant="ghost" onClick={() => navigate(-1)} className="w-full">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Go Back
+          </Button>
+        </div>
+      </div>
+    </div>
+  ) : (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       <SEO title="Messages - SpannerWork" description="Your conversations on SpannerWork" />
 
@@ -376,13 +378,13 @@ export default function Messages() {
               <AnimatePresence>
                 {filteredConversations.map((conv, index) => {
                   // @ts-expect-error - userId exists on conversation in practice
-                  const userId = conv.userId || conv.participant?.id;
+                  const userId = conv.userId || conv.participant?.id || conv.user?.id;
                   const isActive = userId === activeUserId;
                   const isFromMe = conv.lastMessage?.senderId === currentUser?.id;
                   
                   return (
                     <motion.button
-                      key={userId}
+                      key={conv.id}
                       variants={listItemVariants}
                       initial="hidden"
                       animate="visible"

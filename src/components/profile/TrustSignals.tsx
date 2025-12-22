@@ -14,6 +14,7 @@ import {
   LucideIcon
 } from 'lucide-react';
 import { User } from '@/types';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface Signal {
   id: string;
@@ -38,7 +39,7 @@ export default function TrustSignals({
   className = '' 
 }: TrustSignalsProps) {
   const { data: badgesData } = useQuery({
-    queryKey: ['userBadges', user?.id],
+    queryKey: queryKeys.userBadges(user?.id ?? ''),
     queryFn: () => gamificationService.getMyBadges(),
     enabled: !!user?.id,
     staleTime: 60000,

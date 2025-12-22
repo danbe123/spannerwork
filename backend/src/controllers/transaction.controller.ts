@@ -182,6 +182,38 @@ export class TransactionController {
       return next(error);
     }
   }
+
+  /**
+   * Update transaction add-ons (insurance selections)
+   * PATCH /api/v1/transactions/:id/add-ons
+   */
+  async updateAddOns(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      const {
+        insuranceDamageProtectionSelected,
+        insuranceLiabilitySelected,
+        insuranceCancellationSelected,
+      } = req.body;
+
+      const transaction = await transactionService.updateAddOns({
+        transactionId: id,
+        userId,
+        insuranceDamageProtectionSelected,
+        insuranceLiabilitySelected,
+        insuranceCancellationSelected,
+      });
+
+      return res.json({
+        message: 'Transaction add-ons updated',
+        transaction,
+      });
+    } catch (error) {
+      logger.error('Error updating transaction add-ons:', error);
+      return next(error);
+    }
+  }
 }
 
 export const transactionController = new TransactionController();

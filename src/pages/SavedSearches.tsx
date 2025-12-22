@@ -29,6 +29,7 @@ import {
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { SavedSearch, User } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface NewSearchState {
   name: string;
@@ -62,14 +63,15 @@ export default function SavedSearches() {
   });
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
   const currentUser: User | undefined = currentUserData?.user;
+  const currentUserIdKey = currentUser?.id ?? '';
 
   const { data: savedSearchesData } = useQuery({
-    queryKey: ['savedSearches', currentUser?.id],
+    queryKey: queryKeys.savedSearches(currentUserIdKey),
     queryFn: () => savedSearchesService.list(),
     enabled: !!currentUser?.id,
   });
@@ -90,7 +92,7 @@ export default function SavedSearches() {
       },
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['savedSearches'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.savedSearchesRoot() });
       setShowAddDialog(false);
       setNewSearch({
         name: "",
@@ -108,7 +110,7 @@ export default function SavedSearches() {
   const deleteSearchMutation = useMutation({
     mutationFn: (searchId: string) => savedSearchesService.delete(searchId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['savedSearches'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.savedSearchesRoot() });
       setDeleteConfirm(null);
     },
   });
@@ -119,7 +121,7 @@ export default function SavedSearches() {
         filters: { emailAlerts: enabled } 
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['savedSearches'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.savedSearchesRoot() });
     },
   });
 

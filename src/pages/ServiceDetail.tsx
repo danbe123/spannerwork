@@ -20,6 +20,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import SEO, { generateServiceSchema, generateBreadcrumbSchema } from "@/components/SEO";
 import { Service, User } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 export default function ServiceDetail() {
   const navigate = useNavigate();
@@ -28,26 +29,29 @@ export default function ServiceDetail() {
   const urlParams = new URLSearchParams(location.search);
   const serviceIdFromQuery = urlParams.get('id');
   const serviceId = serviceIdFromPath || serviceIdFromQuery;
+  const serviceIdKey = serviceId ?? '';
 
   // All hooks must be called before any conditional returns
   const { data: serviceData, isLoading } = useQuery({
-    queryKey: ['service', serviceId],
-    queryFn: () => servicesService.getById(serviceId!),
+    queryKey: queryKeys.service(serviceIdKey),
+    queryFn: () => servicesService.getById(serviceIdKey),
     enabled: !!serviceId,
   });
 
   const service: Service | undefined = serviceData?.service;
 
+  const providerIdKey = service?.providerId ?? '';
+
   const { data: providerData } = useQuery({
-    queryKey: ['provider', service?.providerId],
-    queryFn: () => usersService.getById(service!.providerId),
+    queryKey: service?.providerId ? queryKeys.provider(providerIdKey) : queryKeys.providerRoot(),
+    queryFn: () => usersService.getById(providerIdKey),
     enabled: !!service?.providerId,
   });
 
   const provider: User | undefined = providerData?.user;
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
@@ -110,7 +114,7 @@ export default function ServiceDetail() {
         title={`${service.title} - Professional Service | SpannerWork`}
         description={service.description}
         keywords={`${service.category}, professional service`}
-        // @ts-ignore - Schema types from JSX component
+        // @ts-expect-error - Schema types from JSX component
         schema={[
           generateServiceSchema(service.title, service.description, service.hourlyRate || 0),
           generateBreadcrumbSchema([

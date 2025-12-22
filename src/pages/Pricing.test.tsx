@@ -25,7 +25,7 @@ describe('Pricing Page', () => {
 
     it('renders pricing heading', () => {
       renderPricing();
-      expect(screen.getByText(/Pricing/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Simple, Transparent Pricing/i })).toBeInTheDocument();
     });
   });
 

@@ -27,6 +27,7 @@ vi.mock('sonner', () => ({
 }))
 
 import Admin from './Admin'
+import { queryKeys } from '@/lib/queryKeys'
 
 import { toast } from 'sonner'
 
@@ -427,6 +428,6 @@ describe('Admin page', () => {
     expect(refreshButton).toBeTruthy()
     await user.click(refreshButton)
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['allRequests'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.allRequests() })
   })
 })

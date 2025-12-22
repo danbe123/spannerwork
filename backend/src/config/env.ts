@@ -114,6 +114,8 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRO_PRICE_ID: z.string().optional(),
+  STRIPE_BUSINESS_PRICE_ID: z.string().optional(),
 
   // Security Settings
   SALT_ROUNDS: z.string().default('12'),

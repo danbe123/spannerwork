@@ -33,6 +33,20 @@ function calculateBackoffDelay(retryCount: number): number {
   return Math.min(exponentialDelay + jitter, RETRY_CONFIG.maxDelayMs);
 }
 
+function parseRetryAfterMs(retryAfter: unknown): number | null {
+  if (typeof retryAfter !== 'string' || retryAfter.trim() === '') return null;
+  const seconds = Number(retryAfter);
+  if (Number.isFinite(seconds)) {
+    const ms = Math.max(0, Math.floor(seconds * 1000));
+    return ms;
+  }
+  const dateMs = Date.parse(retryAfter);
+  if (!Number.isNaN(dateMs)) {
+    return Math.max(0, dateMs - Date.now());
+  }
+  return null;
+}
+
 /**
  * Check if a request is retryable
  */
@@ -54,6 +68,14 @@ function isRetryable(config: ExtendedAxiosRequestConfig, error: AxiosError): boo
   // Check if it's a network error (no response)
   if (!error.response) {
     return true;
+  }
+
+  if (error.response.status === 429) {
+    const retryAfterMs = parseRetryAfterMs(error.response.headers?.['retry-after']);
+    if (retryAfterMs === null) {
+      return false;
+    }
+    return (config._retryCount || 0) < 1;
   }
 
   // Check if status code is retryable
@@ -188,7 +210,11 @@ apiClient.interceptors.response.use(
     // Check if we should retry with exponential backoff (transient errors)
     if (originalRequest && isRetryable(originalRequest, error)) {
       originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
-      const delay = calculateBackoffDelay(originalRequest._retryCount - 1);
+
+      const retryAfterMs = parseRetryAfterMs(error.response?.headers?.['retry-after']);
+      const delay = retryAfterMs !== null
+        ? Math.min(retryAfterMs, RETRY_CONFIG.maxDelayMs)
+        : calculateBackoffDelay(originalRequest._retryCount - 1);
       
       if (isDev) {
         console.warn(`[API] Retrying request (attempt ${originalRequest._retryCount}/${RETRY_CONFIG.maxRetries}) after ${Math.round(delay)}ms`);
@@ -223,19 +249,25 @@ apiClient.interceptors.response.use(
           if (originalRequest._csrfRetryCount < MAX_CSRF_RETRIES) {
             originalRequest._csrfRetryCount += 1;
             if (isDev) console.warn('[API] Invalid CSRF token, refreshing and retrying...');
-            
+
             // Clear and refresh the CSRF token
             clearCsrfToken();
             const newToken = await refreshCsrfToken();
-            
+
             if (newToken && originalRequest.headers) {
               // Update the request with new token and retry
               originalRequest.headers['X-CSRF-Token'] = newToken;
               return apiClient(originalRequest);
             }
           }
-          
+
           if (isDev) console.error('[API] CSRF token refresh failed after retry');
+
+          // Provide a user-friendly error message
+          const csrfError: ApiError = new Error('Your session has expired. Please refresh the page and try again.') as ApiError;
+          csrfError.status = 403;
+          csrfError.data = data as Record<string, unknown>;
+          return Promise.reject(csrfError);
         }
         // Forbidden access is handled by the error being thrown
       }

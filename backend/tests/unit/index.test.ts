@@ -98,7 +98,7 @@ import {
   verifyDatabaseConnection,
   verifyRedisConnection,
   startServer,
-  gracefulShutdown,
+  gracefulShutdown as _gracefulShutdown,
   PORT,
   REQUEST_TIMEOUT,
   KEEP_ALIVE_TIMEOUT,
@@ -267,11 +267,11 @@ describe('Server Entry Point', () => {
       mocks.redis.ping.mockResolvedValue('PONG');
 
       // Start server - it will call verifyDatabaseConnection
-      const startPromise = startServer();
-      
+      void startServer();
+
       // Let async operations complete
       await vi.advanceTimersByTimeAsync(100);
-      
+
       expect(mocks.prisma.$connect).toHaveBeenCalled();
     });
 
@@ -279,9 +279,9 @@ describe('Server Entry Point', () => {
       mocks.prisma.$connect.mockResolvedValue(undefined);
       mocks.redis.ping.mockResolvedValue('PONG');
 
-      const startPromise = startServer();
+      void startServer();
       await vi.advanceTimersByTimeAsync(100);
-      
+
       expect(mocks.redis.ping).toHaveBeenCalled();
     });
 
@@ -289,9 +289,9 @@ describe('Server Entry Point', () => {
       mocks.prisma.$connect.mockResolvedValue(undefined);
       mocks.redis.ping.mockResolvedValue('PONG');
 
-      const startPromise = startServer();
+      void startServer();
       await vi.advanceTimersByTimeAsync(100);
-      
+
       expect(mocks.logger.info).toHaveBeenCalled();
     });
   });
@@ -402,8 +402,8 @@ describe('Server Entry Point', () => {
 
   describe('signal handlers', () => {
     it('should handle SIGTERM signal pattern', () => {
-      const signalHandler = vi.fn();
-      
+      const _signalHandler = vi.fn();
+
       // Simulate signal handler registration
       const signals = ['SIGTERM', 'SIGINT'];
       signals.forEach(signal => {

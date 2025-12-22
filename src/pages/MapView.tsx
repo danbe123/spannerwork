@@ -13,12 +13,17 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Request, User } from "@/types";
 import { brandColors } from "@/lib/colors";
+import { queryKeys } from "@/lib/queryKeys";
 import MarketingFooter from "@/components/MarketingFooter";
 import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Leaflet component type workaround
 const MapContainerAny = MapContainer as unknown as ComponentType<any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Leaflet component type workaround
 const TileLayerAny = TileLayer as unknown as ComponentType<any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Leaflet component type workaround
 const MarkerAny = Marker as unknown as ComponentType<any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Leaflet component type workaround
 const PopupAny = Popup as unknown as ComponentType<any>;
 
 type LatLngTuple = [number, number];
@@ -63,14 +68,14 @@ export default function MapView() {
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
   const { data: requestsData, isLoading } = useQuery({
-    queryKey: ['requests'],
+    queryKey: queryKeys.requests(),
     queryFn: () => requestsService.list({}),
   });
 
   const requests: Request[] = requestsData?.data || [];
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser()
   });
 

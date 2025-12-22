@@ -185,7 +185,7 @@ describe('Contact Page', () => {
       renderContact();
       const backButton = screen.getByRole('button', { name: /back to home/i });
       fireEvent.click(backButton);
-      expect(mockNavigate).toHaveBeenCalledWith('/home');
+      expect(mockNavigate).toHaveBeenCalledWith('/');
     });
 
     it('navigates to resources page', () => {
@@ -213,7 +213,7 @@ describe('Contact Page', () => {
         // Click Back to Home in success state
         const homeButtons = screen.getAllByRole('button', { name: /back to home/i });
         fireEvent.click(homeButtons[homeButtons.length - 1]);
-        expect(mockNavigate).toHaveBeenCalledWith('/home');
+        expect(mockNavigate).toHaveBeenCalledWith('/');
       }
     });
   });

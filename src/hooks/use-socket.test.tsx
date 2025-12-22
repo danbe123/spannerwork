@@ -39,6 +39,7 @@ import { useSocket } from './use-socket'
 import { useAuth } from './use-auth'
 import { io } from 'socket.io-client'
 import { toast } from 'sonner'
+import { queryKeys } from '@/lib/queryKeys'
 
 describe('useSocket', () => {
   let queryClient: QueryClient
@@ -188,8 +189,8 @@ describe('useSocket', () => {
         })
 
         await waitFor(() => {
-          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ['messages'] })
-          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ['conversations'] })
+          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: queryKeys.messages() })
+          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: queryKeys.conversations() })
           expect(toast.info).toHaveBeenCalledWith(
             'New message from John Doe',
             expect.objectContaining({
@@ -217,8 +218,8 @@ describe('useSocket', () => {
         })
 
         await waitFor(() => {
-          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ['bookings'] })
-          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ['calendar'] })
+          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: queryKeys.bookings() })
+          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: queryKeys.calendar() })
           expect(toast.success).toHaveBeenCalled()
         })
       })
@@ -258,8 +259,8 @@ describe('useSocket', () => {
         })
 
         await waitFor(() => {
-          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ['transactions'] })
-          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ['transaction', 'txn-12345678'] })
+          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: queryKeys.transactions() })
+          expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: queryKeys.transaction('txn-12345678') })
           expect(toast.info).toHaveBeenCalled()
         })
       })

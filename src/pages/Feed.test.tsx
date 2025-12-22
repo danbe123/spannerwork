@@ -27,10 +27,20 @@ vi.mock('../components/feed/LiveActivityFeed', () => ({
   default: () => <div data-testid="live-activity-feed">Activity Feed</div>,
 }))
 
+vi.mock('@/components/ui/select', () => ({
+  Select: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectTrigger: ({ children, ...props }: { children: React.ReactNode } & React.HTMLAttributes<HTMLButtonElement>) => (
+    <button type="button" {...props}>{children}</button>
+  ),
+  SelectValue: ({ children }: { children?: React.ReactNode }) => <span>{children || 'Recommended'}</span>,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}))
+
 const sampleRequests = [
-  { id: 'req-1', title: 'Need a Power Drill', description: 'For DIY project', category: 'TOOLS', status: 'ACTIVE' },
-  { id: 'req-2', title: 'Plumbing Help', description: 'Fix kitchen sink', category: 'EXPERTISE', status: 'ACTIVE' },
-  { id: 'req-3', title: 'Workshop Space', description: 'Need for woodworking', category: 'SPACE', status: 'ACTIVE' },
+  { id: 'req-1', title: 'Need a Power Drill', description: 'For DIY project', category: 'TOOLS', status: 'ACTIVE', createdDate: '2024-01-01T00:00:00.000Z', urgency: 'FLEXIBLE', budget: 1000, responseCount: 0 },
+  { id: 'req-2', title: 'Plumbing Help', description: 'Fix kitchen sink', category: 'EXPERTISE', status: 'ACTIVE', createdDate: '2024-01-02T00:00:00.000Z', urgency: 'ASAP', budget: 5000, responseCount: 2 },
+  { id: 'req-3', title: 'Workshop Space', description: 'Need for woodworking', category: 'SPACE', status: 'ACTIVE', createdDate: '2024-01-03T00:00:00.000Z', urgency: 'TODAY', budget: 2000, responseCount: 1 },
 ]
 
 
@@ -88,8 +98,11 @@ describe('Feed', () => {
     it('shows stats banner with job count', async () => {
       renderWithClient()
       await waitFor(() => {
-        expect(screen.getByText('3')).toBeInTheDocument()
-        expect(screen.getByText(/active jobs/i)).toBeInTheDocument()
+        const matches = screen.getAllByText((_, el) => {
+          const text = el?.textContent || ''
+          return /active jobs/i.test(text) && /\b3\b/.test(text)
+        })
+        expect(matches.length).toBeGreaterThan(0)
       })
     })
   })

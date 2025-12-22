@@ -50,12 +50,23 @@ export interface CaptureResponse {
   message: string;
   amountCaptured: number;
   transferId?: string;
+  instantPayoutAttempted?: boolean;
+  instantPayoutSucceeded?: boolean;
+  instantPayoutPayoutId?: string;
 }
 
 export interface RefundResponse {
   refundId: string;
   amount: number;
   status: 'pending' | 'succeeded' | 'failed' | 'canceled';
+}
+
+export interface SubscriptionCheckoutResponse {
+  url: string;
+}
+
+export interface SubscriptionPortalResponse {
+  url: string;
 }
 
 // ============================================================================
@@ -124,6 +135,16 @@ export const paymentsService = {
    */
   async requestRefund(transactionId: string, reason?: string): Promise<RefundResponse> {
     const response = await apiClient.post<RefundResponse>('/payments/refund', { transactionId, reason });
+    return response.data;
+  },
+
+  async createSubscriptionCheckout(plan: 'PRO' | 'BUSINESS'): Promise<SubscriptionCheckoutResponse> {
+    const response = await apiClient.post<SubscriptionCheckoutResponse>('/payments/subscription/checkout', { plan });
+    return response.data;
+  },
+
+  async createSubscriptionPortal(returnUrl?: string): Promise<SubscriptionPortalResponse> {
+    const response = await apiClient.post<SubscriptionPortalResponse>('/payments/subscription/portal', { returnUrl });
     return response.data;
   },
 };

@@ -46,6 +46,7 @@ import {
 import SEO from "@/components/SEO";
 import { toast } from "sonner";
 import type { Category, Urgency, RateType, ToolCondition } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 // Import shared components and constants
 import {
@@ -99,7 +100,7 @@ export default function Create() {
 
   // Get current user
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
   const currentUser = currentUserData?.user;
@@ -187,7 +188,7 @@ export default function Create() {
       if (currentUser && postcode !== currentUser.postcode) {
         try {
           await usersService.update(currentUser.id, { locationAddress: postcode });
-          queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() });
         } catch (e) { console.error('Failed to update postcode:', e); }
       }
       return requestsService.create({
@@ -195,7 +196,7 @@ export default function Create() {
         description: data.description,
         category: category as Category,
         urgency: data.urgency as Urgency,
-        budget: parseFloat(data.budget) || 0,
+        budget: Math.round((parseFloat(data.budget) || 0) * 100),
         rateType: data.rateType as RateType,
         broadcastRadius: data.nationwideSearch ? 999 : data.broadcastRadius,
         postcode,
@@ -203,7 +204,7 @@ export default function Create() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['requests'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.requests() });
       setShowSuccess(true);
     },
     onError: (error) => setErrors({ submit: error.message || "Failed to create" })
@@ -222,7 +223,7 @@ export default function Create() {
       postcode
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tools'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tools() });
       setShowSuccess(true);
     },
     onError: (error) => setErrors({ submit: error.message || "Failed to create" })
@@ -240,7 +241,7 @@ export default function Create() {
       locationAddress: postcode
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.spaces() });
       setShowSuccess(true);
     },
     onError: (error) => setErrors({ submit: error.message || "Failed to create" })
@@ -258,7 +259,7 @@ export default function Create() {
       postcode
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.services() });
       setShowSuccess(true);
     },
     onError: (error) => setErrors({ submit: error.message || "Failed to create" })

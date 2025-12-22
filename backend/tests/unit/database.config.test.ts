@@ -27,7 +27,11 @@ vi.mock('../../src/config/env.js', () => ({
 }));
 
 vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn(() => mocks.mockPrismaClient),
+  PrismaClient: class PrismaClient {
+    constructor() {
+      return mocks.mockPrismaClient as unknown as object;
+    }
+  },
 }));
 
 import { prisma, db } from '../../src/config/database.js';

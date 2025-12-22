@@ -303,8 +303,9 @@ describe('ScrollToTop', () => {
     
     renderLayout(<div>Content</div>, { route: '/feed' });
     
-    // ScrollToTop runs on mount
-    expect(scrollToSpy).toHaveBeenCalledWith(0, 0);
+    // MemoryRouter initializes navigation as POP; ScrollToTop should not override
+    // browser scroll restoration for back/forward navigation.
+    expect(scrollToSpy).not.toHaveBeenCalled();
     
     scrollToSpy.mockRestore();
   });

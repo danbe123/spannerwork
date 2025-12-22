@@ -20,6 +20,7 @@ import DocsSidebar from "@/components/docs/DocsSidebar";
 import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
 import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 import { Link } from "react-router-dom";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface UpdateDisputeParams {
   disputeId: string;
@@ -42,14 +43,15 @@ export default function DisputeResolution() {
   const [uploadingEvidence, setUploadingEvidence] = useState(false);
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
   const currentUser: User | undefined = currentUserData?.user;
+  const currentUserIdKey = currentUser?.id ?? '';
 
   const { data: disputes = [], isLoading } = useQuery({
-    queryKey: ['myDisputes'],
+    queryKey: queryKeys.myDisputes(),
     queryFn: async (): Promise<Dispute[]> => {
       if (!currentUser?.id) return [];
       const result = await disputesService.list({});
@@ -59,7 +61,7 @@ export default function DisputeResolution() {
   });
 
   const { data: transactions = [], isLoading: isTransactionsLoading } = useQuery({
-    queryKey: ['myTransactionsForDispute', currentUser?.id],
+    queryKey: queryKeys.myTransactionsForDispute(currentUserIdKey),
     queryFn: async (): Promise<Transaction[]> => {
       if (!currentUser?.id) return [];
 
@@ -88,7 +90,7 @@ export default function DisputeResolution() {
   const updateDisputeMutation = useMutation({
     mutationFn: ({ disputeId, data }: UpdateDisputeParams) => disputesService.resolve(disputeId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myDisputes'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myDisputes() });
       setSelectedDispute(null);
       setResolutionNotes("");
       setResolutionType("");
@@ -121,7 +123,7 @@ export default function DisputeResolution() {
         })(),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myDisputes'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myDisputes() });
       setNewTransactionId("");
       setNewReason("");
       setNewDescription("");

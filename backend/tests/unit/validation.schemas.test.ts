@@ -6,7 +6,7 @@ import {
   verifyPhoneCodeSchema,
   createRequestSchema,
   createToolSchema,
-  createSpaceSchema,
+  createSpaceSchema as _createSpaceSchema,
   createServiceSchema,
   createReviewSchema,
   sendMessageSchema,

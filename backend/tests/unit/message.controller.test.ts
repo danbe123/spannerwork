@@ -29,7 +29,7 @@ vi.mock('../../src/services/message.service.js', () => ({
   },
 }));
 
-import { MessageController, messageController } from '../../src/controllers/message.controller.js';
+import { MessageController, messageController as _messageController } from '../../src/controllers/message.controller.js';
 import { logger } from '../../src/config/logger.js';
 
 // Helper to create mock request - use any to avoid Express type complexity in tests

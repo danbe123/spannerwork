@@ -70,22 +70,22 @@ describe('MarketingFooter', () => {
   describe('trust badges', () => {
     it('displays Secure Payments badge', () => {
       render(<MarketingFooter />);
-      expect(screen.getByText('Secure Payments')).toBeInTheDocument();
+      expect(screen.getAllByText('Secure Payments').length).toBeGreaterThan(0);
     });
 
     it('displays Verified Users badge', () => {
       render(<MarketingFooter />);
-      expect(screen.getByText('Verified Users')).toBeInTheDocument();
+      expect(screen.getAllByText('Verified Users').length).toBeGreaterThan(0);
     });
 
     it('displays Community Members badge', () => {
       render(<MarketingFooter />);
-      expect(screen.getByText('Community Members')).toBeInTheDocument();
+      expect(screen.getAllByText('Community Members').length).toBeGreaterThan(0);
     });
 
     it('displays rating badge', () => {
       render(<MarketingFooter />);
-      expect(screen.getByText('4.8★ Rated')).toBeInTheDocument();
+      expect(screen.getAllByText('4.8★ Rated').length).toBeGreaterThan(0);
     });
   });
 

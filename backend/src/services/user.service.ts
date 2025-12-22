@@ -1,6 +1,6 @@
 import { prisma } from '../config/database.js';
 import { geocodingService } from './geocoding.service.js';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import { BadRequestError, ConflictError } from '../utils/errors.js';
 
 // Maximum pagination limit to prevent excessive queries
@@ -28,10 +28,13 @@ export class UserService {
         role: true,
         accountStatus: true,
         emailVerified: true,
+        providerPlan: true,
+        defaultPayoutSpeed: true,
         rating: true,
         totalTransactions: true,
         totalReviews: true,
         createdDate: true,
+        updatedDate: true,
         // Don't include passwordHash, sessions, etc.
         ...(includeRelations && {
           tools: {
@@ -92,6 +95,7 @@ export class UserService {
       name?: string;
       username?: string;
       phone?: string;
+      defaultPayoutSpeed?: 'STANDARD' | 'INSTANT';
       bio?: string;
       postcode?: string;
       avatar?: string;
@@ -115,7 +119,7 @@ export class UserService {
     }
 
     // If postcode is being updated, geocode it
-    let locationData = {};
+    let locationData: Prisma.UserUpdateInput = {};
     if (data.postcode) {
       const location = await geocodingService.geocodePostcode(data.postcode);
       if (!location) {

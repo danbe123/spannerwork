@@ -237,7 +237,7 @@ describe('GamificationService', () => {
         totalRentalsAsProvider: 0,
       } as any);
 
-      const result = await gamificationService.getOrCreateStats('user-1');
+      await gamificationService.getOrCreateStats('user-1');
 
       expect(prisma.userStats.create).toHaveBeenCalledWith({
         data: { userId: 'user-1' },

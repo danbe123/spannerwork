@@ -73,7 +73,7 @@ describe('Error Middleware', () => {
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Forbidden',
-        message: 'Invalid CSRF token',
+        message: 'Your session has expired. Please refresh the page and try again.',
         code: 'EBADCSRFTOKEN',
       });
     });

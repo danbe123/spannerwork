@@ -21,11 +21,17 @@ vi.mock('ioredis', () => {
     status: 'ready',
     on: vi.fn(),
   };
-  return { default: vi.fn(() => mockRedis) };
+  return {
+    default: class Redis {
+      constructor() {
+        return mockRedis as unknown as object;
+      }
+    },
+  };
 });
 
 import { getCircuitBreakerStatus, isRedisAvailable, safeGet, safeSetex, safeDel } from '../../src/config/redis.js';
-import { logger } from '../../src/config/logger.js';
+import { logger as _logger } from '../../src/config/logger.js';
 
 describe('Redis Configuration', () => {
   beforeEach(() => {

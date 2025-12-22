@@ -21,6 +21,7 @@ import SEO, { generateProductSchema, generateBreadcrumbSchema } from "@/componen
 import BundleSuggestions from "@/components/listing/BundleSuggestions";
 import TrustSignals from "@/components/profile/TrustSignals";
 import { Tool, User } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 export default function ToolDetail() {
   const navigate = useNavigate();
@@ -29,26 +30,29 @@ export default function ToolDetail() {
   const toolIdFromQuery = urlParams.get('id');
   const toolIdFromPath = location.pathname.match(/^\/tool\/([^/]+)\/?$/i)?.[1] ?? null;
   const toolId = toolIdFromPath || toolIdFromQuery;
+  const toolIdKey = toolId ?? '';
 
   // All hooks must be called before any conditional returns
   const { data: toolData, isLoading } = useQuery({
-    queryKey: ['tool', toolId],
-    queryFn: () => toolsService.getById(toolId!),
+    queryKey: queryKeys.tool(toolIdKey),
+    queryFn: () => toolsService.getById(toolIdKey),
     enabled: !!toolId,
   });
 
   const tool: Tool | undefined = toolData?.tool;
 
+  const ownerIdKey = tool?.ownerId ?? '';
+
   const { data: ownerData } = useQuery({
-    queryKey: ['owner', tool?.ownerId],
-    queryFn: () => usersService.getById(tool!.ownerId),
+    queryKey: tool?.ownerId ? queryKeys.owner(ownerIdKey) : queryKeys.userIdRoot(),
+    queryFn: () => usersService.getById(ownerIdKey),
     enabled: !!tool?.ownerId,
   });
 
   const owner: User | undefined = ownerData?.user;
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
@@ -111,7 +115,7 @@ export default function ToolDetail() {
         title={`${tool.name} - ${tool.category} | SpannerWork`}
         description={tool.description || `Rent ${tool.name} from SpannerWork. ${tool.category} available for hire.`}
         keywords={`${tool.category}, tool rental, ${tool.name}, equipment hire`}
-        // @ts-ignore - Schema types from JSX component
+        // @ts-expect-error - Schema types from JSX component
         schema={[
           generateProductSchema(tool),
           generateBreadcrumbSchema([

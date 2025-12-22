@@ -44,6 +44,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { analyticsService } from '@/api/services/analytics.service';
 import { brandColors } from '@/lib/colors';
+import { queryKeys } from '@/lib/queryKeys';
 
 // Chart colors
 const COLORS = [brandColors[800], '#10B981', '#F59E0B', '#6366F1', '#EC4899'];
@@ -102,42 +103,42 @@ export default function AdminAnalytics() {
 
   // Queries
   const { data: overview, isLoading: overviewLoading, refetch: refetchOverview } = useQuery({
-    queryKey: ['admin-analytics-overview'],
+    queryKey: queryKeys.adminAnalyticsOverview(),
     queryFn: () => analyticsService.getOverview(),
   });
 
   const { data: revenue, isLoading: revenueLoading } = useQuery({
-    queryKey: ['admin-analytics-revenue', dateRange],
+    queryKey: queryKeys.adminAnalyticsRevenue(dateRange),
     queryFn: () => analyticsService.getRevenue(getDateParams()),
   });
 
   const { data: userGrowth, isLoading: userGrowthLoading } = useQuery({
-    queryKey: ['admin-analytics-users', dateRange],
+    queryKey: queryKeys.adminAnalyticsUsers(dateRange),
     queryFn: () => analyticsService.getUserGrowth(getDateParams()),
   });
 
   const { data: listingTrends, isLoading: listingTrendsLoading } = useQuery({
-    queryKey: ['admin-analytics-listings', dateRange],
+    queryKey: queryKeys.adminAnalyticsListings(dateRange),
     queryFn: () => analyticsService.getListingTrends(getDateParams()),
   });
 
   const { data: categories, isLoading: categoriesLoading } = useQuery({
-    queryKey: ['admin-analytics-categories'],
+    queryKey: queryKeys.adminAnalyticsCategories(),
     queryFn: () => analyticsService.getCategoryBreakdown(),
   });
 
   const { data: geographic, isLoading: geographicLoading } = useQuery({
-    queryKey: ['admin-analytics-geographic'],
+    queryKey: queryKeys.adminAnalyticsGeographic(),
     queryFn: () => analyticsService.getGeographicDistribution(),
   });
 
   const { data: funnel, isLoading: funnelLoading } = useQuery({
-    queryKey: ['admin-analytics-funnel'],
+    queryKey: queryKeys.adminAnalyticsFunnel(),
     queryFn: () => analyticsService.getConversionFunnel(),
   });
 
   const { data: topPerformers, isLoading: topPerformersLoading } = useQuery({
-    queryKey: ['admin-analytics-top-performers'],
+    queryKey: queryKeys.adminAnalyticsTopPerformers(),
     queryFn: () => analyticsService.getTopPerformers(10),
   });
 
@@ -152,12 +153,13 @@ export default function AdminAnalytics() {
     const csvData = [
       ['Metric', 'Value'],
       ['Total Users', overview.totalUsers?.toString() || '0'],
-      ['Active Users', overview.activeUsers?.toString() || '0'],
+      ['Active Users (24h)', overview.activeUsers24h?.toString() || '0'],
       ['Total Transactions', overview.totalTransactions?.toString() || '0'],
-      ['Total Revenue', `£${overview.totalRevenue?.toFixed(2) || '0.00'}`],
-      ['Average Rating', overview.averageRating?.toFixed(2) || '0'],
+      ['Total GMV', formatPence(overview.totalGmv || 0)],
+      ['Platform Revenue', formatPence(overview.platformRevenue || 0)],
       ['Total Listings', overview.totalListings?.toString() || '0'],
-      ['Active Requests', overview.activeRequests?.toString() || '0'],
+      ['New Users Today', overview.newUsersToday?.toString() || '0'],
+      ['Pending Disputes', overview.pendingDisputes?.toString() || '0'],
       ['Date Range', dateRange],
       ['Export Date', new Date().toISOString()],
     ];

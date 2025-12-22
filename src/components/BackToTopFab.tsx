@@ -18,9 +18,11 @@ export default function BackToTopFab({
   const [visible, setVisible] = useState(false);
 
   const path = (location.pathname || "").toLowerCase();
-  if (hideOnPaths.map((p) => p.toLowerCase()).includes(path)) return null;
+  const isHiddenPath = hideOnPaths.map((p) => p.toLowerCase()).includes(path);
 
   useEffect(() => {
+    if (isHiddenPath) return;
+
     function onScroll() {
       setVisible(window.scrollY > showAfterPx);
     }
@@ -28,7 +30,9 @@ export default function BackToTopFab({
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [showAfterPx]);
+  }, [showAfterPx, isHiddenPath]);
+
+  if (isHiddenPath) return null;
 
   return (
     <AnimatePresence>

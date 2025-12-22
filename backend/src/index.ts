@@ -2,8 +2,8 @@ import http from 'http';
 import { app } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
-import { prisma } from './config/database.js';
-import { redis } from './config/redis.js';
+import { prisma, closeDatabase } from './config/database.js';
+import { redis, closeRedis } from './config/redis.js';
 import { schedulerService } from './services/scheduler.service.js';
 import { smartNotificationsService } from './services/smartNotifications.service.js';
 import { startWorkers, closeWorkers } from './workers/index.js';
@@ -240,11 +240,11 @@ export async function gracefulShutdown(signal: string) {
     logger.info('✅ Queue connections closed');
 
     // Close database connection
-    await prisma.$disconnect();
+    await closeDatabase();
     logger.info('✅ Database disconnected');
 
     // Close Redis connection
-    await redis.quit();
+    await closeRedis();
     logger.info('✅ Redis disconnected');
 
     clearTimeout(shutdownTimer);

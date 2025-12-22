@@ -2,7 +2,12 @@ import { Router } from 'express';
 import { transactionController } from '../controllers/transaction.controller.js';
 import { requireAuth, requireEmailVerified } from '../middleware/auth.middleware.js';
 import { validateBody, validateParams } from '../middleware/validate.middleware.js';
-import { createTransactionSchema, updateTransactionStatusSchema, idParamSchema } from '../utils/validation.schemas.js';
+import {
+  createTransactionSchema,
+  updateTransactionStatusSchema,
+  updateTransactionAddOnsSchema,
+  idParamSchema,
+} from '../utils/validation.schemas.js';
 import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
 
 const router = Router();
@@ -63,5 +68,14 @@ router.post('/:id/complete', requireAuth, validateParams(idParamSchema), verifyC
  * @access  Private
  */
 router.post('/:id/cancel', requireAuth, validateParams(idParamSchema), verifyCsrfToken, transactionController.cancel.bind(transactionController));
+
+router.patch(
+  '/:id/add-ons',
+  requireAuth,
+  validateParams(idParamSchema),
+  verifyCsrfToken,
+  validateBody(updateTransactionAddOnsSchema),
+  transactionController.updateAddOns.bind(transactionController)
+);
 
 export default router;

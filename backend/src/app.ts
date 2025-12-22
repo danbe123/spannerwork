@@ -17,6 +17,8 @@ import { requestMetricsMiddleware } from './services/metrics.service.js';
 import { requestIdMiddleware } from './middleware/requestId.middleware.js';
 import { requestTimeout } from './middleware/timeout.middleware.js';
 import { apiVersionHeaders, validateApiVersion } from './middleware/apiVersion.middleware.js';
+import { apiLimiter } from './middleware/rateLimit.middleware.js';
+import webhookRoutes from './routes/webhook.routes.js';
 
 // Initialize Sentry (if configured)
 if (env.SENTRY_DSN) {
@@ -123,6 +125,8 @@ const corsOptions =
 
 app.use(cors(corsOptions));
 
+app.use('/api/webhooks', webhookRoutes);
+
 // Body parsers - default limit is conservative (100KB)
 // Upload routes get larger limits specifically configured
 app.use(express.json({ limit: '100kb' }));
@@ -133,6 +137,8 @@ app.use(cookieParser());
 
 // Request ID for distributed tracing
 app.use(requestIdMiddleware());
+
+app.use('/api', apiLimiter);
 
 // Request timeout (30 seconds default, extended for upload routes)
 app.use(requestTimeout);
@@ -149,8 +155,10 @@ app.use(requestMetricsMiddleware());
 
 // API versioning headers and validation
 // Adds X-API-Version, X-API-Supported-Versions headers to all API responses
-app.use('/api', apiVersionHeaders);
-app.use('/api', validateApiVersion);
+app.use(apiVersionHeaders);
+
+// API version validation
+app.use(validateApiVersion);
 
 // HTTP request logging
 if (env.NODE_ENV === 'development') {
@@ -350,6 +358,7 @@ import gamificationRoutes from './routes/gamification.routes.js';
 import quickAcceptRoutes from './routes/quickAccept.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import insuranceRoutes from './routes/insurance.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/requests', requestRoutes);
@@ -376,6 +385,7 @@ app.use('/api/v1/gamification', gamificationRoutes);
 app.use('/api/v1/quick-accept', quickAcceptRoutes);
 app.use('/api/v1/admin/analytics', analyticsRoutes);
 app.use('/api/v1/insurance', insuranceRoutes);
+app.use('/api/v1/payments', paymentRoutes);
 
 // ============================================================================
 // ERROR HANDLING

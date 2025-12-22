@@ -60,7 +60,7 @@ describe('VerificationAlert', () => {
     );
     
     fireEvent.click(screen.getByText('Manage verification'));
-    expect(mockNavigate).toHaveBeenCalledWith('/Verification');
+    expect(mockNavigate).toHaveBeenCalledWith('/verification');
   });
 
   it('displays trust building message', () => {

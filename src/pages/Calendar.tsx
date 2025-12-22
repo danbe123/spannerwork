@@ -3,6 +3,7 @@ import { authService, toolsService, transactionsService } from "@/api/services";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { queryKeys } from "@/lib/queryKeys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,13 +26,14 @@ export default function Calendar() {
   
   const urlParams = new URLSearchParams(window.location.search);
   const toolId = urlParams.get('toolId');
+  const toolIdKey = toolId ?? '';
   
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const { data: toolData, isLoading: loadingTool } = useQuery({
-    queryKey: ['tool', toolId],
-    queryFn: () => toolsService.getById(toolId!),
+    queryKey: queryKeys.tool(toolIdKey),
+    queryFn: () => toolsService.getById(toolIdKey),
     enabled: !!toolId,
   });
 
@@ -39,7 +41,7 @@ export default function Calendar() {
 
   // Note: Bookings are managed through transactions
   const { data: bookingsData } = useQuery({
-    queryKey: ['bookings', toolId],
+    queryKey: queryKeys.bookingsByTool(toolIdKey),
     // @ts-expect-error - toolId filter may need to be added to API
     queryFn: () => transactionsService.list({ toolId }),
     enabled: !!toolId,
@@ -48,7 +50,7 @@ export default function Calendar() {
   const bookings: Transaction[] = bookingsData?.data || [];
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
@@ -68,8 +70,8 @@ export default function Calendar() {
       return result.transaction;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookings', toolId] });
-      queryClient.invalidateQueries({ queryKey: ['myListings'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.bookingsByTool(toolIdKey) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myListings() });
       setSelectedDate(null);
     },
   });

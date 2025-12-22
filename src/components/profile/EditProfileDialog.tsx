@@ -15,6 +15,14 @@ import { Loader2, MapPin, Camera, X } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { User } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface EditProfileDialogProps {
   user: User;
@@ -30,11 +38,13 @@ interface FormData {
   locationLat: number | null;
   locationLng: number | null;
   avatar: string;
+  defaultPayoutSpeed: 'STANDARD' | 'INSTANT';
 }
 
 interface UpdateData {
   name?: string;
   username?: string;
+  defaultPayoutSpeed?: 'STANDARD' | 'INSTANT';
   bio?: string;
   locationAddress?: string;
   locationLat?: number;
@@ -53,6 +63,7 @@ export default function EditProfileDialog({ user, wizardMode = false, onClose }:
     locationLat: user?.locationLat || null,
     locationLng: user?.locationLng || null,
     avatar: user?.avatar || "",
+    defaultPayoutSpeed: (user as unknown as { defaultPayoutSpeed?: 'STANDARD' | 'INSTANT' })?.defaultPayoutSpeed || 'STANDARD',
   });
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar || null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -64,7 +75,7 @@ export default function EditProfileDialog({ user, wizardMode = false, onClose }:
     mutationFn: (data: UpdateData) => usersService.update(user.id, data),
     onSuccess: () => {
       setUpdateError("");
-      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() });
       onClose();
     },
     onError: (error: Error & { data?: { message?: string } }) => {
@@ -225,6 +236,7 @@ export default function EditProfileDialog({ user, wizardMode = false, onClose }:
     if (formData.bio) dataToSubmit.bio = formData.bio;
     if (formData.locationAddress) dataToSubmit.locationAddress = formData.locationAddress;
     if (formData.avatar) dataToSubmit.avatar = formData.avatar;
+    dataToSubmit.defaultPayoutSpeed = formData.defaultPayoutSpeed;
     
     if (formData.locationLat && formData.locationLng) {
       dataToSubmit.locationLat = formData.locationLat;
@@ -359,6 +371,32 @@ export default function EditProfileDialog({ user, wizardMode = false, onClose }:
                 <AlertDescription className="text-xs">{locationError}</AlertDescription>
               </Alert>
             )}
+          </div>
+
+          <div>
+            <Label>Payout Speed</Label>
+            <div className="mt-2">
+              <Select
+                value={formData.defaultPayoutSpeed}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    defaultPayoutSpeed: value as FormData['defaultPayoutSpeed'],
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payout speed" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="STANDARD">Standard (2-7 days) — Free</SelectItem>
+                  <SelectItem value="INSTANT">Instant (minutes) — 1.5% fee</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Instant payout applies to new bookings and may not be available for all accounts.
+            </p>
           </div>
 
           <div className="flex gap-3 pt-4">

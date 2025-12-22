@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     error: vi.fn(),
     debug: vi.fn(),
   },
+  workerConstructorCalls: [] as unknown[][],
   workerInstance: {
     on: vi.fn(),
     close: vi.fn().mockResolvedValue(undefined),
@@ -52,8 +53,13 @@ vi.mock('../../src/services/notification.service.js', () => ({
 
 // Mock BullMQ
 vi.mock('bullmq', () => ({
-  Worker: vi.fn(() => mocks.workerInstance),
-  Job: vi.fn(),
+  Worker: class Worker {
+    constructor(...args: unknown[]) {
+      mocks.workerConstructorCalls.push(args);
+      return mocks.workerInstance as unknown as object;
+    }
+  },
+  Job: class Job {},
 }));
 
 vi.mock('../../src/config/queue.js', () => ({
@@ -264,27 +270,23 @@ describe('Worker Redis Connection', () => {
 
 // Test job processing by capturing the processor callbacks
 describe('Email Worker Job Processing', () => {
-  let emailProcessor: (job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>;
+  let _emailProcessor: (job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>;
 
   beforeEach(async () => {
     vi.resetModules();
-    
-    // Re-import with the processor capture
-    const { Worker } = await import('bullmq');
-    const workerCalls = vi.mocked(Worker).mock.calls;
+    mocks.workerConstructorCalls.length = 0;
+    await import('../../src/workers/index.js');
     
     // The first call should be the email worker
-    if (workerCalls.length > 0) {
-      emailProcessor = workerCalls[0][1] as typeof emailProcessor;
+    if (mocks.workerConstructorCalls.length > 0) {
+      _emailProcessor = mocks.workerConstructorCalls[0][1] as typeof _emailProcessor;
     }
   });
 
   it('should process verification email', async () => {
     const { emailService } = await import('../../src/services/email.service.js');
     
-    // Get the Worker mock
-    const { Worker } = await import('bullmq');
-    const processor = vi.mocked(Worker).mock.calls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
@@ -305,8 +307,7 @@ describe('Email Worker Job Processing', () => {
 
   it('should process password-reset email', async () => {
     const { emailService } = await import('../../src/services/email.service.js');
-    const { Worker } = await import('bullmq');
-    const processor = vi.mocked(Worker).mock.calls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
@@ -325,8 +326,7 @@ describe('Email Worker Job Processing', () => {
 
   it('should process welcome email', async () => {
     const { emailService } = await import('../../src/services/email.service.js');
-    const { Worker } = await import('bullmq');
-    const processor = vi.mocked(Worker).mock.calls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
@@ -345,8 +345,7 @@ describe('Email Worker Job Processing', () => {
 
   it('should process booking-confirmation email', async () => {
     const { emailService } = await import('../../src/services/email.service.js');
-    const { Worker } = await import('bullmq');
-    const processor = vi.mocked(Worker).mock.calls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
@@ -373,8 +372,7 @@ describe('Email Worker Job Processing', () => {
 
   it('should process booking-cancellation email', async () => {
     const { emailService } = await import('../../src/services/email.service.js');
-    const { Worker } = await import('bullmq');
-    const processor = vi.mocked(Worker).mock.calls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
@@ -400,8 +398,7 @@ describe('Email Worker Job Processing', () => {
   });
 
   it('should log warning for unknown email type', async () => {
-    const { Worker } = await import('bullmq');
-    const processor = vi.mocked(Worker).mock.calls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[0]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
@@ -422,10 +419,12 @@ describe('Email Worker Job Processing', () => {
 describe('SMS Worker Job Processing', () => {
   it('should process SMS job', async () => {
     const { smsService } = await import('../../src/services/sms.service.js');
-    const { Worker } = await import('bullmq');
+    if (mocks.workerConstructorCalls.length === 0) {
+      await import('../../src/workers/index.js');
+    }
     
     // The second Worker call is for SMS
-    const processor = vi.mocked(Worker).mock.calls[1]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[1]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
@@ -451,20 +450,23 @@ describe('SMS Worker Job Processing', () => {
 describe('Notification Worker Job Processing', () => {
   it('should process new-message notification', async () => {
     const { notificationService } = await import('../../src/services/notification.service.js');
-    const { Worker } = await import('bullmq');
+    if (mocks.workerConstructorCalls.length === 0) {
+      await import('../../src/workers/index.js');
+    }
     
     // The third Worker call is for notifications
-    const processor = vi.mocked(Worker).mock.calls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
         id: 'notif-1',
         data: {
-          type: 'new-message',
+          type: 'push',
           userId: 'user-123',
           title: 'New Message',
           body: 'You have a new message',
           data: {
+            tag: 'new-message',
             senderName: 'John',
             preview: 'Hello there!',
           },
@@ -480,19 +482,21 @@ describe('Notification Worker Job Processing', () => {
 
   it('should process booking-confirmed notification', async () => {
     const { notificationService } = await import('../../src/services/notification.service.js');
-    const { Worker } = await import('bullmq');
+    if (mocks.workerConstructorCalls.length === 0) {
+      await import('../../src/workers/index.js');
+    }
     
-    const processor = vi.mocked(Worker).mock.calls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
         id: 'notif-2',
         data: {
-          type: 'booking-confirmed',
+          type: 'push',
           userId: 'user-123',
           title: 'Booking Confirmed',
           body: 'Your booking is confirmed',
-          data: { resourceName: 'Power Drill' },
+          data: { tag: 'booking-confirmed', resourceName: 'Power Drill' },
         },
       };
 
@@ -503,19 +507,21 @@ describe('Notification Worker Job Processing', () => {
 
   it('should process booking-cancelled notification', async () => {
     const { notificationService } = await import('../../src/services/notification.service.js');
-    const { Worker } = await import('bullmq');
+    if (mocks.workerConstructorCalls.length === 0) {
+      await import('../../src/workers/index.js');
+    }
     
-    const processor = vi.mocked(Worker).mock.calls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
         id: 'notif-3',
         data: {
-          type: 'booking-cancelled',
+          type: 'push',
           userId: 'user-123',
           title: 'Booking Cancelled',
           body: 'Your booking was cancelled',
-          data: { resourceName: 'Power Drill' },
+          data: { tag: 'booking-cancelled', resourceName: 'Power Drill' },
         },
       };
 
@@ -526,19 +532,21 @@ describe('Notification Worker Job Processing', () => {
 
   it('should process payment-received notification', async () => {
     const { notificationService } = await import('../../src/services/notification.service.js');
-    const { Worker } = await import('bullmq');
+    if (mocks.workerConstructorCalls.length === 0) {
+      await import('../../src/workers/index.js');
+    }
     
-    const processor = vi.mocked(Worker).mock.calls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
         id: 'notif-4',
         data: {
-          type: 'payment-received',
+          type: 'push',
           userId: 'user-123',
           title: 'Payment Received',
           body: 'You received a payment',
-          data: { amount: 50 },
+          data: { tag: 'payment-received', amount: 50 },
         },
       };
 
@@ -549,19 +557,21 @@ describe('Notification Worker Job Processing', () => {
 
   it('should process review-received notification', async () => {
     const { notificationService } = await import('../../src/services/notification.service.js');
-    const { Worker } = await import('bullmq');
+    if (mocks.workerConstructorCalls.length === 0) {
+      await import('../../src/workers/index.js');
+    }
     
-    const processor = vi.mocked(Worker).mock.calls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
         id: 'notif-5',
         data: {
-          type: 'review-received',
+          type: 'push',
           userId: 'user-123',
           title: 'New Review',
           body: 'You received a review',
-          data: { rating: 5, reviewerName: 'Jane' },
+          data: { tag: 'review-received', rating: 5, reviewerName: 'Jane' },
         },
       };
 
@@ -572,19 +582,21 @@ describe('Notification Worker Job Processing', () => {
 
   it('should process dispute-update notification', async () => {
     const { notificationService } = await import('../../src/services/notification.service.js');
-    const { Worker } = await import('bullmq');
+    if (mocks.workerConstructorCalls.length === 0) {
+      await import('../../src/workers/index.js');
+    }
     
-    const processor = vi.mocked(Worker).mock.calls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
         id: 'notif-6',
         data: {
-          type: 'dispute-update',
+          type: 'push',
           userId: 'user-123',
           title: 'Dispute Update',
           body: 'Your dispute has been updated',
-          data: { status: 'resolved' },
+          data: { tag: 'dispute-update', status: 'resolved' },
         },
       };
 
@@ -595,19 +607,21 @@ describe('Notification Worker Job Processing', () => {
 
   it('should process referral-completed notification', async () => {
     const { notificationService } = await import('../../src/services/notification.service.js');
-    const { Worker } = await import('bullmq');
+    if (mocks.workerConstructorCalls.length === 0) {
+      await import('../../src/workers/index.js');
+    }
     
-    const processor = vi.mocked(Worker).mock.calls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
         id: 'notif-7',
         data: {
-          type: 'referral-completed',
+          type: 'push',
           userId: 'user-123',
           title: 'Referral Complete',
           body: 'Your referral signed up',
-          data: { referredName: 'John' },
+          data: { tag: 'referral-completed', referredName: 'John' },
         },
       };
 
@@ -618,19 +632,21 @@ describe('Notification Worker Job Processing', () => {
 
   it('should process booking-request notification', async () => {
     const { notificationService } = await import('../../src/services/notification.service.js');
-    const { Worker } = await import('bullmq');
+    if (mocks.workerConstructorCalls.length === 0) {
+      await import('../../src/workers/index.js');
+    }
     
-    const processor = vi.mocked(Worker).mock.calls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {
         id: 'notif-8',
         data: {
-          type: 'booking-request',
+          type: 'push',
           userId: 'user-123',
           title: 'New Booking Request',
           body: 'Someone wants to book',
-          data: { resourceName: 'Drill', requesterName: 'Jane' },
+          data: { tag: 'booking-request', resourceName: 'Drill', requesterName: 'Jane' },
         },
       };
 
@@ -641,9 +657,11 @@ describe('Notification Worker Job Processing', () => {
 
   it('should handle generic notification type', async () => {
     const { notificationService } = await import('../../src/services/notification.service.js');
-    const { Worker } = await import('bullmq');
+    if (mocks.workerConstructorCalls.length === 0) {
+      await import('../../src/workers/index.js');
+    }
     
-    const processor = vi.mocked(Worker).mock.calls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
+    const processor = mocks.workerConstructorCalls[2]?.[1] as ((job: { id: string; data: Record<string, unknown> }) => Promise<{ success: boolean }>) | undefined;
     
     if (processor) {
       const mockJob = {

@@ -56,7 +56,7 @@ describe('Terms Page', () => {
 
     it('renders Provider responsibilities', () => {
       renderTerms();
-      expect(screen.getByText(/For Providers/i)).toBeInTheDocument();
+      expect(screen.getByText(/For Providers \(Tool Owners\/Service Providers\)/i)).toBeInTheDocument();
     });
 
     it('renders Renter responsibilities', () => {

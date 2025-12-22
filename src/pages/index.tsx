@@ -223,9 +223,11 @@ function PagesContent(): JSX.Element {
                         <Route path="/how-it-works" element={<HowItWorks />} />
                         <Route path="/pricing" element={<Pricing />} />
                         <Route path="/safety" element={<Safety />} />
-                        <Route path="/start-earning" element={<StartEarning />} />
-                        <Route path="/success-stories" element={<SuccessStories />} />
+                        <Route path="/start-earning" element={<Navigate to="/resources/start-earning" replace />} />
+                        <Route path="/success-stories" element={<Navigate to="/resources/success-stories" replace />} />
                         <Route path="/resources" element={<Resources />} />
+                        <Route path="/resources/start-earning" element={<StartEarning />} />
+                        <Route path="/resources/success-stories" element={<SuccessStories />} />
                         
                         {/* Guide Pages */}
                         <Route path="/guides/provider" element={<ProviderGuide />} />

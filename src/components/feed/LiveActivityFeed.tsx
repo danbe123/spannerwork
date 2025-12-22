@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, TrendingUp, Users, Zap, RefreshCw, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { queryKeys } from '@/lib/queryKeys';
 
 // Types
 interface ActivityEvent {
@@ -71,7 +72,7 @@ const LiveActivityFeed: FC<LiveActivityFeedProps> = ({
     isError: feedError,
     refetch: refetchFeed
   } = useQuery({
-    queryKey: ['activityFeed', limit],
+    queryKey: queryKeys.activityFeedWithLimit(limit),
     queryFn: () => activityService.getFeed(limit),
     refetchInterval: 30000,
     staleTime: 10000,
@@ -80,7 +81,7 @@ const LiveActivityFeed: FC<LiveActivityFeedProps> = ({
 
   // Fetch live stats
   const { data: statsData } = useQuery<LiveStats>({
-    queryKey: ['liveStats'],
+    queryKey: queryKeys.liveStats(),
     queryFn: () => activityService.getStats(),
     refetchInterval: 60000,
     staleTime: 30000,

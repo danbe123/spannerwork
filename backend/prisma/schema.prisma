@@ -65,6 +65,11 @@ model User {
   stripeConnectId     String?       @unique
   stripeCustomerId    String?       @unique
 
+  providerPlan        ProviderPlan  @default(FREE)
+  stripeSubscriptionId String?      @unique
+  stripeSubscriptionStatus String?
+  defaultPayoutSpeed  PayoutSpeed   @default(STANDARD)
+
   // Terms & Conditions acceptance
   termsAcceptedAt         DateTime?
   termsVersion            String?
@@ -96,6 +101,17 @@ enum AccountStatus {
   ACTIVE
   SUSPENDED
   DELETED
+}
+
+enum ProviderPlan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum PayoutSpeed {
+  STANDARD
+  INSTANT
 }
 
 // ============================================================================
@@ -292,6 +308,18 @@ model Transaction {
   rentalFee     Int // Stored in pence (e.g., £10.00 = 1000 pence)
   platformFee   Int // Stored in pence
   totalAmount   Int // Stored in pence
+
+  providerPlanAtBooking ProviderPlan @default(FREE)
+  platformFeePercent    Int          @default(5)
+  applicationFeeAmount  Int          @default(0)
+  instantPayoutSelected Boolean      @default(false)
+  instantPayoutFee      Int          @default(0)
+  insuranceDamageProtectionSelected Boolean @default(false)
+  insuranceDamageProtectionFee      Int     @default(0)
+  insuranceLiabilitySelected        Boolean @default(false)
+  insuranceLiabilityFee             Int     @default(0)
+  insuranceCancellationSelected     Boolean @default(false)
+  insuranceCancellationFee          Int     @default(0)
   status        TransactionStatus @default(PENDING)
   paymentStatus PaymentStatus     @default(PENDING)
   notes         String?           @db.Text
@@ -300,6 +328,7 @@ model Transaction {
   // Stripe payment tracking
   stripePaymentIntentId String?   @unique
   stripeTransferId      String?   @unique
+  stripeInstantPayoutId  String?   @unique
 
   // Liability waivers
   customerWaiverAcceptedAt  DateTime?

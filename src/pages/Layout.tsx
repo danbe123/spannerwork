@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Wrench, 
@@ -52,6 +52,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService, gamificationService, messagesService } from "@/api/services";
 import { User as UserType, Conversation } from "@/types";
 import BackToTopFab from "@/components/BackToTopFab";
+import { queryKeys } from "@/lib/queryKeys";
 
 // Types
 interface UserStats {
@@ -112,6 +113,7 @@ const MARKETING_PREFIXES = [
   '/tool/',
   '/space/',
   '/service/',
+  '/resources/',
 ];
 
 function isMarketingRoute(pathname: string): boolean {
@@ -145,9 +147,18 @@ const getNavigationItems = (userRole: string | undefined, unreadMessages: number
 // Scroll restoration
 function ScrollToTop() {
   const { pathname } = useLocation();
+  const navigationType = useNavigationType();
   useEffect(() => {
+    if (navigationType === 'POP') return;
+    try {
+      if (pathname.toLowerCase() === '/feed' && sessionStorage.getItem('spannerwork_feed_restore_hint_v1') === '1') {
+        return;
+      }
+    } catch {
+      // ignore
+    }
     window.scrollTo(0, 0);
-  }, [pathname]);
+  }, [pathname, navigationType]);
   return null;
 }
 
@@ -626,7 +637,7 @@ export default function Layout({ children }: LayoutProps) {
 
   // Get current user
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
     enabled: isAuthenticated,
   });
@@ -634,7 +645,7 @@ export default function Layout({ children }: LayoutProps) {
 
   // Get user stats from gamification service
   const { data: statsData } = useQuery({
-    queryKey: ['myStats'],
+    queryKey: queryKeys.myStats(),
     queryFn: () => gamificationService.getMyStats(),
     enabled: isAuthenticated,
   });
@@ -642,7 +653,7 @@ export default function Layout({ children }: LayoutProps) {
 
   // Get unread messages count from real API
   const { data: conversationsData } = useQuery({
-    queryKey: ['conversations'],
+    queryKey: queryKeys.conversations(),
     queryFn: () => messagesService.listConversations(),
     enabled: isAuthenticated,
     refetchInterval: 30000, // Refresh every 30s
@@ -659,7 +670,7 @@ export default function Layout({ children }: LayoutProps) {
     try {
       await authService.logout();
       // Clear user data from cache
-      queryClient.setQueryData(['currentUser'], null);
+      queryClient.setQueryData(queryKeys.currentUser(), null);
       queryClient.clear();
       toast.success('Signed out successfully');
       navigate('/');

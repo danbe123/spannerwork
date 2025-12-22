@@ -35,7 +35,7 @@ vi.mock('../../src/config/redis.js', () => ({
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-import { geocodingService, GeocodingService } from '../../src/services/geocoding.service.js';
+import { geocodingService, GeocodingService as _GeocodingService } from '../../src/services/geocoding.service.js';
 import { logger } from '../../src/config/logger.js';
 
 describe('Geocoding Service', () => {

@@ -46,9 +46,12 @@ const {
 } = doubleCsrf({
   getSecret: () => env.CSRF_SECRET,
   getSessionIdentifier: getSecureSessionIdentifier,
-  cookieName: env.NODE_ENV === 'production' ? '__Host-spannerwork.csrf' : 'spannerwork.csrf',
+  cookieName: COOKIE_NAMES.CSRF,
   cookieOptions: {
-    sameSite: 'strict',
+    // Match session cookie sameSite settings for consistency:
+    // - 'lax' in development allows easier testing with navigation
+    // - 'strict' in production for maximum CSRF protection
+    sameSite: env.NODE_ENV === 'production' ? 'strict' : 'lax',
     path: '/',
     secure: env.NODE_ENV === 'production',
     httpOnly: true,

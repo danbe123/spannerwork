@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { createFramerMotionMock, createHelmetMock } from '@/test/mockSetup';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 
 // Mock navigate
 const mockNavigate = vi.fn();
@@ -370,7 +371,7 @@ describe('Create Page', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /verify email/i }));
-      expect(mockNavigate).toHaveBeenCalledWith('/profile');
+      expect(mockNavigate).toHaveBeenCalledWith('/verification');
     });
 
     it('shows go back button on verification page', async () => {
@@ -2067,7 +2068,7 @@ describe('Create Page', () => {
         expect(mockUpdateUser).toHaveBeenCalledWith('user-1', { locationAddress: 'B1 1AA' });
       });
 
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['currentUser'] });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.currentUser() });
 
       const payload = mockCreateRequest.mock.calls[0]?.[0] as Record<string, unknown>;
       expect(payload).toMatchObject({

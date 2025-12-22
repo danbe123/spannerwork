@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useHaptics } from './use-haptics';
+import { queryKeys } from '@/lib/queryKeys';
 
 /**
  * Real-time Activity Hook
@@ -102,7 +103,7 @@ export function useRealtimeActivity(options: UseRealtimeActivityOptions = {}): U
       onActivity?.(event);
       
       // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['activityFeed'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activityFeed() });
     });
 
     // Listen for new requests (for providers)
@@ -114,8 +115,8 @@ export function useRealtimeActivity(options: UseRealtimeActivityOptions = {}): U
       onNewRequest?.(request);
       
       // Invalidate requests query
-      queryClient.invalidateQueries({ queryKey: ['requests'] });
-      queryClient.invalidateQueries({ queryKey: ['pendingResponses'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.requests() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pendingResponses() });
     });
 
     // Listen for request accepted (for seekers)
@@ -127,7 +128,7 @@ export function useRealtimeActivity(options: UseRealtimeActivityOptions = {}): U
       onRequestAccepted?.(data);
       
       // Invalidate queries
-      queryClient.invalidateQueries({ queryKey: ['myRequests'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myRequests() });
     });
 
     // Listen for live stats

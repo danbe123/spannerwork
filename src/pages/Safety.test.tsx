@@ -27,12 +27,12 @@ describe('Safety Page', () => {
   describe('Safety features', () => {
     it('renders Verified Users section', () => {
       renderSafety();
-      expect(screen.getByText(/Verified Users/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Verified Users/i })).toBeInTheDocument();
     });
 
     it('renders Secure Payments section', () => {
       renderSafety();
-      expect(screen.getByText(/Secure Payments/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Secure Payments/i })).toBeInTheDocument();
     });
 
     it('renders In-App Messaging section', () => {

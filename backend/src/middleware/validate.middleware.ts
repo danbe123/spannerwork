@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+import { AnyZodObject, ZodError, ZodTypeAny } from 'zod';
 
 /**
  * Middleware to validate request data against a Zod schema
@@ -63,7 +63,7 @@ function createSummaryMessage(errors: { field: string; message: string }[]): str
 /**
  * Validate only request body
  */
-export function validateBody(schema: AnyZodObject) {
+export function validateBody(schema: ZodTypeAny) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       req.body = await schema.parseAsync(req.body);

@@ -22,6 +22,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import SEO, { generateProductSchema, generateBreadcrumbSchema } from "@/components/SEO";
 import { Space, User } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 export default function SpaceDetail() {
   const navigate = useNavigate();
@@ -30,26 +31,29 @@ export default function SpaceDetail() {
   const urlParams = new URLSearchParams(location.search);
   const spaceIdFromQuery = urlParams.get('id');
   const spaceId = spaceIdFromPath || spaceIdFromQuery;
+  const spaceIdKey = spaceId ?? '';
 
   // All hooks must be called before any conditional returns
   const { data: spaceData, isLoading } = useQuery({
-    queryKey: ['space', spaceId],
-    queryFn: () => spacesService.getById(spaceId!),
+    queryKey: queryKeys.space(spaceIdKey),
+    queryFn: () => spacesService.getById(spaceIdKey),
     enabled: !!spaceId,
   });
 
   const space: Space | undefined = spaceData?.space;
 
+  const ownerIdKey = space?.ownerId ?? '';
+
   const { data: ownerData } = useQuery({
-    queryKey: ['owner', space?.ownerId],
-    queryFn: () => usersService.getById(space!.ownerId),
+    queryKey: space?.ownerId ? queryKeys.owner(ownerIdKey) : queryKeys.userIdRoot(),
+    queryFn: () => usersService.getById(ownerIdKey),
     enabled: !!space?.ownerId,
   });
 
   const owner: User | undefined = ownerData?.user;
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
@@ -112,7 +116,7 @@ export default function SpaceDetail() {
         title={`${space.name} - Workshop Space | SpannerWork`}
         description={space.description || `Rent ${space.name} from SpannerWork. Workshop space available for hire.`}
         keywords={`workshop rental, garage space, ${space.name}`}
-        // @ts-ignore - Schema types from JSX component
+        // @ts-expect-error - Schema types from JSX component
         schema={[
           generateProductSchema(space),
           generateBreadcrumbSchema([

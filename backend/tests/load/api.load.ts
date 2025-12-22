@@ -54,7 +54,7 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 // Sample listing IDs (should be seeded in test database)
 const sampleToolIds = ['tool-1', 'tool-2', 'tool-3'];
 const sampleSpaceIds = ['space-1', 'space-2', 'space-3'];
-const sampleServiceIds = ['service-1', 'service-2', 'service-3'];
+const _sampleServiceIds = ['service-1', 'service-2', 'service-3'];
 
 function getRandomItem<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];

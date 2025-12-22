@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Warehouse, Trash2, MapPin, Maximize, Car, Zap } from "lucide-react";
 import { Space } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface MySpacesProps {
   spaces: Space[];
@@ -28,7 +29,7 @@ export default function MySpaces({ spaces }: MySpacesProps) {
   const deleteSpaceMutation = useMutation({
     mutationFn: (spaceId: string) => spacesService.delete(spaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mySpaces'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.mySpaces() });
       setDeleteConfirm(null);
     },
   });

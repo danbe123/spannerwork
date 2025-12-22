@@ -10,28 +10,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { authService, type CurrentUserResponse } from '@/api/services/auth';
 import type { User } from '@/types';
+import { queryKeys } from '@/lib/queryKeys';
 
 /**
  * Query key for the current user
  */
-export const CURRENT_USER_QUERY_KEY = ['currentUser'] as const;
+export const CURRENT_USER_QUERY_KEY = queryKeys.currentUser();
 
 /**
  * User-specific query keys that should be invalidated on logout
  */
-const USER_SPECIFIC_QUERIES = [
-  'messages',
-  'transactions',
-  'notifications',
-  'savedSearches',
-  'referrals',
-  'disputes',
-  'userTools',
-  'userSpaces',
-  'userServices',
-  'userRequests',
-  'calendar',
-] as const;
+const USER_SPECIFIC_QUERIES = queryKeys.userSpecificRoots;
 
 export interface UseAuthReturn {
   /** Current authenticated user or null if not authenticated */
@@ -115,8 +104,8 @@ export function useAuth(): UseAuthReturn {
       queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
 
       // Invalidate all user-specific queries to clear cached data
-      USER_SPECIFIC_QUERIES.forEach(key => {
-        queryClient.removeQueries({ queryKey: [key] });
+      queryClient.removeQueries({
+        predicate: (query) => USER_SPECIFIC_QUERIES.includes(query.queryKey[0] as never),
       });
     }
 

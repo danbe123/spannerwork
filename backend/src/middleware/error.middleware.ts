@@ -43,7 +43,7 @@ function handleCsrfError(err: Error & { code?: string }, res: Response): boolean
   if (err.code === 'EBADCSRFTOKEN') {
     res.status(403).json({
       error: 'Forbidden',
-      message: 'Invalid CSRF token',
+      message: 'Your session has expired. Please refresh the page and try again.',
       code: 'EBADCSRFTOKEN',
     });
     return true;

@@ -12,6 +12,7 @@ vi.mock('../../src/config/cookie.js', () => ({
   COOKIE_NAMES: {
     SESSION: '__Host-session',
   },
+  SESSION_COOKIE_CLEAR_OPTIONS: {},
 }));
 
 vi.mock('../../src/middleware/requestId.middleware.js', () => ({
@@ -88,7 +89,7 @@ describe('Auth Middleware', () => {
       await requireAuth(req, res, mockNext);
 
       expect(authService.getUserBySession).toHaveBeenCalledWith('invalid-session');
-      expect(res.clearCookie).toHaveBeenCalledWith(COOKIE_NAMES.SESSION);
+      expect(res.clearCookie).toHaveBeenCalledWith(COOKIE_NAMES.SESSION, expect.any(Object));
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({
         error: 'Unauthorized',

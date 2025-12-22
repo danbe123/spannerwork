@@ -22,6 +22,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface ProviderOnboardingProps {
   /** Show compact version */
@@ -37,7 +38,7 @@ export function ProviderOnboarding({ compact = false }: ProviderOnboardingProps)
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['paymentAccountStatus'],
+    queryKey: queryKeys.paymentAccountStatus(),
     queryFn: () => paymentsService.getAccountStatus(),
     staleTime: 30000, // 30 seconds
   });

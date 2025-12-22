@@ -23,6 +23,8 @@ import SEO from "@/components/SEO";
 import { Link } from "react-router-dom";
 import MarketingFooter from "@/components/MarketingFooter";
 import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
+import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
+import DocsSidebar from "@/components/docs/DocsSidebar";
 
 interface EarningCategory {
   icon: React.ElementType;
@@ -105,6 +107,20 @@ export default function StartEarning(): JSX.Element {
             </Link>
           </div>
         </div>
+
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <DocsBreadcrumbs />
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 py-10">
+          <div className="lg:flex lg:gap-8">
+            <div className="hidden lg:block w-[280px] flex-none">
+              <DocsSidebar />
+            </div>
+
+            <div className="min-w-0 flex-1">
 
         {/* Earning Categories */}
         <div className="max-w-6xl mx-auto px-4 py-16">
@@ -202,6 +218,10 @@ export default function StartEarning(): JSX.Element {
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>
+          </div>
+        </div>
+
+            </div>
           </div>
         </div>
 

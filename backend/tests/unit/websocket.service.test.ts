@@ -26,7 +26,11 @@ class MockSocket extends EventEmitter {
 
 // Mock dependencies
 vi.mock('socket.io', () => ({
-  Server: vi.fn().mockImplementation(() => new MockServer()),
+  Server: class Server {
+    constructor() {
+      return new MockServer() as unknown as object;
+    }
+  },
 }));
 
 vi.mock('../../src/config/logger.js', () => ({
@@ -68,7 +72,7 @@ import {
   broadcastToAll,
   closeWebSocket,
 } from '../../src/services/websocket.service.js';
-import { logger } from '../../src/config/logger.js';
+import { logger as _logger } from '../../src/config/logger.js';
 
 describe('WebSocketService', () => {
   beforeEach(() => {
@@ -236,7 +240,11 @@ describe('WebSocketService with initialized server', () => {
 
     // Mock socket.io to return our mock server
     vi.doMock('socket.io', () => ({
-      Server: vi.fn().mockReturnValue(mockServer),
+      Server: class Server {
+        constructor() {
+          return mockServer as unknown as object;
+        }
+      },
     }));
 
     vi.doMock('../../src/services/auth.service.js', () => ({
@@ -275,12 +283,10 @@ describe('WebSocketService with initialized server', () => {
 
   it('should initialize WebSocket server', async () => {
     const { initializeWebSocket } = await import('../../src/services/websocket.service.js');
-    const { Server } = await import('socket.io');
     
     const httpServer = {} as import('http').Server;
     const result = initializeWebSocket(httpServer);
     
-    expect(Server).toHaveBeenCalled();
     expect(mockServer.use).toHaveBeenCalled();
     expect(result).toBe(mockServer);
   });
@@ -414,9 +420,9 @@ describe('WebSocketService with initialized server', () => {
     connectionHandler(mockSocket);
     
     // Trigger ping
-    const emitSpy = vi.spyOn(mockSocket, 'emit');
+    const _emitSpy = vi.spyOn(mockSocket, 'emit');
     mockSocket.emit('ping');
-    
+
     // Note: In the real implementation, socket.on('ping') would emit pong
   });
 });

@@ -10,7 +10,7 @@ vi.mock('../../src/config/logger.js', () => ({
 }));
 
 import { EncryptionService, encryptionService } from '../../src/services/encryption.service.js';
-import { logger } from '../../src/config/logger.js';
+import { logger as _logger } from '../../src/config/logger.js';
 
 describe('EncryptionService', () => {
   let service: EncryptionService;

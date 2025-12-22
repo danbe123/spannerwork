@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
 import { Plus, Sparkles, ShoppingCart, ArrowRight, Zap } from 'lucide-react';
 import { MouseEvent } from 'react';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface BundleSuggestion {
   id: string;
@@ -34,7 +35,7 @@ export default function BundleSuggestions({
   className = ''
 }: BundleSuggestionsProps) {
   const { data, isLoading, error } = useQuery({
-    queryKey: ['bundleSuggestions', listingType, listingId],
+    queryKey: queryKeys.bundleSuggestions(listingType, listingId),
     queryFn: () => aiService.getBundles(listingType as 'tool' | 'service' | 'space', listingId, listingName, listingCategory),
     staleTime: 5 * 60 * 1000,
     enabled: !!listingId && !!listingType,

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Request, User, Urgency, Category } from '@/types';
+import { queryKeys } from '@/lib/queryKeys';
 
 // Partial types for data coming from quickAcceptService.getPending()
 type PartialRequest = Pick<Request, 'id' | 'title' | 'description' | 'budget'> & {
@@ -56,7 +57,7 @@ export default function QuickAcceptCard({
 }: QuickAcceptCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showCounterOfferInput, setShowCounterOfferInput] = useState(false);
-  const [counterOfferAmount, setCounterOfferAmount] = useState(request?.budget || 0);
+  const [counterOfferAmount, setCounterOfferAmount] = useState((request?.budget || 0) / 100);
   const [isAccepting, setIsAccepting] = useState(false);
   const [isDeclining, setIsDeclining] = useState(false);
   
@@ -69,7 +70,7 @@ export default function QuickAcceptCard({
       toast.success('Request accepted!', {
         description: 'The seeker has been notified.',
       });
-      queryClient.invalidateQueries({ queryKey: ['pendingResponses'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pendingResponses() });
       onAccept?.(data);
     },
     onError: (error: Error) => {
@@ -82,7 +83,7 @@ export default function QuickAcceptCard({
   const declineMutation = useMutation({
     mutationFn: (requestId: string) => quickAcceptService.decline(requestId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendingResponses'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pendingResponses() });
       onDecline?.();
     },
   });

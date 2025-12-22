@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { stripeService } from '../services/stripe.service.js';
 import { prisma } from '../config/database.js';
 import { logger } from '../config/logger.js';
+import { env } from '../config/env.js';
 
 export class PaymentController {
   /**
@@ -239,11 +240,14 @@ export class PaymentController {
         });
       }
 
+      const applicationFeeAmount = (transaction as unknown as { applicationFeeAmount?: number }).applicationFeeAmount;
+
       // Create payment intent
       const paymentIntent = await stripeService.createPaymentIntent({
         transactionId: transaction.id,
         amount: transaction.totalAmount,
         providerAccountId: transaction.provider.stripeConnectId,
+        applicationFeeAmount: typeof applicationFeeAmount === 'number' ? applicationFeeAmount : transaction.platformFee,
         metadata: {
           transactionId: transaction.id,
           userId: userId,
@@ -386,9 +390,18 @@ export class PaymentController {
           userId: true,
           providerId: true,
           stripePaymentIntentId: true,
+          stripeInstantPayoutId: true,
           paymentStatus: true,
           status: true,
           totalAmount: true,
+          applicationFeeAmount: true,
+          instantPayoutSelected: true,
+          instantPayoutFee: true,
+          provider: {
+            select: {
+              stripeConnectId: true,
+            },
+          },
         },
       });
 
@@ -440,6 +453,68 @@ export class PaymentController {
         },
       });
 
+      let instantPayoutAttempted = false;
+      let instantPayoutSucceeded = false;
+      let instantPayoutPayoutId: string | undefined;
+
+      const providerAccountId = transaction.provider?.stripeConnectId || undefined;
+      if (
+        transaction.instantPayoutSelected &&
+        transaction.instantPayoutFee > 0 &&
+        providerAccountId
+      ) {
+        instantPayoutAttempted = true;
+        if (transaction.stripeInstantPayoutId) {
+          instantPayoutSucceeded = true;
+          instantPayoutPayoutId = transaction.stripeInstantPayoutId;
+        } else {
+          const providerNetAmount = captureResult.amountCaptured - transaction.applicationFeeAmount;
+
+          if (providerNetAmount > 0) {
+            try {
+              const accountStatus = await stripeService.getAccountStatus(providerAccountId);
+              if (!accountStatus.payoutsEnabled) {
+                throw new Error('Provider payouts are not enabled');
+              }
+
+              const payout = await stripeService.createInstantPayout({
+                stripeAccountId: providerAccountId,
+                amount: providerNetAmount,
+                transactionId: transaction.id,
+                idempotencyKey: `instant_payout:${transaction.id}`,
+              });
+              instantPayoutSucceeded = true;
+              instantPayoutPayoutId = payout.payoutId;
+
+              await prisma.transaction.update({
+                where: { id: transactionId },
+                data: { stripeInstantPayoutId: payout.payoutId },
+              });
+            } catch (error) {
+              logger.warn(
+                `Instant payout failed for transaction ${transaction.id}. Falling back to standard payout schedule.`,
+                error
+              );
+
+              try {
+                await stripeService.createTransfer({
+                  transactionId: transaction.id,
+                  amount: transaction.instantPayoutFee,
+                  destinationAccountId: providerAccountId,
+                  description: 'Instant payout fee reimbursement (fallback)',
+                  idempotencyKey: `instant_payout_fee_reimbursement:${transaction.id}`,
+                });
+              } catch (transferError) {
+                logger.warn(
+                  `Failed to reimburse instant payout fee for transaction ${transaction.id}`,
+                  transferError
+                );
+              }
+            }
+          }
+        }
+      }
+
       logger.info(`Payment captured for transaction ${transactionId}, transfer: ${captureResult.transferId}`);
 
       return res.json({
@@ -447,6 +522,9 @@ export class PaymentController {
         message: 'Payment released to provider',
         amountCaptured: captureResult.amountCaptured,
         transferId: captureResult.transferId,
+        instantPayoutAttempted,
+        instantPayoutSucceeded,
+        instantPayoutPayoutId,
       });
     } catch (error) {
       logger.error('Failed to capture payment:', error);
@@ -530,6 +608,70 @@ export class PaymentController {
     } catch (error) {
       logger.error('Failed to get escrow status:', error);
       return res.status(500).json({ error: 'Failed to get payment status' });
+    }
+  }
+
+  async createSubscriptionCheckout(req: Request, res: Response) {
+    try {
+      if (!stripeService.isEnabled()) {
+        return res.status(503).json({
+          error: 'Payment service unavailable',
+          message: 'Stripe is not configured.',
+        });
+      }
+
+      const userId = req.user?.id;
+      const email = req.user?.email;
+      if (!userId || !email) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const { plan } = req.body as { plan: 'PRO' | 'BUSINESS' };
+
+      const successUrl = `${env.FRONTEND_URL}/profile?subscription=success`;
+      const cancelUrl = `${env.FRONTEND_URL}/profile?subscription=cancel`;
+
+      const session = await stripeService.createSubscriptionCheckoutSession({
+        userId,
+        email,
+        plan,
+        successUrl,
+        cancelUrl,
+      });
+
+      return res.json(session);
+    } catch (error) {
+      logger.error('Failed to create subscription checkout session:', error);
+      return res.status(500).json({ error: 'Failed to create subscription checkout session' });
+    }
+  }
+
+  async createSubscriptionPortal(req: Request, res: Response) {
+    try {
+      if (!stripeService.isEnabled()) {
+        return res.status(503).json({
+          error: 'Payment service unavailable',
+          message: 'Stripe is not configured.',
+        });
+      }
+
+      const userId = req.user?.id;
+      const email = req.user?.email;
+      if (!userId || !email) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const { returnUrl } = req.body as { returnUrl?: string };
+      const portalSession = await stripeService.createBillingPortalSession({
+        userId,
+        email,
+        returnUrl: returnUrl || `${env.FRONTEND_URL}/profile`,
+      });
+
+      return res.json(portalSession);
+    } catch (error) {
+      logger.error('Failed to create billing portal session:', error);
+      return res.status(500).json({ error: 'Failed to create billing portal session' });
     }
   }
 }

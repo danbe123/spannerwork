@@ -5,6 +5,7 @@ import useAuth from '@/hooks/use-auth';
 import { createPageUrl } from '@/utils';
 import { toast } from 'sonner';
 import { Message, Request } from '@/types';
+import { queryKeys } from '@/lib/queryKeys';
 
 export default function NotificationManager() {
   const [permission, setPermission] = useState<NotificationPermission>(
@@ -25,7 +26,7 @@ export default function NotificationManager() {
   }, []);
 
   const { data: messagesData } = useQuery({
-    queryKey: ['unreadMessages'],
+    queryKey: queryKeys.unreadMessages(),
     queryFn: () => messagesService.getUnreadCount(),
     enabled: !!currentUser,
     refetchInterval: 5000,
@@ -35,7 +36,7 @@ export default function NotificationManager() {
   const messages: Message[] = messagesData?.messages || [];
 
   const { data: newRequestsData } = useQuery({
-    queryKey: ['newRequests'],
+    queryKey: queryKeys.newRequests(),
     queryFn: () => requestsService.list({ status: 'ACTIVE', limit: 5 }),
     enabled: !!currentUser,
     refetchInterval: 30000,

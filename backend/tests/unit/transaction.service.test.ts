@@ -105,6 +105,7 @@ describe('TransactionService', () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue(null) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockResolvedValue(createdTransaction),
@@ -138,6 +139,7 @@ describe('TransactionService', () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue(null) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -176,6 +178,7 @@ describe('TransactionService', () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue(null) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -263,6 +266,7 @@ describe('TransactionService', () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue(null) },
           transaction: { findFirst: vi.fn().mockResolvedValue(existingTransaction) },
           booking: { create: vi.fn() },
         };
@@ -714,6 +718,7 @@ describe('TransactionService', () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           space: { findUnique: vi.fn().mockResolvedValue(space as any) },
+          user: { findUnique: vi.fn().mockResolvedValue(null) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -752,6 +757,7 @@ describe('TransactionService', () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           space: { findUnique: vi.fn().mockResolvedValue(space as any) },
+          user: { findUnique: vi.fn().mockResolvedValue(null) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -816,6 +822,7 @@ describe('TransactionService', () => {
         const mockTx = {
           service: { findUnique: vi.fn().mockResolvedValue(service as any) },
           insuranceDocument: { findFirst: vi.fn().mockResolvedValue(null) },
+          user: { findUnique: vi.fn().mockResolvedValue(null) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -855,6 +862,7 @@ describe('TransactionService', () => {
         const mockTx = {
           service: { findUnique: vi.fn().mockResolvedValue(service as any) },
           insuranceDocument: { findFirst: vi.fn().mockResolvedValue(null) },
+          user: { findUnique: vi.fn().mockResolvedValue(null) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {

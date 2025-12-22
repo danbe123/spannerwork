@@ -164,8 +164,8 @@ export default function MarketingFooter() {
             <div>
               <h3 className="font-bold text-lg mb-3 md:mb-4 text-[#FFC107]">For Providers</h3>
               <ul className="space-y-2 md:space-y-3">
-                <li><a href={createPageUrl("StartEarning")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Start Earning</a></li>
-                <li><a href={createPageUrl("SuccessStories")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Success Stories</a></li>
+                <li><a href="/resources/start-earning" className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Start Earning</a></li>
+                <li><a href="/resources/success-stories" className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Success Stories</a></li>
                 <li><a href={createPageUrl("Resources")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Resources</a></li>
               </ul>
             </div>

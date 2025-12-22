@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 const tsconfigRootDir = fileURLToPath(new URL('.', import.meta.url))
 
 export default [
-  { ignores: ['dist', 'backend/dist', 'backend/node_modules', 'backend/coverage', 'node_modules', 'e2e', '*.config.js', '*.config.ts', '**/*.d.ts'] },
+  { ignores: ['dist', 'backend/dist', 'backend/node_modules', 'backend/coverage', 'coverage', 'node_modules', 'e2e', '*.config.js', '*.config.ts', '**/*.d.ts'] },
   {
     files: ['src/**/*.{js,jsx,ts,tsx}'],
     languageOptions: {

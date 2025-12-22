@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { statsService } from "@/api/services";
+import { queryKeys } from "@/lib/queryKeys";
 import useAuth from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -67,7 +68,7 @@ export default function Home(): JSX.Element {
   const { isAuthenticated } = useAuth();
 
   const { data: statsData } = useQuery({
-    queryKey: ['platformStats'],
+    queryKey: queryKeys.platformStats(),
     queryFn: () => statsService.getPublicStats(),
     refetchInterval: 60000,
   });

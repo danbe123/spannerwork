@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { authService, quickAcceptService, gamificationService, type UserStats, type PendingResponse } from '@/api/services';
+import { queryKeys } from '@/lib/queryKeys';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +51,7 @@ export default function ProviderDashboard() {
 
   // Get current user
   const { data: userData, isLoading: userLoading } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
@@ -58,7 +59,7 @@ export default function ProviderDashboard() {
 
   // Get pending job requests
   const { data: pendingData, isLoading: pendingLoading } = useQuery({
-    queryKey: ['pendingResponses'],
+    queryKey: queryKeys.pendingResponses(),
     queryFn: () => quickAcceptService.getPending(),
     refetchInterval: 30000,
   });
@@ -67,7 +68,7 @@ export default function ProviderDashboard() {
 
   // Get gamification stats
   const { data: statsData } = useQuery({
-    queryKey: ['myStats'],
+    queryKey: queryKeys.myStats(),
     queryFn: () => gamificationService.getMyStats(),
   });
 

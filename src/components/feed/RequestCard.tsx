@@ -36,9 +36,12 @@ import {
 import { formatDistanceToNow, differenceInHours, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { Request, User } from "@/types";
+import { formatPrice } from "@/utils";
 
 // Storage keys
 const BOOKMARKS_STORAGE_KEY = 'spannerwork_bookmarks';
+const FEED_SCROLL_STORAGE_KEY = 'spannerwork_feed_scroll_v1';
+const FEED_RESTORE_HINT_KEY = 'spannerwork_feed_restore_hint_v1';
 
 // Helper functions for bookmark persistence
 function getBookmarks(): Set<string> {
@@ -220,7 +223,7 @@ export default function RequestCard({ request, currentUser, categoryIcons }: Req
 
   // Computed display values
   const timeRemaining = getTimeRemaining(request.urgency, request.createdDate);
-  const areaDisplay = getAreaFromPostcode(request.locationAddress);
+  const areaDisplay = getAreaFromPostcode(request.postcode || request.locationAddress);
   const hasPhotos = request.photos && request.photos.length > 0;
 
   // Calculate distance
@@ -244,15 +247,70 @@ export default function RequestCard({ request, currentUser, categoryIcons }: Req
   const getRateDisplay = () => {
     if (!request.budget) return null;
     switch (request.rateType) {
-      case 'HOURLY': return `£${request.budget}/hr`;
-      case 'DAILY': return `£${request.budget}/day`;
-      default: return `£${request.budget}`;
+      case 'HOURLY': return `${formatPrice(request.budget)}/hr`;
+      case 'DAILY': return `${formatPrice(request.budget)}/day`;
+      default: return `${formatPrice(request.budget)}`;
     }
   };
 
   const handleViewDetails = useCallback((e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
+
+    try {
+      if (window.location.pathname.toLowerCase() === '/feed') {
+        const windowY = Number.isFinite(window.scrollY) ? Math.max(0, Math.round(window.scrollY)) : 0;
+
+        let virtualizedOffset: number | undefined;
+        const startEl = (e?.currentTarget as HTMLElement | null) ?? null;
+        let el: HTMLElement | null = startEl;
+        while (el && el !== document.body) {
+          const style = window.getComputedStyle(el);
+          const overflowY = style.overflowY;
+          const isScrollable = (overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight;
+          if (isScrollable) {
+            const st = Number.isFinite(el.scrollTop) ? Math.max(0, Math.round(el.scrollTop)) : 0;
+            if (st > 0) virtualizedOffset = st;
+            break;
+          }
+          el = el.parentElement;
+        }
+
+        let existing: { displayCount?: number; virtualizedOffset?: number; windowY?: number } = {};
+        try {
+          const raw = sessionStorage.getItem(FEED_SCROLL_STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw) as
+              | { type?: string; offset?: number; displayCount?: number }
+              | { displayCount?: number; virtualizedOffset?: number; windowY?: number };
+            if ('type' in parsed) {
+              if (parsed.type === 'window') {
+                existing = { displayCount: parsed.displayCount, windowY: parsed.offset };
+              } else if (parsed.type === 'virtualized') {
+                existing = { displayCount: parsed.displayCount, virtualizedOffset: parsed.offset };
+              }
+            } else {
+              existing = parsed;
+            }
+          }
+        } catch {
+          // ignore
+        }
+
+        sessionStorage.setItem(
+          FEED_SCROLL_STORAGE_KEY,
+          JSON.stringify({
+            ...existing,
+            windowY,
+            virtualizedOffset: typeof virtualizedOffset === 'number' ? virtualizedOffset : existing.virtualizedOffset,
+          })
+        );
+        sessionStorage.setItem(FEED_RESTORE_HINT_KEY, '1');
+      }
+    } catch {
+      // ignore
+    }
+
     navigate(`/request/${request.id}`);
   }, [navigate, request.id]);
 
@@ -314,11 +372,22 @@ export default function RequestCard({ request, currentUser, categoryIcons }: Req
     >
       <Card
         className={`
-          border border-gray-200/70 shadow-sm hover:shadow-md transition-all duration-300
-          overflow-hidden cursor-pointer bg-white relative group
+          rounded-2xl border border-gray-200/80 bg-white/90 backdrop-blur-sm
+          shadow-[0_1px_2px_rgba(0,0,0,0.06)] hover:shadow-[0_18px_45px_rgba(0,0,0,0.12)]
+          ring-1 ring-black/5 hover:ring-brand-200/60
+          transition-all duration-300
+          overflow-hidden cursor-pointer relative group
           ${urgencyConfig.pulse ? 'ring-1 ring-orange-200/70 ring-offset-1' : ''}
         `}
         onClick={handleViewDetails}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleViewDetails();
+          }
+        }}
         role="article"
         aria-label={`Job: ${request.title}, ${urgencyConfig.label} urgency${request.budget ? `, ${getRateDisplay()}` : ''}`}
       >
@@ -367,16 +436,30 @@ export default function RequestCard({ request, currentUser, categoryIcons }: Req
 
           {/* Title + Category */}
           <div className="flex items-start gap-3">
-            {CategoryIcon && (
+            {(CategoryIcon || hasPhotos) && (
               <div
                 className={`
-                  w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0
-                  bg-orange-50 border border-orange-100
+                  w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden
+                  bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100
                   group-hover:scale-[1.04] transition-transform
                 `}
                 aria-hidden="true"
               >
-                <CategoryIcon className="w-6 h-6 text-brand-800" />
+                {hasPhotos && (
+                  <img
+                    src={request.photos![0]}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10" />
+                {CategoryIcon && (
+                  <div className="relative w-12 h-12 flex items-center justify-center">
+                    <CategoryIcon className={`w-6 h-6 ${hasPhotos ? 'text-white drop-shadow' : 'text-brand-800'}`} />
+                  </div>
+                )}
               </div>
             )}
             <div className="flex-1 min-w-0">
@@ -388,7 +471,7 @@ export default function RequestCard({ request, currentUser, categoryIcons }: Req
                   <span aria-hidden="true">{urgencyConfig.emoji}</span> {urgencyConfig.label}
                 </Badge>
                 {request.budget && (
-                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 border text-xs font-semibold rounded-full">
+                  <Badge className="bg-gradient-to-r from-emerald-600 to-green-500 text-white border-transparent border text-xs font-semibold rounded-full shadow-sm">
                     <span aria-hidden="true">💰</span> {getRateDisplay()}
                   </Badge>
                 )}

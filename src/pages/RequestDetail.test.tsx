@@ -31,6 +31,7 @@ vi.mock('@/api/services', () => ({
 // Mock utils
 vi.mock('@/utils', () => ({
   createPageUrl: (path: string) => `/${path}`,
+  formatPrice: (pence: number) => `£${(pence / 100).toFixed(2)}`,
 }));
 
 // Mock react-helmet-async
@@ -74,7 +75,7 @@ const mockRequest = {
   id: 'req-1',
   title: 'Need a power drill',
   description: 'Looking for a power drill for weekend project',
-  budget: 50,
+  budget: 5000,
   rateType: 'DAILY',
   category: 'TOOLS',
   urgency: 'ASAP',
@@ -448,21 +449,21 @@ describe('RequestDetail Page', () => {
 
   describe('Rate display variants', () => {
     it('shows /hr for HOURLY', async () => {
-      mockGetRequestById.mockResolvedValue({ request: { ...mockRequest, rateType: 'HOURLY', budget: 10 } });
+      mockGetRequestById.mockResolvedValue({ request: { ...mockRequest, rateType: 'HOURLY', budget: 1000 } });
       renderRequestDetail();
-      expect(await screen.findByText(/£10\/hr/i)).toBeInTheDocument();
+      expect(await screen.findByText(/£10(\.00)?\/hr/i)).toBeInTheDocument();
     });
 
     it('shows /day for DAILY', async () => {
-      mockGetRequestById.mockResolvedValue({ request: { ...mockRequest, rateType: 'DAILY', budget: 25 } });
+      mockGetRequestById.mockResolvedValue({ request: { ...mockRequest, rateType: 'DAILY', budget: 2500 } });
       renderRequestDetail();
-      expect(await screen.findByText(/£25\/day/i)).toBeInTheDocument();
+      expect(await screen.findByText(/£25(\.00)?\/day/i)).toBeInTheDocument();
     });
 
     it('shows fixed budget for FIXED', async () => {
-      mockGetRequestById.mockResolvedValue({ request: { ...mockRequest, rateType: 'FIXED', budget: 99 } });
+      mockGetRequestById.mockResolvedValue({ request: { ...mockRequest, rateType: 'FIXED', budget: 9900 } });
       renderRequestDetail();
-      expect(await screen.findByText(/£99\b/i)).toBeInTheDocument();
+      expect(await screen.findByText(/£99(\.00)?\b/i)).toBeInTheDocument();
     });
   });
 

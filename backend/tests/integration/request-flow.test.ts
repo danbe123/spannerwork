@@ -3,7 +3,7 @@ import { app } from '../../src/app.js';
 import { authService } from '../../src/services/auth.service.js';
 import { requestService } from '../../src/services/request.service.js';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { getCsrfToken, resetRateLimits } from '../utils/test-helpers.js';
+import { getCsrfToken as _getCsrfToken, resetRateLimits } from '../utils/test-helpers.js';
 
 const user = {
   id: 'user-1',

@@ -101,7 +101,8 @@ describe('A/B Testing Utilities', () => {
 
     it('renders function children with variant', () => {
       render(
-        React.createElement(ABTest, { 
+        // eslint-disable-next-line react/no-children-prop -- valid for React.createElement
+        React.createElement(ABTest, {
           experiment: EXPERIMENTS.BADGE_PLACEMENT,
           children: (variant: string) => React.createElement('div', { 'data-testid': 'variant' }, variant)
         })
@@ -114,7 +115,8 @@ describe('A/B Testing Utilities', () => {
       forceVariant(EXPERIMENTS.BADGE_PLACEMENT, 'header');
       
       render(
-        React.createElement(ABTest, { 
+        // eslint-disable-next-line react/no-children-prop -- valid for React.createElement
+        React.createElement(ABTest, {
           experiment: EXPERIMENTS.BADGE_PLACEMENT,
           variants: {
             header: React.createElement('div', { 'data-testid': 'header-variant' }, 'Header'),

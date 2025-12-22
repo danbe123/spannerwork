@@ -24,7 +24,7 @@ vi.mock('../../src/config/database.js', () => ({
   },
 }));
 
-import { auditService, AuditService } from '../../src/services/audit.service.js';
+import { auditService, AuditService as _AuditService } from '../../src/services/audit.service.js';
 import { logger } from '../../src/config/logger.js';
 
 describe('Audit Service', () => {

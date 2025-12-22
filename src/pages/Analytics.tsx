@@ -27,6 +27,7 @@ import {
 import { format } from "date-fns";
 import { Transaction, Tool, Review } from "@/types";
 import { brandColors } from "@/lib/colors";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface MonthlyData {
   month: string;
@@ -50,14 +51,15 @@ export default function Analytics() {
   const [_timeRange] = useState("30days");
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
   const currentUser = currentUserData?.user;
+  const currentUserIdKey = currentUser?.id ?? '';
 
   const { data: myTransactionsData } = useQuery({
-    queryKey: ['myTransactionsAnalytics', currentUser?.id],
+    queryKey: queryKeys.myTransactionsAnalytics(currentUserIdKey),
     queryFn: () => transactionsService.list({ asProvider: true }),
     enabled: !!currentUser?.id,
   });
@@ -65,7 +67,7 @@ export default function Analytics() {
   const myTransactions: Transaction[] = myTransactionsData?.data || [];
 
   const { data: myToolsData } = useQuery({
-    queryKey: ['myToolsAnalytics', currentUser?.id],
+    queryKey: queryKeys.myToolsAnalytics(currentUserIdKey),
     // Note: This fetches all tools - in production, add owner filter to API
     queryFn: () => toolsService.list({}),
     enabled: !!currentUser?.id,
@@ -74,7 +76,7 @@ export default function Analytics() {
   const myTools: Tool[] = myToolsData?.data || [];
 
   const { data: myReviewsData } = useQuery({
-    queryKey: ['myReviewsAnalytics', currentUser?.id],
+    queryKey: queryKeys.myReviewsAnalytics(currentUserIdKey),
     queryFn: () => reviewsService.getByUser(currentUser?.id || ''),
     enabled: !!currentUser?.id,
   });

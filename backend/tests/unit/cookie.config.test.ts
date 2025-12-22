@@ -80,7 +80,7 @@ describe('Cookie Configuration', () => {
     });
 
     it('should have CSRF cookie name', () => {
-      expect(COOKIE_NAMES.CSRF).toBe('_csrf');
+      expect(COOKIE_NAMES.CSRF).toBe('spannerwork.csrf');
     });
 
     it('should use sessionId in non-production', () => {

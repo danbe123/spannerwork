@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { authService, requestsService, usersService, transactionsService } from "@/api/services";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
@@ -27,6 +27,8 @@ import { formatDistanceToNow } from "date-fns";
 import RequestResponseDialog from "../components/RequestResponseDialog";
 import EditRequestDialog from "../components/EditRequestDialog";
 import { Transaction } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
+import { formatPrice } from "@/utils";
 
 // Format UK postcode with proper spacing
 const formatPostcode = (input?: string) => {
@@ -64,25 +66,52 @@ export default function RequestDetail() {
   const [showResponseDialog, setShowResponseDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
 
+  const handleBackToFeed = useCallback(() => {
+    try {
+      sessionStorage.setItem('spannerwork_feed_restore_hint_v1', '1');
+    } catch {
+      // ignore
+    }
+
+    try {
+      const state = window.history.state as { idx?: number } | null;
+      if (typeof state?.idx === 'number' && state.idx > 0) {
+        navigate(-1);
+        return;
+      }
+
+      if (typeof window.history.length === 'number' && window.history.length > 1) {
+        navigate(-1);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    navigate('/feed');
+  }, [navigate]);
+
   const { id: requestId } = useParams<{ id: string }>();
+  const requestIdKey = requestId ?? '';
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
   const currentUser = currentUserData?.user;
 
   const { data: requestData, isLoading } = useQuery({
-    queryKey: ['request', requestId],
+    queryKey: queryKeys.request(requestIdKey),
     queryFn: async () => requestId ? requestsService.getById(requestId) : Promise.resolve(undefined),
     enabled: !!requestId,
   });
 
   const request = requestData?.request;
 
+  const seekerIdKey = request?.seekerId ?? '';
+
   const { data: seekerData } = useQuery({
-    queryKey: ['user', request?.seekerId],
+    queryKey: request?.seekerId ? queryKeys.userId(seekerIdKey) : queryKeys.userIdRoot(),
     queryFn: async () => request?.seekerId ? usersService.getById(request.seekerId) : Promise.resolve(undefined),
     enabled: !!request?.seekerId,
   });
@@ -90,7 +119,7 @@ export default function RequestDetail() {
   const seeker = seekerData?.user;
 
   const { data: responsesData } = useQuery({
-    queryKey: ['requestResponses', requestId],
+    queryKey: queryKeys.requestResponses(requestIdKey),
     queryFn: async () => requestId ? transactionsService.list({ requestId }) : Promise.resolve({ data: [] }),
     enabled: !!requestId,
   });
@@ -114,7 +143,7 @@ export default function RequestDetail() {
         <div className="max-w-4xl mx-auto text-center">
           <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">Request Not Found</h2>
-          <Button onClick={() => navigate('/Feed')} className="mt-4">
+          <Button onClick={handleBackToFeed} className="mt-4">
             Back to Feed
           </Button>
         </div>
@@ -130,12 +159,12 @@ export default function RequestDetail() {
     
     switch(request.rateType) {
       case 'HOURLY':
-        return `£${request.budget}/hr`;
+        return `${formatPrice(request.budget)}/hr`;
       case 'DAILY':
-        return `£${request.budget}/day`;
+        return `${formatPrice(request.budget)}/day`;
       case 'FIXED':
       default:
-        return `£${request.budget}`;
+        return `${formatPrice(request.budget)}`;
     }
   };
 
@@ -147,7 +176,7 @@ export default function RequestDetail() {
         <div className="max-w-4xl mx-auto">
           <Button
             variant="ghost"
-            onClick={() => navigate('/Feed')}
+            onClick={handleBackToFeed}
             className="mb-4 text-white hover:bg-white/20"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -286,7 +315,7 @@ export default function RequestDetail() {
                         <div>
                           <p className="font-semibold text-gray-800">New offer received!</p>
                           <p className="text-sm text-gray-600">
-                            Quote: £{response.rentalFee} {response.depositAmount ? `• Deposit: £${response.depositAmount}` : ''}
+                            Quote: {formatPrice(response.rentalFee)} {response.depositAmount ? `• Deposit: ${formatPrice(response.depositAmount)}` : ''}
                           </p>
                         </div>
                         <Button
@@ -334,7 +363,7 @@ export default function RequestDetail() {
             </Button>
           ) : (
             <Button
-              onClick={() => navigate('/Feed')}
+              onClick={handleBackToFeed}
               variant="outline"
               className="w-full border-2 text-gray-700"
             >

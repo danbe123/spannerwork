@@ -10,15 +10,19 @@ const { mockCreate, mockFindMany, mockFindFirst, mockUpdate, mockDelete } = vi.h
 }));
 
 vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn().mockImplementation(() => ({
-    savedSearch: {
-      create: mockCreate,
-      findMany: mockFindMany,
-      findFirst: mockFindFirst,
-      update: mockUpdate,
-      delete: mockDelete,
-    },
-  })),
+  PrismaClient: class PrismaClient {
+    constructor() {
+      return {
+        savedSearch: {
+          create: mockCreate,
+          findMany: mockFindMany,
+          findFirst: mockFindFirst,
+          update: mockUpdate,
+          delete: mockDelete,
+        },
+      } as unknown as object;
+    }
+  },
   Prisma: {
     InputJsonValue: {},
   },

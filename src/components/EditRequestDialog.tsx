@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Upload, X, AlertCircle, MapPin } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Request, Category, Urgency, RateType } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface EditRequestDialogProps {
   request: Request;
@@ -48,7 +49,7 @@ export default function EditRequestDialog({ request, onClose }: EditRequestDialo
     category: request.category,
     urgency: request.urgency || 'flexible',
     duration_needed: (request as Request & { durationNeeded?: string }).durationNeeded || "",
-    budget: request.budget,
+    budget: request.budget / 100,
     rate_type: request.rateType || 'hourly',
     broadcast_radius: (request.broadcastRadius || 0) >= 999 ? 10 : request.broadcastRadius || 5,
   });
@@ -79,6 +80,10 @@ export default function EditRequestDialog({ request, onClose }: EditRequestDialo
     mutationFn: (data: FormData) => {
       const finalRadius = nationwideSearch ? 999 : data.broadcast_radius;
       
+      const budgetPence = Math.round(
+        (typeof data.budget === 'string' ? parseFloat(data.budget) : data.budget) * 100
+      );
+
       return requestsService.update(request.id, {
         title: data.title,
         description: data.description,
@@ -86,7 +91,7 @@ export default function EditRequestDialog({ request, onClose }: EditRequestDialo
         urgency: data.urgency as Urgency,
         // @ts-expect-error - durationNeeded may not be in type
         durationNeeded: data.duration_needed,
-        budget: typeof data.budget === 'string' ? parseFloat(data.budget) : data.budget,
+        budget: Number.isFinite(budgetPence) ? budgetPence : 0,
         rateType: data.rate_type as RateType,
         broadcastRadius: finalRadius,
         photos: photos,
@@ -94,8 +99,8 @@ export default function EditRequestDialog({ request, onClose }: EditRequestDialo
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['request', request.id] });
-      queryClient.invalidateQueries({ queryKey: ['requests'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.request(request.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.requests() });
       onClose();
     },
   });

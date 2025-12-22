@@ -24,7 +24,7 @@ const mockRequest: Request = {
   description: 'Looking for a power drill for weekend project',
   category: 'TOOLS',
   urgency: 'FLEXIBLE',
-  budget: 50,
+  budget: 5000,
   rateType: 'DAILY',
   broadcastRadius: 10,
   postcode: 'SW1A 1AA',
@@ -121,7 +121,7 @@ describe('EditRequestDialog', () => {
       const user = userEvent.setup();
       renderDialog();
 
-      const budgetInput = screen.getByDisplayValue('50');
+      const budgetInput = screen.getByLabelText(/your budget/i);
       await user.clear(budgetInput);
       await user.type(budgetInput, '75');
 
@@ -180,12 +180,12 @@ describe('EditRequestDialog', () => {
 
   describe('form submission', () => {
     it('submits form and calls update service', async () => {
-      const { onClose } = renderDialog();
+      renderDialog();
 
       const form = document.querySelector('form');
       if (form) {
         fireEvent.submit(form);
-        
+
         await waitFor(() => {
           expect(mockRequestsService.update).toHaveBeenCalled();
         });

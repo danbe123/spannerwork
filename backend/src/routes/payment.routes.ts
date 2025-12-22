@@ -8,6 +8,9 @@
 import { Router } from 'express';
 import { paymentController } from '../controllers/payment.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
+import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
+import { validateBody } from '../middleware/validate.middleware.js';
+import { subscriptionCheckoutSchema, subscriptionPortalSchema } from '../utils/validation.schemas.js';
 
 const router = Router();
 
@@ -24,6 +27,20 @@ router.get('/connect/dashboard', paymentController.getDashboardLink.bind(payment
 
 // Payment processing (for customers)
 router.post('/intent', paymentController.createPaymentIntent.bind(paymentController));
+
+router.post(
+  '/subscription/checkout',
+  verifyCsrfToken,
+  validateBody(subscriptionCheckoutSchema),
+  paymentController.createSubscriptionCheckout.bind(paymentController)
+);
+
+router.post(
+  '/subscription/portal',
+  verifyCsrfToken,
+  validateBody(subscriptionPortalSchema),
+  paymentController.createSubscriptionPortal.bind(paymentController)
+);
 
 // Escrow - hold payment until job confirmed
 router.post('/capture', paymentController.capturePayment.bind(paymentController));

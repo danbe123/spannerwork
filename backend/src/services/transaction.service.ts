@@ -2,7 +2,6 @@ import { prisma } from '../config/database.js';
 import { Prisma, TransactionStatus } from '@prisma/client';
 import { smsService } from './sms.service.js';
 import { logger } from '../config/logger.js';
-import { env } from '../config/env.js';
 import { BadRequestError, NotFoundError, ForbiddenError, ConflictError } from '../utils/errors.js';
 
 // Maximum length for user-generated content in SMS messages
@@ -40,6 +39,12 @@ function sanitizeForSms(text: string, maxLength = SMS_CONTENT_MAX_LENGTH): strin
 }
 
 export class TransactionService {
+  private getPlatformFeePercentForProviderPlan(plan: string | null | undefined): number {
+    if (plan === 'BUSINESS') return 2;
+    if (plan === 'PRO') return 3;
+    return 5;
+  }
+
   /**
    * Calculate the number of days between two dates (inclusive)
    */
@@ -166,10 +171,33 @@ export class TransactionService {
         throw new BadRequestError('Could not calculate valid rental fee for the specified booking');
       }
 
-      // Calculate platform fee based on configured percentage - all values in pence
-      const platformFeePercentage = parseInt(env.PLATFORM_FEE_PERCENTAGE, 10) / 100;
-      const platformFee = Math.round(rentalFee * platformFeePercentage);
-      const totalAmount = rentalFee + platformFee;
+      const provider = providerId
+        ? await tx.user.findUnique({
+            where: { id: providerId },
+            select: { providerPlan: true, defaultPayoutSpeed: true },
+          })
+        : null;
+
+      const providerPlan = provider?.providerPlan || 'FREE';
+      const platformFeePercent = this.getPlatformFeePercentForProviderPlan(providerPlan);
+      const platformFee = Math.round(rentalFee * (platformFeePercent / 100));
+
+      const instantPayoutSelected = provider?.defaultPayoutSpeed === 'INSTANT';
+      const instantPayoutFee = instantPayoutSelected ? Math.round(rentalFee * 0.015) : 0;
+
+      const insuranceDamageProtectionSelected = false;
+      const insuranceDamageProtectionFee = 0;
+      const insuranceLiabilitySelected = false;
+      const insuranceLiabilityFee = 0;
+      const insuranceCancellationSelected = false;
+      const insuranceCancellationFee = 0;
+      const insuranceTotal =
+        insuranceDamageProtectionFee +
+        insuranceLiabilityFee +
+        insuranceCancellationFee;
+
+      const totalAmount = rentalFee + platformFee + insuranceTotal;
+      const applicationFeeAmount = platformFee + instantPayoutFee + insuranceTotal;
 
       // Check for booking conflicts INSIDE transaction for atomicity
       const where: Prisma.TransactionWhereInput = {
@@ -215,6 +243,17 @@ export class TransactionService {
           rentalFee,
           platformFee,
           totalAmount,
+          providerPlanAtBooking: providerPlan,
+          platformFeePercent,
+          applicationFeeAmount,
+          instantPayoutSelected,
+          instantPayoutFee,
+          insuranceDamageProtectionSelected,
+          insuranceDamageProtectionFee,
+          insuranceLiabilitySelected,
+          insuranceLiabilityFee,
+          insuranceCancellationSelected,
+          insuranceCancellationFee,
           notes: data.notes,
           status: 'PENDING',
           paymentStatus: 'PENDING',
@@ -261,6 +300,87 @@ export class TransactionService {
     }
 
     return transaction;
+  }
+
+  async updateAddOns(params: {
+    transactionId: string;
+    userId: string;
+    insuranceDamageProtectionSelected?: boolean;
+    insuranceLiabilitySelected?: boolean;
+    insuranceCancellationSelected?: boolean;
+  }) {
+    const transaction = await prisma.transaction.findUnique({
+      where: { id: params.transactionId },
+      select: {
+        id: true,
+        userId: true,
+        paymentStatus: true,
+        stripePaymentIntentId: true,
+        rentalFee: true,
+        platformFee: true,
+        instantPayoutFee: true,
+        instantPayoutSelected: true,
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundError('Transaction not found');
+    }
+
+    if (transaction.userId !== params.userId) {
+      throw new ForbiddenError('Not authorized');
+    }
+
+    if (transaction.paymentStatus !== 'PENDING') {
+      throw new ConflictError('Cannot update add-ons after payment is initiated');
+    }
+
+    if (transaction.stripePaymentIntentId) {
+      throw new ConflictError('Cannot update add-ons after payment is initiated');
+    }
+
+    const insuranceDamageProtectionSelected = Boolean(params.insuranceDamageProtectionSelected);
+    const insuranceCancellationSelected = Boolean(params.insuranceCancellationSelected);
+    const insuranceLiabilitySelected = Boolean(params.insuranceLiabilitySelected);
+
+    const rentalFee = Number(transaction.rentalFee || 0);
+    const platformFee = Number(transaction.platformFee || 0);
+    const instantPayoutFee = Number(transaction.instantPayoutFee || 0);
+
+    const insuranceDamageProtectionFee = insuranceDamageProtectionSelected
+      ? Math.round(rentalFee * 0.05)
+      : 0;
+
+    const insuranceCancellationFee = insuranceCancellationSelected
+      ? Math.round(rentalFee * 0.03)
+      : 0;
+
+    const insuranceLiabilityFee = insuranceLiabilitySelected ? 300 : 0;
+
+    const insuranceTotal =
+      insuranceDamageProtectionFee +
+      insuranceLiabilityFee +
+      insuranceCancellationFee;
+
+    const totalAmount = rentalFee + platformFee + insuranceTotal;
+    const applicationFeeAmount =
+      platformFee +
+      (transaction.instantPayoutSelected ? instantPayoutFee : 0) +
+      insuranceTotal;
+
+    return prisma.transaction.update({
+      where: { id: params.transactionId },
+      data: {
+        insuranceDamageProtectionSelected,
+        insuranceDamageProtectionFee,
+        insuranceLiabilitySelected,
+        insuranceLiabilityFee,
+        insuranceCancellationSelected,
+        insuranceCancellationFee,
+        totalAmount,
+        applicationFeeAmount,
+      },
+    });
   }
 
   /**

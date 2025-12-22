@@ -29,8 +29,16 @@ vi.mock('../../src/config/logger.js', () => ({
 }));
 
 vi.mock('bullmq', () => ({
-  Queue: vi.fn(() => mocks.mockQueue),
-  QueueEvents: vi.fn(() => mocks.mockQueueEvents),
+  Queue: class Queue {
+    constructor() {
+      return mocks.mockQueue as unknown as object;
+    }
+  },
+  QueueEvents: class QueueEvents {
+    constructor() {
+      return mocks.mockQueueEvents as unknown as object;
+    }
+  },
 }));
 
 import {

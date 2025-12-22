@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toolsService, uploadService, authService } from '@/api/services';
+import { queryKeys } from '@/lib/queryKeys';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 // Using native textarea for type safety
@@ -364,7 +365,7 @@ export default function ToolWizard() {
 
   // Get current user
   const { data: userData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
@@ -490,8 +491,8 @@ export default function ToolWizard() {
       // Extended fields can be stored in metadata or added to schema
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tools'] });
-      queryClient.invalidateQueries({ queryKey: ['myTools'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tools() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myTools() });
       setShowSuccess(true);
     },
     onError: (error: Error) => {

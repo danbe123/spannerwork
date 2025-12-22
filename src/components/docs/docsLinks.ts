@@ -19,6 +19,13 @@ export const DOCS_LINK_GROUPS: DocsLinkGroup[] = [
     ],
   },
   {
+    title: 'For Providers',
+    links: [
+      { title: 'Start Earning', href: '/resources/start-earning' },
+      { title: 'Success Stories', href: '/resources/success-stories' },
+    ],
+  },
+  {
     title: 'Guides',
     links: [
       { title: "Provider's Guide", href: '/guides/provider' },

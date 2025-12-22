@@ -9,6 +9,7 @@ export interface UpdateUserData {
   name?: string;
   username?: string;
   phone?: string;
+  defaultPayoutSpeed?: 'STANDARD' | 'INSTANT';
   bio?: string;
   postcode?: string;
   avatar?: string;

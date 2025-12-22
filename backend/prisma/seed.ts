@@ -106,61 +106,81 @@ function clampInt(value: number, min: number, max: number): number {
 }
 
 function weeklyRateFromDaily(dailyRate: number): number {
-  const multiplier = randomElement([4, 5, 6]);
-  return clampInt(dailyRate * multiplier, 0, 2_000_000);
+  const multiplier = randomElement([4, 4.5, 5, 5.5, 6]);
+  return clampInt(Math.round(dailyRate * multiplier), 0, 2_000_000);
 }
 
 function toolDailyRate(category: string, toolName: string): number {
   const name = toolName.toLowerCase();
 
   if (category === 'Diagnostics') {
-    if (name.includes('tablet')) return randomInt(6000, 15000);
-    if (name.includes('oscilloscope')) return randomInt(3500, 9000);
-    if (name.includes('smoke')) return randomInt(3000, 8000);
-    return randomInt(1500, 6000);
+    if (name.includes('tablet')) return randomInt(5000, 14000);
+    if (name.includes('oscilloscope')) return randomInt(3000, 9000);
+    if (name.includes('smoke')) return randomInt(2500, 7000);
+    if (name.includes('battery')) return randomInt(1500, 5000);
+    if (name.includes('scanner')) return randomInt(1200, 4000);
+    return randomInt(1000, 3500);
   }
 
   if (category === 'Lifting & Support') {
-    if (name.includes('transmission') || name.includes('engine support')) return randomInt(2500, 7000);
-    return randomInt(1200, 4500);
-  }
-
-  if (category === 'Tyres & Wheels') {
-    if (name.includes('balancer') || name.includes('bead')) return randomInt(3000, 9000);
+    if (name.includes('transmission')) return randomInt(2200, 6500);
+    if (name.includes('engine support') || name.includes('support beam')) return randomInt(1800, 5000);
+    if (name.includes('axle')) return randomInt(600, 2000);
+    if (name.includes('trolley')) return randomInt(800, 2500);
     return randomInt(800, 3500);
   }
 
+  if (category === 'Tyres & Wheels') {
+    if (name.includes('balancer')) return randomInt(6000, 15000);
+    if (name.includes('bead')) return randomInt(2500, 7000);
+    if (name.includes('torque')) return randomInt(500, 1500);
+    if (name.includes('inflator')) return randomInt(400, 1200);
+    return randomInt(400, 2500);
+  }
+
   if (category === 'Brakes') {
-    if (name.includes('flaring') || name.includes('pressure')) return randomInt(1800, 5500);
-    return randomInt(900, 3500);
+    if (name.includes('flaring')) return randomInt(1500, 4500);
+    if (name.includes('pressure')) return randomInt(1200, 3500);
+    if (name.includes('wind') || name.includes('wind-back')) return randomInt(600, 1500);
+    if (name.includes('bleed')) return randomInt(500, 1500);
+    return randomInt(500, 2500);
   }
 
   if (category === 'Air Con') {
     if (name.includes('vacuum')) return randomInt(2500, 7000);
-    return randomInt(1200, 5500);
+    if (name.includes('manifold')) return randomInt(1500, 4000);
+    if (name.includes('leak')) return randomInt(2000, 6000);
+    return randomInt(800, 4500);
   }
 
   if (category === 'Workshop Equipment') {
     if (name.includes('compressor') || name.includes('parts washer')) return randomInt(2500, 9000);
     if (name.includes('impact')) return randomInt(1500, 6000);
-    return randomInt(800, 3000);
+    if (name.includes('work light')) return randomInt(300, 900);
+    if (name.includes('creeper')) return randomInt(400, 1200);
+    return randomInt(500, 3500);
   }
 
-  return randomInt(1000, 5000);
+  return randomInt(600, 6000);
 }
 
 function toolDeposit(dailyRate: number, category: string): number {
-  const multiplier = category === 'Diagnostics' ? randomElement([2, 3, 4]) : randomElement([1, 2, 3]);
-  return clampInt(dailyRate * multiplier, 2000, 150000);
+  const isHighValue = category === 'Diagnostics';
+  const multiplier = isHighValue
+    ? randomElement([4, 5, 6, 8])
+    : randomElement([2, 3, 4, 5]);
+  const min = isHighValue ? 10_000 : 3_000;
+  const max = isHighValue ? 300_000 : 150_000;
+  return clampInt(dailyRate * multiplier, min, max);
 }
 
 function spaceHourlyRate(spaceType: string): number {
-  if (spaceType === 'Service Bay') return randomInt(3000, 6500);
-  if (spaceType === 'Workshop Ramp Bay') return randomInt(2500, 5500);
-  if (spaceType === 'MOT Prep Bay') return randomInt(2200, 5000);
-  if (spaceType === 'Detailing Bay') return randomInt(1800, 4200);
-  if (spaceType === 'Secure Parts Storage') return randomInt(300, 900);
-  return randomInt(1500, 4000);
+  if (spaceType === 'Service Bay') return randomInt(2500, 5500);
+  if (spaceType === 'Workshop Ramp Bay') return randomInt(2000, 4500);
+  if (spaceType === 'MOT Prep Bay') return randomInt(1800, 4200);
+  if (spaceType === 'Detailing Bay') return randomInt(1500, 3500);
+  if (spaceType === 'Secure Parts Storage') return randomInt(150, 400);
+  return randomInt(1500, 4500);
 }
 
 function spaceSizeSqFt(spaceType: string): number {
@@ -171,27 +191,27 @@ function spaceSizeSqFt(spaceType: string): number {
 
 function servicePricing(serviceName: string): { hourlyRate: number; calloutFee: number | null } {
   if (serviceName === 'Vehicle Diagnostics') {
-    return { hourlyRate: randomInt(6500, 13000), calloutFee: randomElement([null, randomInt(0, 2500)]) };
+    return { hourlyRate: randomInt(6000, 12000), calloutFee: randomElement([null, randomInt(1500, 3500)]) };
   }
   if (serviceName === 'Servicing') {
-    return { hourlyRate: randomInt(5000, 9500), calloutFee: randomElement([null, randomInt(0, 2000)]) };
+    return { hourlyRate: randomInt(4500, 8500), calloutFee: randomElement([null, randomInt(1000, 2500)]) };
   }
   if (serviceName === 'Brakes & Suspension') {
-    return { hourlyRate: randomInt(5500, 11000), calloutFee: randomElement([null, randomInt(0, 2000)]) };
+    return { hourlyRate: randomInt(5000, 9500), calloutFee: randomElement([null, randomInt(1000, 2500)]) };
   }
   if (serviceName === 'Tyres') {
-    return { hourlyRate: randomInt(4500, 8500), calloutFee: randomElement([null, randomInt(0, 1500)]) };
+    return { hourlyRate: randomInt(4000, 7500), calloutFee: randomElement([null, randomInt(0, 2000)]) };
   }
   if (serviceName === 'MOT Prep') {
-    return { hourlyRate: randomInt(5000, 10000), calloutFee: randomElement([null, randomInt(0, 2000)]) };
+    return { hourlyRate: randomInt(4500, 9000), calloutFee: randomElement([null, randomInt(1000, 2500)]) };
   }
   if (serviceName === 'Air Con') {
-    return { hourlyRate: randomInt(5500, 10500), calloutFee: randomElement([null, randomInt(0, 2500)]) };
+    return { hourlyRate: randomInt(5500, 9500), calloutFee: randomElement([null, randomInt(1500, 3500)]) };
   }
   if (serviceName === 'Mobile Mechanic') {
-    return { hourlyRate: randomInt(5500, 11000), calloutFee: randomInt(1500, 5000) };
+    return { hourlyRate: randomInt(5000, 10000), calloutFee: randomInt(2000, 6000) };
   }
-  return { hourlyRate: randomInt(4500, 9000), calloutFee: randomElement([null, randomInt(0, 2000)]) };
+  return { hourlyRate: randomInt(4500, 9000), calloutFee: randomElement([null, randomInt(1000, 2500)]) };
 }
 
 function requestCategoryForTitle(title: string): 'TOOLS' | 'EXPERTISE' | 'SPACE' {
@@ -203,20 +223,20 @@ function requestCategoryForTitle(title: string): 'TOOLS' | 'EXPERTISE' | 'SPACE'
 
 function requestBudget(category: 'TOOLS' | 'EXPERTISE' | 'SPACE', rateType: 'FIXED' | 'HOURLY' | 'DAILY'): number {
   if (category === 'TOOLS') {
-    if (rateType === 'HOURLY') return randomInt(400, 1200);
-    if (rateType === 'DAILY') return randomInt(1200, 9000);
-    return randomInt(1500, 12000);
+    if (rateType === 'HOURLY') return randomInt(500, 1500);
+    if (rateType === 'DAILY') return randomInt(800, 4500);
+    return randomInt(1200, 9000);
   }
 
   if (category === 'SPACE') {
-    if (rateType === 'HOURLY') return randomInt(2000, 6500);
-    if (rateType === 'DAILY') return randomInt(12000, 50000);
-    return randomInt(15000, 60000);
+    if (rateType === 'HOURLY') return randomInt(1500, 5500);
+    if (rateType === 'DAILY') return randomInt(10_000, 40_000);
+    return randomInt(12_000, 45_000);
   }
 
-  if (rateType === 'HOURLY') return randomInt(4500, 10000);
-  if (rateType === 'DAILY') return randomInt(30000, 80000);
-  return randomInt(6000, 45000);
+  if (rateType === 'HOURLY') return randomInt(4000, 9000);
+  if (rateType === 'DAILY') return randomInt(25_000, 65_000);
+  return randomInt(5000, 40_000);
 }
 
 function requestRateType(title: string, category: 'TOOLS' | 'EXPERTISE' | 'SPACE'): 'FIXED' | 'HOURLY' | 'DAILY' {
@@ -358,12 +378,14 @@ async function main() {
 
   // Create tools
   console.log('Creating tools...');
-  const tools: Array<{ id: string; name: string; ownerId: string; dailyRate: number }> = [];
+  const tools: Array<{ id: string; name: string; ownerId: string; dailyRate: number; weeklyRate: number; deposit: number }> = [];
 
   for (const category of TOOLS) {
     for (const toolName of category.items) {
       const owner = randomElement(users);
       const dailyRate = toolDailyRate(category.category, toolName);
+      const weeklyRate = weeklyRateFromDaily(dailyRate);
+      const deposit = toolDeposit(dailyRate, category.category);
 
       const tool = await prisma.tool.create({
         data: {
@@ -371,8 +393,8 @@ async function main() {
           description: `Quality ${toolName.toLowerCase()} available for rent. Well maintained and in excellent working condition. Perfect for DIY projects and professional use.`,
           category: category.category,
           dailyRate,
-          weeklyRate: weeklyRateFromDaily(dailyRate),
-          deposit: toolDeposit(dailyRate, category.category),
+          weeklyRate,
+          deposit,
           photos: [],
           condition: randomElement(['Excellent', 'Good', 'Fair']),
           available: Math.random() > 0.1,
@@ -383,25 +405,26 @@ async function main() {
         },
       });
 
-      tools.push({ id: tool.id, name: tool.name, ownerId: owner.id, dailyRate });
+      tools.push({ id: tool.id, name: tool.name, ownerId: owner.id, dailyRate, weeklyRate, deposit });
     }
   }
   console.log(`  Created ${tools.length} tools`);
 
   // Create spaces
   console.log('Creating spaces...');
-  const spaces: Array<{ id: string; name: string; ownerId: string; dailyRate: number }> = [];
+  const spaces: Array<{ id: string; name: string; ownerId: string; type: string; hourlyRate: number; dailyRate: number; weeklyRate: number }> = [];
 
   for (let i = 0; i < 30; i++) {
     const spaceType = randomElement(SPACES);
     const owner = randomElement(users);
     const hourlyRate = spaceHourlyRate(spaceType.type);
+    const hoursPerDay = spaceType.type === 'Secure Parts Storage' ? 24 : randomInt(6, 10);
     const dailyRate = spaceType.type === 'Secure Parts Storage'
-      ? randomInt(1500, 6000)
-      : hourlyRate * 8;
+      ? randomInt(1200, 5000)
+      : clampInt(Math.round(hourlyRate * hoursPerDay * randomElement([0.85, 0.9, 0.95, 1])), 1500, 1_000_000);
     const weeklyRate = spaceType.type === 'Secure Parts Storage'
-      ? Math.round(dailyRate * 7 * 0.65)
-      : Math.round(dailyRate * 5 * 0.8);
+      ? clampInt(Math.round(dailyRate * 7 * randomElement([0.55, 0.6, 0.65, 0.7])), 3000, 2_000_000)
+      : clampInt(Math.round(dailyRate * 5 * randomElement([0.65, 0.7, 0.75, 0.8])), 3000, 2_000_000);
 
     const space = await prisma.space.create({
       data: {
@@ -422,13 +445,13 @@ async function main() {
       },
     });
 
-    spaces.push({ id: space.id, name: space.name, ownerId: owner.id, dailyRate });
+    spaces.push({ id: space.id, name: space.name, ownerId: owner.id, type: spaceType.type, hourlyRate, dailyRate, weeklyRate });
   }
   console.log(`  Created ${spaces.length} spaces`);
 
   // Create services
   console.log('Creating services...');
-  const services: Array<{ id: string; name: string; providerId: string; hourlyRate: number }> = [];
+  const services: Array<{ id: string; name: string; providerId: string; hourlyRate: number; calloutFee: number | null }> = [];
 
   for (let i = 0; i < 40; i++) {
     const serviceType = randomElement(SERVICES);
@@ -452,7 +475,7 @@ async function main() {
       },
     });
 
-    services.push({ id: service.id, name: service.name, providerId: provider.id, hourlyRate });
+    services.push({ id: service.id, name: service.name, providerId: provider.id, hourlyRate, calloutFee });
   }
   console.log(`  Created ${services.length} services`);
 
@@ -547,25 +570,36 @@ async function main() {
     let rentalFee = 0;
     if (toolId) {
       const tool = tools.find(t => t.id === toolId);
-      const daily = tool?.dailyRate ?? randomInt(1500, 7000);
-      const discountFactor = durationDays >= 5 ? 0.8 : 1;
-      rentalFee = Math.round(daily * durationDays * discountFactor);
+      const daily = tool?.dailyRate ?? randomInt(800, 8000);
+      if (durationDays === 7 && tool?.weeklyRate) {
+        rentalFee = tool.weeklyRate;
+      } else {
+        const discountFactor = durationDays >= 5 ? randomElement([0.85, 0.9, 0.95]) : 1;
+        rentalFee = Math.round(daily * durationDays * discountFactor);
+      }
     } else if (spaceId) {
       const space = spaces.find(s => s.id === spaceId);
-      const daily = space?.dailyRate ?? randomInt(15000, 45000);
-      const discountFactor = durationDays >= 5 ? 0.8 : 1;
-      rentalFee = Math.round(daily * durationDays * discountFactor);
+      const daily = space?.dailyRate ?? randomInt(10_000, 40_000);
+      const baseDays = space?.type === 'Secure Parts Storage' ? 7 : 5;
+      if (space?.weeklyRate && durationDays >= baseDays) {
+        const extraDays = Math.max(0, durationDays - baseDays);
+        rentalFee = space.weeklyRate + Math.round(daily * extraDays * randomElement([0.65, 0.7, 0.75]));
+      } else {
+        const discountFactor = durationDays >= 5 ? randomElement([0.85, 0.9, 0.95]) : 1;
+        rentalFee = Math.round(daily * durationDays * discountFactor);
+      }
     } else if (serviceId) {
       const service = services.find(s => s.id === serviceId);
-      const hourly = service?.hourlyRate ?? randomInt(5000, 10000);
+      const hourly = service?.hourlyRate ?? randomInt(4500, 11_000);
       const hours = randomInt(1, 4);
-      rentalFee = hourly * hours;
+      const calloutFee = service?.calloutFee ?? 0;
+      rentalFee = hourly * hours + calloutFee;
     } else {
       rentalFee = randomInt(5000, 40000);
     }
 
     rentalFee = clampInt(rentalFee, 500, 3_000_000);
-    const platformFee = Math.round(rentalFee * 0.1);
+    const platformFee = clampInt(Math.round(rentalFee * 0.05), 50, 250_000);
 
     const listingKey = toolId
       ? `tool:${toolId}`

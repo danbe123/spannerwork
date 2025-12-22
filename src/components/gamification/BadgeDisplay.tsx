@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Award, ChevronDown, ChevronRight, Lock, Star, Trophy, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface BadgeData {
   type: string;
@@ -41,13 +42,13 @@ export default function BadgeDisplay({ showProgress = true, compact = false, var
   const [showAllNext, setShowAllNext] = useState(false);
 
   const { data: badgesData, isLoading: badgesLoading } = useQuery({
-    queryKey: ['myBadges'],
+    queryKey: queryKeys.myBadges(),
     queryFn: () => gamificationService.getMyBadges(),
     staleTime: 60000,
   });
 
   const { data: nextBadgesData } = useQuery({
-    queryKey: ['nextBadges'],
+    queryKey: queryKeys.nextBadges(),
     queryFn: () => gamificationService.getNextBadges(3),
     staleTime: 60000,
     enabled: showProgress,

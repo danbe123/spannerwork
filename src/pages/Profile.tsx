@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { authService, usersService, reviewsService, transactionsService } from "@/api/services";
+import { authService, usersService, reviewsService, transactionsService, paymentsService } from "@/api/services";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useAuth from "@/hooks/use-auth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wrench, Star, Warehouse, Loader2, Plus } from "lucide-react";
+import { Wrench, Star, Warehouse, Loader2, Plus, Crown, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -25,6 +25,7 @@ import BadgeDisplay from "../components/gamification/BadgeDisplay";
 import AuthPage from "../components/auth/AuthPage";
 import SEO from "@/components/SEO";
 import { toast } from "sonner";
+import { queryKeys } from "@/lib/queryKeys";
 
 import type { Tool, Space, Review, Transaction, PaginatedResponse } from "@/types";
 import type { UserListings } from "@/api/services/users";
@@ -39,6 +40,8 @@ export default function Profile(): JSX.Element {
   const [hasHandledWelcome, setHasHandledWelcome] = useState(false);
 
   const { user: currentUser, isLoading } = useAuth();
+
+  const currentUserIdKey = currentUser?.id ?? '';
 
   useEffect(() => {
     if (hasHandledWelcome || isLoading || !currentUser) {
@@ -85,6 +88,31 @@ export default function Profile(): JSX.Element {
   }, [currentUser, hasHandledWelcome, isLoading, location.search, navigate]);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const subscription = params.get('subscription');
+    if (!subscription) return;
+
+    if (subscription === 'success') {
+      toast.success('Subscription updated');
+      window.dispatchEvent(new CustomEvent('auth:updated'));
+    }
+
+    if (subscription === 'cancel') {
+      toast.message('Subscription checkout cancelled');
+    }
+
+    params.delete('subscription');
+    const nextSearch = params.toString();
+    navigate(
+      {
+        pathname: '/profile',
+        search: nextSearch ? `?${nextSearch}` : '',
+      },
+      { replace: true }
+    );
+  }, [location.search, navigate]);
+
+  useEffect(() => {
     if (!isRedirecting) {
       return;
     }
@@ -114,7 +142,7 @@ export default function Profile(): JSX.Element {
   }, [currentUser, isLoading, location.search, navigate]);
 
   const { data: listingsData } = useQuery<UserListings>({
-    queryKey: ['myListings', currentUser?.id],
+    queryKey: queryKeys.myListingsByUser(currentUserIdKey),
     queryFn: () => usersService.getListings(currentUser!.id),
     enabled: !!currentUser?.id,
   });
@@ -123,7 +151,7 @@ export default function Profile(): JSX.Element {
   const spaces: Space[] = listingsData?.spaces ?? [];
 
   const { data: reviewsData } = useQuery<PaginatedResponse<Review>>({
-    queryKey: ['myReviews', currentUser?.id],
+    queryKey: queryKeys.myReviewsByUser(currentUserIdKey),
     queryFn: () => reviewsService.getByUser(currentUser!.id),
     enabled: !!currentUser?.id,
   });
@@ -131,7 +159,7 @@ export default function Profile(): JSX.Element {
   const reviews: Review[] = reviewsData?.data ?? [];
 
   const { data: transactionsData } = useQuery<Transaction[]>({
-    queryKey: ['myTransactions', currentUser?.id],
+    queryKey: queryKeys.myTransactionsByUser(currentUserIdKey),
     queryFn: async () => {
       const asUser = await transactionsService.list({});
       const asProvider = await transactionsService.list({ asProvider: true });
@@ -156,6 +184,26 @@ export default function Profile(): JSX.Element {
   const handleLogout = (): void => {
     logoutMutation.mutate();
   };
+
+  const subscriptionCheckoutMutation = useMutation({
+    mutationFn: (plan: 'PRO' | 'BUSINESS') => paymentsService.createSubscriptionCheckout(plan),
+    onSuccess: (data) => {
+      window.location.href = data.url;
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to start subscription checkout');
+    },
+  });
+
+  const subscriptionPortalMutation = useMutation({
+    mutationFn: () => paymentsService.createSubscriptionPortal(`${window.location.origin}/profile`),
+    onSuccess: (data) => {
+      window.location.href = data.url;
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to open billing portal');
+    },
+  });
 
   if (isLoading) {
     return (
@@ -186,6 +234,7 @@ export default function Profile(): JSX.Element {
   }
 
   const completedCount = transactions.filter(t => t.status === 'COMPLETED').length;
+  const providerPlan = (currentUser as unknown as { providerPlan?: 'FREE' | 'PRO' | 'BUSINESS' })?.providerPlan || 'FREE';
   const needsSetup =
     !currentUser?.emailVerified ||
     !currentUser?.phone ||
@@ -224,6 +273,65 @@ export default function Profile(): JSX.Element {
             />
           </div>
         )}
+
+        <div className="mb-8">
+          <Card className="border-none shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Crown className="w-5 h-5 text-brand-800" />
+                    <p className="font-semibold">Provider Plan</p>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Current: {providerPlan}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => subscriptionPortalMutation.mutate()}
+                    disabled={subscriptionPortalMutation.isPending}
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Manage billing
+                  </Button>
+
+                  {providerPlan === 'FREE' && (
+                    <>
+                      <Button
+                        className="bg-brand-800 hover:bg-brand-900 text-white"
+                        onClick={() => subscriptionCheckoutMutation.mutate('PRO')}
+                        disabled={subscriptionCheckoutMutation.isPending}
+                      >
+                        Upgrade to Pro
+                      </Button>
+
+                      <Button
+                        className="bg-gray-900 hover:bg-black text-white"
+                        onClick={() => subscriptionCheckoutMutation.mutate('BUSINESS')}
+                        disabled={subscriptionCheckoutMutation.isPending}
+                      >
+                        Upgrade to Business
+                      </Button>
+                    </>
+                  )}
+
+                  {providerPlan === 'PRO' && (
+                    <Button
+                      className="bg-gray-900 hover:bg-black text-white"
+                      onClick={() => subscriptionCheckoutMutation.mutate('BUSINESS')}
+                      disabled={subscriptionCheckoutMutation.isPending}
+                    >
+                      Upgrade to Business
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Bento Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 lg:gap-6">

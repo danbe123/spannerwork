@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { getCsrfToken } from '../middleware/csrf.middleware.js';
-import { apiLimiter } from '../middleware/rateLimit.middleware.js';
 
 const router = Router();
 
@@ -10,6 +9,6 @@ const router = Router();
  * @auth Not required - needed for registration
  * Rate limited to prevent abuse
  */
-router.get('/', apiLimiter, getCsrfToken);
+router.get('/', getCsrfToken);
 
 export default router;

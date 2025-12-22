@@ -359,7 +359,7 @@ describe('Analytics Service', () => {
     });
 
     it('should respect limit parameter', async () => {
-      const result = await getTopProviders(5);
+      await getTopProviders(5);
 
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ take: 5 })

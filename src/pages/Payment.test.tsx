@@ -7,23 +7,50 @@ import Payment from './Payment';
 
 // Mock services
 const mockGetById = vi.fn();
-const mockUpdateStatus = vi.fn();
 const mockGetUserById = vi.fn();
+const mockUpdateAddOns = vi.fn();
+
+const mockGetPaymentsConfig = vi.fn();
+const mockCreatePaymentIntent = vi.fn();
 
 vi.mock('@/api/services', () => ({
   transactionsService: {
     getById: (id: string) => mockGetById(id),
-    updateStatus: (id: string, status: string) => mockUpdateStatus(id, status),
+    updateAddOns: (id: string, data: unknown) => mockUpdateAddOns(id, data),
   },
   usersService: {
     getById: (id: string) => mockGetUserById(id),
   },
 }));
 
-// Mock utils
-vi.mock('@/utils', () => ({
-  createPageUrl: (path: string) => `/${path}`,
+vi.mock('@/api/services/payments', () => ({
+  paymentsService: {
+    getConfig: (...args: unknown[]) => mockGetPaymentsConfig(...args),
+    createPaymentIntent: (...args: unknown[]) => mockCreatePaymentIntent(...args),
+  },
 }));
+
+vi.mock('@stripe/stripe-js', () => ({
+  loadStripe: () => Promise.resolve({}),
+}));
+
+const mockConfirmPayment = vi.fn();
+
+vi.mock('@stripe/react-stripe-js', () => ({
+  Elements: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  PaymentElement: () => <div data-testid="stripe-payment-element" />, 
+  useStripe: () => ({ confirmPayment: (...args: unknown[]) => mockConfirmPayment(...args) }),
+  useElements: () => ({}),
+}));
+
+// Mock utils (keep real formatPrice)
+vi.mock('@/utils', async () => {
+  const actual = await vi.importActual<typeof import('@/utils')>('@/utils');
+  return {
+    ...actual,
+    createPageUrl: (path: string) => actual.createPageUrl(path),
+  };
+});
 
 // Mock navigate
 const mockNavigate = vi.fn();
@@ -65,17 +92,18 @@ function renderPayment(route = '/payment?transactionId=tx-1') {
 describe('Payment Page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     mockGetById.mockResolvedValue({
       transaction: {
         id: 'tx-1',
         providerId: 'provider-1',
         rentalFee: 5000, // £50.00 in pence
         platformFee: 250, // £2.50 in pence
+        paymentStatus: 'PENDING',
         status: 'PENDING_PAYMENT',
       },
     });
-    
+
     mockGetUserById.mockResolvedValue({
       user: {
         id: 'provider-1',
@@ -83,8 +111,28 @@ describe('Payment Page', () => {
         email: 'provider@test.com',
       },
     });
-    
-    mockUpdateStatus.mockResolvedValue({});
+
+    mockUpdateAddOns.mockResolvedValue({
+      transaction: {
+        id: 'tx-1',
+        providerId: 'provider-1',
+        rentalFee: 5000,
+        platformFee: 250,
+        totalAmount: 5250,
+        paymentStatus: 'PENDING',
+        status: 'PENDING_PAYMENT',
+      },
+    });
+
+    mockGetPaymentsConfig.mockResolvedValue({ publishableKey: 'pk_test_123' });
+    mockCreatePaymentIntent.mockResolvedValue({
+      clientSecret: 'cs_test_123',
+      paymentIntentId: 'pi_test_123',
+      amount: 5250,
+      currency: 'gbp',
+    });
+
+    mockConfirmPayment.mockResolvedValue({ paymentIntent: { status: 'succeeded' } });
   });
 
   describe('Loading state', () => {
@@ -150,43 +198,27 @@ describe('Payment Page', () => {
       });
     });
 
-    it('renders cardholder name input', async () => {
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/cardholder name/i)).toBeInTheDocument();
-      });
-    });
-
-    it('renders card number input', async () => {
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/card number/i)).toBeInTheDocument();
-      });
-    });
-
-    it('renders expiry date input', async () => {
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/expiry date/i)).toBeInTheDocument();
-      });
-    });
-
-    it('renders CVC input', async () => {
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/cvc/i)).toBeInTheDocument();
-      });
-    });
-
     it('renders secure payment header', async () => {
       renderPayment();
-      
+
       await waitFor(() => {
-        expect(screen.getByText(/secure payment/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Secure Payment/i })).toBeInTheDocument();
+      });
+    });
+
+    it('renders Stripe payment element after continuing to payment', async () => {
+      const user = userEvent.setup();
+      renderPayment();
+
+      // Click "Continue to payment" to show the Stripe element
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Continue to payment/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /Continue to payment/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('stripe-payment-element')).toBeInTheDocument();
       });
     });
   });
@@ -196,7 +228,7 @@ describe('Payment Page', () => {
       renderPayment();
       
       await waitFor(() => {
-        expect(screen.getByText('£50.00')).toBeInTheDocument();
+        expect(screen.getAllByText('£50.00').length).toBeGreaterThan(0);
       });
     });
 
@@ -204,7 +236,7 @@ describe('Payment Page', () => {
       renderPayment();
       
       await waitFor(() => {
-        expect(screen.getByText('£2.50')).toBeInTheDocument();
+        expect(screen.getAllByText('£2.50').length).toBeGreaterThan(0);
       });
     });
 
@@ -212,7 +244,7 @@ describe('Payment Page', () => {
       renderPayment();
       
       await waitFor(() => {
-        expect(screen.getByText('£52.50')).toBeInTheDocument();
+        expect(screen.getAllByText('£52.50').length).toBeGreaterThan(0);
       });
     });
 
@@ -228,224 +260,65 @@ describe('Payment Page', () => {
       renderPayment();
       
       await waitFor(() => {
-        expect(screen.getByText('Order Summary')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Order Summary/i })).toBeInTheDocument();
       });
-    });
-  });
-
-  describe('Form validation', () => {
-    it('validates card details before submission', async () => {
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/cardholder name/i)).toBeInTheDocument();
-      });
-      
-      // Verify form exists with required fields
-      const form = document.querySelector('form');
-      expect(form).toBeTruthy();
-      
-      const submitButton = screen.getByRole('button', { name: /pay/i });
-      expect(submitButton).toBeInTheDocument();
-      
-      // Verify all required inputs are present
-      expect(screen.getByLabelText(/cardholder name/i)).toBeRequired();
-      expect(screen.getByLabelText(/card number/i)).toBeRequired();
-      expect(screen.getByLabelText(/expiry date/i)).toBeRequired();
-      expect(screen.getByLabelText(/cvc/i)).toBeRequired();
-    });
-
-    it('shows error for invalid card number length', async () => {
-      const user = userEvent.setup();
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/cardholder name/i)).toBeInTheDocument();
-      });
-      
-      await user.type(screen.getByLabelText(/cardholder name/i), 'John Smith');
-      await user.type(screen.getByLabelText(/card number/i), '1234');
-      await user.type(screen.getByLabelText(/expiry date/i), '12/25');
-      await user.type(screen.getByLabelText(/cvc/i), '123');
-      
-      const submitButton = screen.getByRole('button', { name: /pay/i });
-      await user.click(submitButton);
-      
-      await waitFor(() => {
-        expect(screen.getByText('Please enter a valid 16-digit card number')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Card number formatting', () => {
-    it('formats card number with spaces', async () => {
-      const user = userEvent.setup();
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/card number/i)).toBeInTheDocument();
-      });
-      
-      const cardInput = screen.getByLabelText(/card number/i) as HTMLInputElement;
-      await user.type(cardInput, '1234567890123456');
-      
-      expect(cardInput.value).toBe('1234 5678 9012 3456');
-    });
-  });
-
-  describe('Expiry date formatting', () => {
-    it('formats expiry date with slash', async () => {
-      const user = userEvent.setup();
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/expiry date/i)).toBeInTheDocument();
-      });
-      
-      const expiryInput = screen.getByLabelText(/expiry date/i) as HTMLInputElement;
-      await user.type(expiryInput, '1225');
-      
-      expect(expiryInput.value).toBe('12/25');
-    });
-  });
-
-  describe('CVC input', () => {
-    it('only accepts numeric input', async () => {
-      const user = userEvent.setup();
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/cvc/i)).toBeInTheDocument();
-      });
-      
-      const cvcInput = screen.getByLabelText(/cvc/i) as HTMLInputElement;
-      await user.type(cvcInput, 'abc123');
-      
-      expect(cvcInput.value).toBe('123');
     });
   });
 
   describe('Payment submission', () => {
-    it('processes payment on valid form submission', async () => {
-      const user = userEvent.setup();
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/cardholder name/i)).toBeInTheDocument();
-      });
-      
-      await user.type(screen.getByLabelText(/cardholder name/i), 'John Smith');
-      await user.type(screen.getByLabelText(/card number/i), '1234567890123456');
-      await user.type(screen.getByLabelText(/expiry date/i), '12/25');
-      await user.type(screen.getByLabelText(/cvc/i), '123');
-      
-      const submitButton = screen.getByRole('button', { name: /pay/i });
-      await user.click(submitButton);
-      
-      await waitFor(() => {
-        expect(screen.getByText(/processing payment/i)).toBeInTheDocument();
-      });
-    });
-
-    it('disables submit button while processing', async () => {
-      const user = userEvent.setup();
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/cardholder name/i)).toBeInTheDocument();
-      });
-      
-      await user.type(screen.getByLabelText(/cardholder name/i), 'John Smith');
-      await user.type(screen.getByLabelText(/card number/i), '1234567890123456');
-      await user.type(screen.getByLabelText(/expiry date/i), '12/25');
-      await user.type(screen.getByLabelText(/cvc/i), '123');
-      
-      const submitButton = screen.getByRole('button', { name: /pay/i });
-      await user.click(submitButton);
-      
-      await waitFor(() => {
-        expect(submitButton).toBeDisabled();
-      });
-    });
-
-    it('updates transaction status on success', async () => {
-      vi.useFakeTimers({ shouldAdvanceTime: true });
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      renderPayment();
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/cardholder name/i)).toBeInTheDocument();
-      });
-      
-      await user.type(screen.getByLabelText(/cardholder name/i), 'John Smith');
-      await user.type(screen.getByLabelText(/card number/i), '1234567890123456');
-      await user.type(screen.getByLabelText(/expiry date/i), '12/25');
-      await user.type(screen.getByLabelText(/cvc/i), '123');
-      
-      const submitButton = screen.getByRole('button', { name: /pay/i });
-      await user.click(submitButton);
-      
-      // Advance timer past the simulated processing delay
-      await vi.advanceTimersByTimeAsync(2500);
-      
-      await waitFor(() => {
-        expect(mockUpdateStatus).toHaveBeenCalledWith('tx-1', 'CONFIRMED');
-      });
-      
-      vi.useRealTimers();
-    });
-
     it('navigates to transaction detail on success', async () => {
-      vi.useFakeTimers({ shouldAdvanceTime: true });
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const user = userEvent.setup();
       renderPayment();
-      
+
+      // First click "Continue to payment" to create payment intent
       await waitFor(() => {
-        expect(screen.getByLabelText(/cardholder name/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Continue to payment/i })).toBeInTheDocument();
       });
-      
-      await user.type(screen.getByLabelText(/cardholder name/i), 'John Smith');
-      await user.type(screen.getByLabelText(/card number/i), '1234567890123456');
-      await user.type(screen.getByLabelText(/expiry date/i), '12/25');
-      await user.type(screen.getByLabelText(/cvc/i), '123');
-      
-      const submitButton = screen.getByRole('button', { name: /pay/i });
-      await user.click(submitButton);
-      
-      await vi.advanceTimersByTimeAsync(2500);
-      
+
+      await user.click(screen.getByRole('button', { name: /Continue to payment/i }));
+
+      // Wait for Stripe payment element to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('stripe-payment-element')).toBeInTheDocument();
+      });
+
+      // Then submit payment form
+      const form = screen.getByTestId('stripe-payment-element').closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('submit', { bubbles: true }));
+      }
+
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalled();
       });
-      
-      vi.useRealTimers();
     });
 
     it('shows error on payment failure', async () => {
-      vi.useFakeTimers({ shouldAdvanceTime: true });
-      mockUpdateStatus.mockRejectedValue(new Error('Payment failed'));
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      mockConfirmPayment.mockResolvedValueOnce({ error: { message: 'Payment failed' } });
+      const user = userEvent.setup();
       renderPayment();
-      
+
+      // First click "Continue to payment" to create payment intent
       await waitFor(() => {
-        expect(screen.getByLabelText(/cardholder name/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Continue to payment/i })).toBeInTheDocument();
       });
-      
-      await user.type(screen.getByLabelText(/cardholder name/i), 'John Smith');
-      await user.type(screen.getByLabelText(/card number/i), '1234567890123456');
-      await user.type(screen.getByLabelText(/expiry date/i), '12/25');
-      await user.type(screen.getByLabelText(/cvc/i), '123');
-      
-      const submitButton = screen.getByRole('button', { name: /pay/i });
-      await user.click(submitButton);
-      
-      await vi.advanceTimersByTimeAsync(2500);
-      
+
+      await user.click(screen.getByRole('button', { name: /Continue to payment/i }));
+
+      // Wait for Stripe payment element to appear
       await waitFor(() => {
-        expect(screen.getByText(/payment failed/i)).toBeInTheDocument();
+        expect(screen.getByTestId('stripe-payment-element')).toBeInTheDocument();
       });
-      
-      vi.useRealTimers();
+
+      // Then submit payment form
+      const form = screen.getByTestId('stripe-payment-element').closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('submit', { bubbles: true }));
+      }
+
+      await waitFor(() => {
+        expect(screen.getByText(/Payment failed/i)).toBeInTheDocument();
+      });
     });
   });
 
@@ -454,7 +327,7 @@ describe('Payment Page', () => {
       renderPayment();
       
       await waitFor(() => {
-        expect(screen.getByText('Back')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Back$/i })).toBeInTheDocument();
       });
     });
 
@@ -463,10 +336,10 @@ describe('Payment Page', () => {
       renderPayment();
       
       await waitFor(() => {
-        expect(screen.getByText('Back')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Back$/i })).toBeInTheDocument();
       });
       
-      await user.click(screen.getByText('Back'));
+      await user.click(screen.getByRole('button', { name: /^Back$/i }));
       expect(mockNavigate).toHaveBeenCalledWith(-1);
     });
   });
@@ -476,7 +349,7 @@ describe('Payment Page', () => {
       renderPayment();
       
       await waitFor(() => {
-        expect(screen.getByText(/Secure Payment/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Secure Payment/i })).toBeInTheDocument();
       });
     });
 
@@ -484,7 +357,7 @@ describe('Payment Page', () => {
       renderPayment();
       
       await waitFor(() => {
-        expect(screen.getByText(/256-bit SSL encrypted/i)).toBeInTheDocument();
+        expect(screen.queryByText(/256-bit SSL encrypted/i)).not.toBeInTheDocument();
       });
     });
 
@@ -492,7 +365,7 @@ describe('Payment Page', () => {
       renderPayment();
       
       await waitFor(() => {
-        expect(screen.getByText(/Funds held securely/i)).toBeInTheDocument();
+        expect(screen.getByText(/Funds held securely until completion/i)).toBeInTheDocument();
       });
     });
   });
@@ -505,6 +378,7 @@ describe('Payment Page', () => {
           providerId: 'provider-1',
           rentalFee: 5000,
           platformFee: 0,
+          paymentStatus: 'PENDING',
           status: 'PENDING_PAYMENT',
         },
       });

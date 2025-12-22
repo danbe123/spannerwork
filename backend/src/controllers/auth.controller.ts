@@ -3,7 +3,7 @@ import { authService } from '../services/auth.service.js';
 import { logger } from '../config/logger.js';
 import { emailService } from '../services/email.service.js';
 import { smsService } from '../services/sms.service.js';
-import { SESSION_COOKIE_OPTIONS, COOKIE_NAMES } from '../config/cookie.js';
+import { SESSION_COOKIE_OPTIONS, SESSION_COOKIE_CLEAR_OPTIONS, COOKIE_NAMES } from '../config/cookie.js';
 import { UnauthorizedError, ConflictError, BadRequestError } from '../utils/errors.js';
 
 export class AuthController {
@@ -185,7 +185,7 @@ export class AuthController {
         logger.info(`User logged out`);
       }
 
-      res.clearCookie(COOKIE_NAMES.SESSION);
+      res.clearCookie(COOKIE_NAMES.SESSION, SESSION_COOKIE_CLEAR_OPTIONS);
 
       return res.json({
         message: 'Logout successful',

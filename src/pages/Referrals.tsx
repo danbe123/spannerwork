@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Referral, User } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 export default function Referrals() {
   const queryClient = useQueryClient();
@@ -27,11 +28,12 @@ export default function Referrals() {
   const [phone, setPhone] = useState("");
 
   const { data: currentUserData } = useQuery({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser(),
     queryFn: () => authService.getCurrentUser(),
   });
 
   const currentUser: User | undefined = currentUserData?.user;
+  const currentUserIdKey = currentUser?.id ?? '';
 
   // Generate referral code
   const referralCode = currentUser?.id ? 
@@ -40,7 +42,7 @@ export default function Referrals() {
   const referralLink = `${window.location.origin}/?ref=${referralCode}`;
 
   const { data: referralsData } = useQuery({
-    queryKey: ['myReferrals', currentUser?.id],
+    queryKey: queryKeys.myReferrals(currentUserIdKey),
     queryFn: () => referralsService.getMyReferrals(),
     enabled: !!currentUser?.id,
   });
@@ -56,7 +58,7 @@ export default function Referrals() {
       return { email };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myReferrals'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myReferralsRoot() });
       setEmail("");
       toast.success("Invitation sent!");
     },
@@ -71,7 +73,7 @@ export default function Referrals() {
       return { phone: phoneNumber };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myReferrals'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myReferralsRoot() });
       setPhone("");
       toast.success("SMS invitation sent!");
     },

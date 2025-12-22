@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Upload, X } from "lucide-react";
 import { User } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface AddToolDialogProps {
   onClose: () => void;
@@ -82,7 +83,7 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
       postcode: currentUser.postcode || '',
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myTools'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myTools() });
       onClose();
     },
   });
