@@ -781,30 +781,210 @@ export class StripeService {
   }
 
   private async handlePaymentFailed(event: WebhookEvent): Promise<void> {
-    const paymentIntent = event.data.object as { id: string; metadata?: { transactionId?: string } };
+    const paymentIntent = event.data.object as {
+      id: string;
+      metadata?: { transactionId?: string };
+      last_payment_error?: { message?: string };
+    };
     const transactionId = paymentIntent.metadata?.transactionId;
 
-    if (transactionId) {
-      logger.error(`Payment failed for transaction ${transactionId}`);
-      // TODO: Update transaction status and notify user
+    if (!transactionId) {
+      logger.warn(`Payment failed but no transactionId in metadata: ${paymentIntent.id}`);
+      return;
+    }
+
+    logger.error(`Payment failed for transaction ${transactionId}`);
+
+    // Update transaction payment status to FAILED
+    const transaction = await prisma.transaction.update({
+      where: { id: transactionId },
+      data: {
+        paymentStatus: 'FAILED',
+        status: 'CANCELLED',
+      },
+      include: {
+        user: {
+          select: { id: true, email: true, name: true },
+        },
+        provider: {
+          select: { id: true, email: true, name: true },
+        },
+      },
+    });
+
+    // Notify the user about the failed payment
+    try {
+      const { emailService } = await import('./email.service.js');
+      await emailService.sendPaymentFailedEmail(transaction.user.email, {
+        userName: transaction.user.name,
+        transactionId,
+        amount: transaction.totalAmount,
+        errorMessage: paymentIntent.last_payment_error?.message || 'Payment could not be processed',
+      });
+    } catch (emailError) {
+      logger.error('Failed to send payment failed notification email', emailError);
     }
   }
 
   private async handleAccountUpdated(event: WebhookEvent): Promise<void> {
-    const account = event.data.object as { id: string; charges_enabled: boolean };
+    const account = event.data.object as {
+      id: string;
+      charges_enabled: boolean;
+      payouts_enabled: boolean;
+      details_submitted: boolean;
+      requirements?: {
+        currently_due?: string[];
+        past_due?: string[];
+        disabled_reason?: string;
+      };
+    };
+
     logger.info(`Connect account updated: ${account.id}, charges_enabled: ${account.charges_enabled}`);
 
-    // TODO: Update user's stripeAccountStatus in database
+    // Find user by Stripe Connect ID
+    const user = await prisma.user.findFirst({
+      where: { stripeConnectId: account.id },
+    });
+
+    if (!user) {
+      logger.warn(`No user found for Stripe Connect account: ${account.id}`);
+      return;
+    }
+
+    // Determine account status based on Stripe's response
+    let accountStatus: 'ACTIVE' | 'SUSPENDED' = 'ACTIVE';
+    let suspendedReason: string | null = null;
+
+    if (!account.charges_enabled || !account.payouts_enabled) {
+      // If charges or payouts are disabled, account may need attention
+      if (account.requirements?.disabled_reason) {
+        accountStatus = 'SUSPENDED';
+        suspendedReason = `Stripe account issue: ${account.requirements.disabled_reason}`;
+      } else if (account.requirements?.past_due && account.requirements.past_due.length > 0) {
+        // Has past due requirements - may be restricted soon
+        logger.warn(`User ${user.id} has past due Stripe requirements`, {
+          pastDue: account.requirements.past_due,
+        });
+      }
+    }
+
+    // Update user record with Stripe account status
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        // Only update account status if there's a problem
+        ...(accountStatus === 'SUSPENDED' && {
+          accountStatus,
+          suspendedReason,
+          suspendedDate: new Date(),
+        }),
+      },
+    });
+
+    // Send notification if account has issues
+    if (!account.charges_enabled && account.details_submitted) {
+      try {
+        const { emailService } = await import('./email.service.js');
+        await emailService.sendStripeAccountIssueEmail(user.email, {
+          userName: user.name,
+          issue: account.requirements?.disabled_reason || 'Your payment account requires attention',
+          requirements: account.requirements?.currently_due || [],
+        });
+      } catch (emailError) {
+        logger.error('Failed to send Stripe account issue email', emailError);
+      }
+    }
+
+    logger.info(`Updated Stripe account status for user ${user.id}`, {
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled,
+    });
   }
 
   private async handleTransferCreated(event: WebhookEvent): Promise<void> {
-    const transfer = event.data.object as { id: string; amount: number };
+    const transfer = event.data.object as {
+      id: string;
+      amount: number;
+      destination: string;
+      transfer_group?: string;
+      metadata?: { transactionId?: string };
+    };
+
     logger.info(`Transfer created: ${transfer.id}, amount: ${transfer.amount}`);
+
+    // Try to find the transaction from transfer_group (which we set to transactionId)
+    const transactionId = transfer.transfer_group || transfer.metadata?.transactionId;
+
+    if (transactionId) {
+      // Update transaction with transfer ID
+      await prisma.transaction.update({
+        where: { id: transactionId },
+        data: {
+          stripeTransferId: transfer.id,
+        },
+      });
+
+      logger.info(`Linked transfer ${transfer.id} to transaction ${transactionId}`);
+    }
+
+    // Update provider's earnings in UserStats
+    const provider = await prisma.user.findFirst({
+      where: { stripeConnectId: transfer.destination },
+    });
+
+    if (provider) {
+      await prisma.userStats.upsert({
+        where: { userId: provider.id },
+        update: {
+          totalEarned: { increment: transfer.amount },
+        },
+        create: {
+          userId: provider.id,
+          totalEarned: transfer.amount,
+        },
+      });
+
+      logger.info(`Updated earnings for provider ${provider.id}: +${transfer.amount}`);
+    }
   }
 
   private async handlePayoutPaid(event: WebhookEvent): Promise<void> {
-    const payout = event.data.object as { id: string; amount: number };
+    const payout = event.data.object as {
+      id: string;
+      amount: number;
+      arrival_date: number;
+      destination?: string;
+      metadata?: { transactionId?: string };
+    };
+
     logger.info(`Payout completed: ${payout.id}, amount: ${payout.amount}`);
+
+    // If this is an instant payout linked to a transaction, update it
+    if (payout.metadata?.transactionId) {
+      await prisma.transaction.update({
+        where: { id: payout.metadata.transactionId },
+        data: {
+          stripeInstantPayoutId: payout.id,
+        },
+      });
+
+      logger.info(`Linked payout ${payout.id} to transaction ${payout.metadata.transactionId}`);
+    }
+
+    // Log payout in audit trail
+    await prisma.auditLog.create({
+      data: {
+        action: 'PAYOUT_COMPLETED',
+        userId: 'system',
+        resourceType: 'Payout',
+        resourceId: payout.id,
+        metadata: {
+          amount: payout.amount,
+          arrivalDate: new Date(payout.arrival_date * 1000).toISOString(),
+          transactionId: payout.metadata?.transactionId,
+        },
+      },
+    });
   }
 
   private async handleCheckoutSessionCompleted(event: WebhookEvent): Promise<void> {
@@ -880,17 +1060,176 @@ export class StripeService {
   }
 
   private async handleChargeRefunded(event: WebhookEvent): Promise<void> {
-    const charge = event.data.object as { id: string; payment_intent: string };
-    logger.info(`Charge refunded: ${charge.id}`);
+    const charge = event.data.object as {
+      id: string;
+      payment_intent: string | null;
+      amount_refunded: number;
+      refunded: boolean;
+    };
 
-    // TODO: Update transaction status
+    logger.info(`Charge refunded: ${charge.id}, amount_refunded: ${charge.amount_refunded}`);
+
+    if (!charge.payment_intent) {
+      logger.warn(`Refunded charge ${charge.id} has no payment_intent`);
+      return;
+    }
+
+    // Find transaction by payment intent ID
+    const transaction = await prisma.transaction.findFirst({
+      where: { stripePaymentIntentId: charge.payment_intent },
+      include: {
+        user: { select: { id: true, email: true, name: true } },
+        provider: { select: { id: true, email: true, name: true } },
+      },
+    });
+
+    if (!transaction) {
+      logger.warn(`No transaction found for payment intent: ${charge.payment_intent}`);
+      return;
+    }
+
+    // Update transaction payment status to REFUNDED
+    await prisma.transaction.update({
+      where: { id: transaction.id },
+      data: {
+        paymentStatus: 'REFUNDED',
+        status: 'CANCELLED',
+      },
+    });
+
+    logger.info(`Updated transaction ${transaction.id} to REFUNDED status`);
+
+    // Notify both parties about the refund
+    try {
+      const { emailService } = await import('./email.service.js');
+
+      // Notify customer
+      await emailService.sendRefundConfirmationEmail(transaction.user.email, {
+        userName: transaction.user.name,
+        transactionId: transaction.id,
+        amount: charge.amount_refunded,
+      });
+
+      // Notify provider
+      if (transaction.provider?.email) {
+        await emailService.sendRefundNotificationToProviderEmail(transaction.provider.email, {
+          providerName: transaction.provider.name,
+          transactionId: transaction.id,
+          amount: charge.amount_refunded,
+        });
+      }
+    } catch (emailError) {
+      logger.error('Failed to send refund notification emails', emailError);
+    }
+
+    // Update provider's earnings (subtract refunded amount)
+    if (transaction.providerId) {
+      await prisma.userStats.update({
+        where: { userId: transaction.providerId },
+        data: {
+          totalEarned: { decrement: charge.amount_refunded },
+        },
+      });
+    }
   }
 
   private async handleDisputeCreated(event: WebhookEvent): Promise<void> {
-    const dispute = event.data.object as { id: string; charge: string };
-    logger.error(`Dispute created for charge: ${dispute.charge}`);
+    const stripeDispute = event.data.object as {
+      id: string;
+      charge: string;
+      amount: number;
+      reason: string;
+      status: string;
+      evidence_details?: { due_by?: number };
+    };
 
-    // TODO: Create dispute record and notify admin
+    logger.error(`Dispute created: ${stripeDispute.id} for charge: ${stripeDispute.charge}, reason: ${stripeDispute.reason}`);
+
+    // Find the transaction via the charge's payment intent
+    // First, we need to get the payment intent from the charge
+    let transaction;
+    try {
+      const stripe = this.getStripe();
+      const charge = await stripe.charges.retrieve(stripeDispute.charge);
+
+      if (charge.payment_intent) {
+        transaction = await prisma.transaction.findFirst({
+          where: { stripePaymentIntentId: charge.payment_intent as string },
+          include: {
+            user: { select: { id: true, email: true, name: true } },
+            provider: { select: { id: true, email: true, name: true } },
+          },
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to retrieve charge for dispute', err);
+    }
+
+    if (!transaction) {
+      logger.warn(`Could not find transaction for disputed charge: ${stripeDispute.charge}`);
+      // Still create a record for admin review
+    }
+
+    // Create a dispute record in our system
+    if (transaction && transaction.providerId) {
+      const dispute = await prisma.dispute.create({
+        data: {
+          transactionId: transaction.id,
+          initiatorId: transaction.userId, // Customer initiated (via their bank)
+          respondentId: transaction.providerId,
+          reason: `Stripe Dispute: ${stripeDispute.reason}`,
+          description: `A payment dispute has been filed through Stripe. Dispute ID: ${stripeDispute.id}. Reason: ${stripeDispute.reason}. Amount: £${(stripeDispute.amount / 100).toFixed(2)}`,
+          status: 'OPEN',
+        },
+      });
+
+      logger.info(`Created dispute record ${dispute.id} for Stripe dispute ${stripeDispute.id}`);
+    }
+
+    // Notify admins about the dispute
+    try {
+      const { emailService } = await import('./email.service.js');
+
+      // Get admin emails
+      const admins = await prisma.user.findMany({
+        where: { role: 'ADMIN' },
+        select: { email: true, name: true },
+      });
+
+      for (const admin of admins) {
+        await emailService.sendDisputeAlertEmail(admin.email, {
+          adminName: admin.name,
+          disputeId: stripeDispute.id,
+          chargeId: stripeDispute.charge,
+          amount: stripeDispute.amount,
+          reason: stripeDispute.reason,
+          transactionId: transaction?.id,
+          customerEmail: transaction?.user.email,
+          providerEmail: transaction?.provider?.email,
+          evidenceDueBy: stripeDispute.evidence_details?.due_by
+            ? new Date(stripeDispute.evidence_details.due_by * 1000)
+            : undefined,
+        });
+      }
+    } catch (emailError) {
+      logger.error('Failed to send dispute alert emails to admins', emailError);
+    }
+
+    // Log in audit trail
+    await prisma.auditLog.create({
+      data: {
+        action: 'STRIPE_DISPUTE_CREATED',
+        userId: 'system',
+        resourceType: 'Dispute',
+        resourceId: stripeDispute.id,
+        metadata: {
+          chargeId: stripeDispute.charge,
+          amount: stripeDispute.amount,
+          reason: stripeDispute.reason,
+          transactionId: transaction?.id,
+        },
+      },
+    });
   }
 
   // ==========================================================================

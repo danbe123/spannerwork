@@ -15,7 +15,6 @@ import { NotFoundError, BadRequestError, ForbiddenError } from '../utils/errors.
 import { emailService } from './email.service.js';
 
 // Minimum coverage amount required (£1M = 100,000,000 pence)
-// TODO: Use this for coverage validation in future
 export const MIN_PUBLIC_LIABILITY_COVERAGE = 100000000;
 
 export interface CreateInsuranceDocumentParams {
@@ -196,6 +195,7 @@ export class InsuranceService {
   /**
    * Check if a user has valid, approved insurance
    * Returns true if they have at least one approved, non-expired PUBLIC_LIABILITY policy
+   * with adequate coverage (minimum £1M)
    */
   async hasValidInsurance(userId: string): Promise<boolean> {
     const now = new Date();
@@ -212,7 +212,38 @@ export class InsuranceService {
       },
     });
 
-    return !!validDocument;
+    if (!validDocument) {
+      return false;
+    }
+
+    // Check if coverage amount meets minimum requirement (£1M)
+    // If coverage amount is not specified, we allow it (legacy documents)
+    if (validDocument.coverageAmount !== null && validDocument.coverageAmount < MIN_PUBLIC_LIABILITY_COVERAGE) {
+      logger.warn(`User ${userId} has insurance but coverage (${validDocument.coverageAmount}) is below minimum (${MIN_PUBLIC_LIABILITY_COVERAGE})`);
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Validate insurance coverage meets minimum requirements
+   */
+  validateCoverageAmount(coverageAmount: number | null | undefined): { valid: boolean; message?: string } {
+    if (coverageAmount === null || coverageAmount === undefined) {
+      return { valid: true }; // Allow if not specified (will be validated manually)
+    }
+
+    if (coverageAmount < MIN_PUBLIC_LIABILITY_COVERAGE) {
+      const minInPounds = MIN_PUBLIC_LIABILITY_COVERAGE / 100;
+      const providedInPounds = coverageAmount / 100;
+      return {
+        valid: false,
+        message: `Insurance coverage of £${providedInPounds.toLocaleString()} is below the minimum requirement of £${minInPounds.toLocaleString()}`,
+      };
+    }
+
+    return { valid: true };
   }
 
   /**
@@ -229,10 +260,19 @@ export class InsuranceService {
     const pending = documents.filter(d => d.status === 'PENDING_REVIEW');
     const rejected = documents.filter(d => d.status === 'REJECTED');
 
-    // Check for valid (approved + not expired) public liability
+    // Check for valid (approved + not expired + adequate coverage) public liability
     const validPublicLiability = approved.find(
-      d => d.documentType === 'PUBLIC_LIABILITY' && 
-           (d.expiryDate === null || d.expiryDate > now)
+      d => d.documentType === 'PUBLIC_LIABILITY' &&
+           (d.expiryDate === null || d.expiryDate > now) &&
+           (d.coverageAmount === null || d.coverageAmount >= MIN_PUBLIC_LIABILITY_COVERAGE)
+    );
+
+    // Check for inadequate coverage
+    const inadequateCoverage = approved.find(
+      d => d.documentType === 'PUBLIC_LIABILITY' &&
+           (d.expiryDate === null || d.expiryDate > now) &&
+           d.coverageAmount !== null &&
+           d.coverageAmount < MIN_PUBLIC_LIABILITY_COVERAGE
     );
 
     // Check for expiring soon (within 30 days)
@@ -251,6 +291,11 @@ export class InsuranceService {
         rejected: rejected.length,
       },
       validPublicLiability: validPublicLiability || null,
+      inadequateCoverage: inadequateCoverage ? {
+        document: inadequateCoverage,
+        currentCoverage: inadequateCoverage.coverageAmount,
+        requiredCoverage: MIN_PUBLIC_LIABILITY_COVERAGE,
+      } : null,
       expiringSoon,
       latestDocument: documents[0] || null,
     };

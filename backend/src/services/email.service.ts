@@ -709,4 +709,322 @@ export const emailService = {
       senderType: 'sales',
     });
   },
+
+  /**
+   * Send payment failed notification
+   */
+  async sendPaymentFailedEmail(
+    to: string,
+    data: {
+      userName: string | null;
+      transactionId: string;
+      amount: number; // in pence
+      errorMessage: string;
+    }
+  ) {
+    const transactionUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/transactions/${data.transactionId}`;
+    const safeName = data.userName ? escapeHtml(data.userName) : '';
+    const safeError = escapeHtml(data.errorMessage);
+    const greeting = safeName ? `Hi ${safeName},` : 'Hi,';
+    const formattedAmount = `£${(data.amount / 100).toFixed(2)}`;
+
+    const subject = 'Payment failed for your booking';
+    const previewText = 'Your payment could not be processed. Please try again.';
+    const text = [
+      greeting,
+      '',
+      `Your payment of ${formattedAmount} could not be processed.`,
+      '',
+      `Error: ${data.errorMessage}`,
+      '',
+      'Please try again or use a different payment method.',
+      '',
+      `View booking: ${transactionUrl}`,
+    ].join('\n');
+
+    const bodyHtml = `
+      <p>${greeting}</p>
+      <p>Unfortunately, your payment of <strong>${formattedAmount}</strong> could not be processed.</p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #fef2f2; border-radius: 8px; border-left: 4px solid #ef4444;">
+        <p style="margin: 0;"><strong>Error:</strong> ${safeError}</p>
+      </div>
+      <p>Please try again or use a different payment method to complete your booking.</p>
+      <p style="margin: 24px 0;">
+        <a href="${transactionUrl}" class="button-primary">Retry Payment</a>
+      </p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: 'Payment Failed',
+        bodyHtml,
+      }),
+      text,
+      category: 'payment-failed',
+      senderType: 'support',
+    });
+  },
+
+  /**
+   * Send Stripe account issue notification
+   */
+  async sendStripeAccountIssueEmail(
+    to: string,
+    data: {
+      userName: string | null;
+      issue: string;
+      requirements: string[];
+    }
+  ) {
+    const dashboardUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/provider/dashboard`;
+    const safeName = data.userName ? escapeHtml(data.userName) : '';
+    const safeIssue = escapeHtml(data.issue);
+    const greeting = safeName ? `Hi ${safeName},` : 'Hi,';
+
+    const subject = 'Action required: Your payment account needs attention';
+    const previewText = 'Your Stripe payment account requires attention to continue receiving payments.';
+    const text = [
+      greeting,
+      '',
+      'Your payment account requires attention to continue receiving payments.',
+      '',
+      `Issue: ${data.issue}`,
+      '',
+      data.requirements.length > 0 ? `Requirements: ${data.requirements.join(', ')}` : '',
+      '',
+      `Update your account: ${dashboardUrl}`,
+    ].filter(Boolean).join('\n');
+
+    const requirementsList = data.requirements.length > 0
+      ? `<ul style="margin: 12px 0; padding-left: 20px;">${data.requirements.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>`
+      : '';
+
+    const bodyHtml = `
+      <p>${greeting}</p>
+      <p>Your payment account requires attention to continue receiving payments from SpannerWork.</p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+        <p style="margin: 0 0 8px;"><strong>Issue:</strong> ${safeIssue}</p>
+        ${requirementsList}
+      </div>
+      <p>Please update your payment account details to avoid any interruption to your earnings.</p>
+      <p style="margin: 24px 0;">
+        <a href="${dashboardUrl}" class="button-primary">Update Account</a>
+      </p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: 'Payment Account Needs Attention',
+        bodyHtml,
+      }),
+      text,
+      category: 'stripe-account-issue',
+      senderType: 'support',
+    });
+  },
+
+  /**
+   * Send refund confirmation to customer
+   */
+  async sendRefundConfirmationEmail(
+    to: string,
+    data: {
+      userName: string | null;
+      transactionId: string;
+      amount: number; // in pence
+    }
+  ) {
+    const transactionUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/transactions/${data.transactionId}`;
+    const safeName = data.userName ? escapeHtml(data.userName) : '';
+    const greeting = safeName ? `Hi ${safeName},` : 'Hi,';
+    const formattedAmount = `£${(data.amount / 100).toFixed(2)}`;
+
+    const subject = 'Your refund has been processed';
+    const previewText = `A refund of ${formattedAmount} has been processed for your booking.`;
+    const text = [
+      greeting,
+      '',
+      `A refund of ${formattedAmount} has been processed for your booking.`,
+      '',
+      'The refund should appear in your account within 5-10 business days, depending on your bank.',
+      '',
+      `View details: ${transactionUrl}`,
+    ].join('\n');
+
+    const bodyHtml = `
+      <p>${greeting}</p>
+      <p>A refund of <strong>${formattedAmount}</strong> has been processed for your booking.</p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #ecfdf5; border-radius: 8px; border-left: 4px solid #10b981;">
+        <p style="margin: 0;"><strong>Refund amount:</strong> ${formattedAmount}</p>
+      </div>
+      <p>The refund should appear in your account within 5-10 business days, depending on your bank.</p>
+      <p style="margin: 24px 0;">
+        <a href="${transactionUrl}" class="button-primary">View Transaction</a>
+      </p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: 'Refund Processed',
+        bodyHtml,
+      }),
+      text,
+      category: 'refund-confirmation',
+      senderType: 'support',
+    });
+  },
+
+  /**
+   * Send refund notification to provider
+   */
+  async sendRefundNotificationToProviderEmail(
+    to: string,
+    data: {
+      providerName: string | null;
+      transactionId: string;
+      amount: number; // in pence
+    }
+  ) {
+    const transactionUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/transactions/${data.transactionId}`;
+    const safeName = data.providerName ? escapeHtml(data.providerName) : '';
+    const greeting = safeName ? `Hi ${safeName},` : 'Hi,';
+    const formattedAmount = `£${(data.amount / 100).toFixed(2)}`;
+
+    const subject = 'A refund has been issued for a booking';
+    const previewText = `A refund of ${formattedAmount} has been issued for one of your bookings.`;
+    const text = [
+      greeting,
+      '',
+      `A refund of ${formattedAmount} has been issued for one of your bookings.`,
+      '',
+      'The corresponding amount will be deducted from your next payout.',
+      '',
+      `View details: ${transactionUrl}`,
+    ].join('\n');
+
+    const bodyHtml = `
+      <p>${greeting}</p>
+      <p>A refund of <strong>${formattedAmount}</strong> has been issued for one of your bookings.</p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+        <p style="margin: 0;"><strong>Refund amount:</strong> ${formattedAmount}</p>
+      </div>
+      <p>The corresponding amount will be deducted from your next payout.</p>
+      <p style="margin: 24px 0;">
+        <a href="${transactionUrl}" class="button-primary">View Transaction</a>
+      </p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: 'Refund Issued',
+        bodyHtml,
+      }),
+      text,
+      category: 'refund-notification-provider',
+      senderType: 'support',
+    });
+  },
+
+  /**
+   * Send dispute alert to admin
+   */
+  async sendDisputeAlertEmail(
+    to: string,
+    data: {
+      adminName: string | null;
+      disputeId: string;
+      chargeId: string;
+      amount: number; // in pence
+      reason: string;
+      transactionId?: string;
+      customerEmail?: string;
+      providerEmail?: string;
+      evidenceDueBy?: Date;
+    }
+  ) {
+    const adminUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/admin`;
+    const safeName = data.adminName ? escapeHtml(data.adminName) : '';
+    const safeReason = escapeHtml(data.reason);
+    const greeting = safeName ? `Hi ${safeName},` : 'Hi Admin,';
+    const formattedAmount = `£${(data.amount / 100).toFixed(2)}`;
+    const evidenceDue = data.evidenceDueBy
+      ? data.evidenceDueBy.toLocaleDateString('en-GB', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : 'Unknown';
+
+    const subject = `⚠️ URGENT: Payment dispute received - ${formattedAmount}`;
+    const previewText = `A payment dispute has been filed for ${formattedAmount}. Evidence due by ${evidenceDue}.`;
+    const text = [
+      greeting,
+      '',
+      `A payment dispute has been filed for ${formattedAmount}.`,
+      '',
+      `Dispute ID: ${data.disputeId}`,
+      `Charge ID: ${data.chargeId}`,
+      `Reason: ${data.reason}`,
+      `Amount: ${formattedAmount}`,
+      data.transactionId ? `Transaction: ${data.transactionId}` : '',
+      data.customerEmail ? `Customer: ${data.customerEmail}` : '',
+      data.providerEmail ? `Provider: ${data.providerEmail}` : '',
+      '',
+      `Evidence due by: ${evidenceDue}`,
+      '',
+      'Please respond to this dispute in the Stripe Dashboard immediately.',
+    ].filter(Boolean).join('\n');
+
+    const bodyHtml = `
+      <p>${greeting}</p>
+      <p><strong>A payment dispute has been filed and requires immediate attention.</strong></p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #fef2f2; border-radius: 8px; border-left: 4px solid #ef4444;">
+        <p style="margin: 0 0 8px;"><strong>Dispute ID:</strong> ${escapeHtml(data.disputeId)}</p>
+        <p style="margin: 0 0 8px;"><strong>Charge ID:</strong> ${escapeHtml(data.chargeId)}</p>
+        <p style="margin: 0 0 8px;"><strong>Reason:</strong> ${safeReason}</p>
+        <p style="margin: 0 0 8px;"><strong>Amount:</strong> ${formattedAmount}</p>
+        ${data.transactionId ? `<p style="margin: 0 0 8px;"><strong>Transaction:</strong> ${escapeHtml(data.transactionId)}</p>` : ''}
+        ${data.customerEmail ? `<p style="margin: 0 0 8px;"><strong>Customer:</strong> ${escapeHtml(data.customerEmail)}</p>` : ''}
+        ${data.providerEmail ? `<p style="margin: 0;"><strong>Provider:</strong> ${escapeHtml(data.providerEmail)}</p>` : ''}
+      </div>
+      <div style="margin: 20px 0; padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+        <p style="margin: 0;"><strong>⏰ Evidence due by:</strong> ${evidenceDue}</p>
+      </div>
+      <p>Please respond to this dispute in the Stripe Dashboard immediately to avoid automatic loss.</p>
+      <p style="margin: 24px 0;">
+        <a href="${adminUrl}" class="button-primary">Go to Admin Panel</a>
+      </p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: '⚠️ Payment Dispute Alert',
+        bodyHtml,
+      }),
+      text,
+      category: 'dispute-alert',
+      senderType: 'support',
+    });
+  },
 };
