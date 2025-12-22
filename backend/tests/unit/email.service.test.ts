@@ -177,4 +177,126 @@ describe('Email Service (Mailtrap)', () => {
       expect(body.subject).toContain('insurance');
     });
   });
+
+  describe('sendPaymentFailedEmail', () => {
+    it('sends payment failed email via Mailtrap', async () => {
+      await emailService.sendPaymentFailedEmail('user@example.com', {
+        userName: 'John',
+        transactionId: 'txn_123',
+        amount: 5000,
+        errorMessage: 'Card declined',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://send.api.mailtrap.io/api/send',
+        expect.any(Object)
+      );
+    });
+
+    it('includes correct recipient and subject', async () => {
+      await emailService.sendPaymentFailedEmail('user@example.com', {
+        userName: 'John',
+        transactionId: 'txn_123',
+        amount: 5000,
+        errorMessage: 'Card declined',
+      });
+
+      const fetchCall = mockFetch.mock.calls[0];
+      const body = JSON.parse(fetchCall[1].body);
+      expect(body.to).toEqual([{ email: 'user@example.com' }]);
+      expect(body.subject).toContain('Payment failed');
+    });
+  });
+
+  describe('sendStripeAccountIssueEmail', () => {
+    it('sends Stripe account issue email via Mailtrap', async () => {
+      await emailService.sendStripeAccountIssueEmail('user@example.com', {
+        userName: 'John',
+        issue: 'Account restricted',
+        requirements: ['identity_document', 'bank_account'],
+      });
+
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('includes requirements in email', async () => {
+      await emailService.sendStripeAccountIssueEmail('user@example.com', {
+        userName: 'John',
+        issue: 'Account restricted',
+        requirements: ['identity_document'],
+      });
+
+      const fetchCall = mockFetch.mock.calls[0];
+      const body = JSON.parse(fetchCall[1].body);
+      expect(body.subject).toContain('Action required');
+    });
+  });
+
+  describe('sendRefundConfirmationEmail', () => {
+    it('sends refund confirmation email via Mailtrap', async () => {
+      await emailService.sendRefundConfirmationEmail('user@example.com', {
+        userName: 'John',
+        transactionId: 'txn_123',
+        amount: 5000,
+      });
+
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('includes correct subject', async () => {
+      await emailService.sendRefundConfirmationEmail('user@example.com', {
+        userName: 'John',
+        transactionId: 'txn_123',
+        amount: 5000,
+      });
+
+      const fetchCall = mockFetch.mock.calls[0];
+      const body = JSON.parse(fetchCall[1].body);
+      expect(body.subject).toContain('refund');
+    });
+  });
+
+  describe('sendRefundNotificationToProviderEmail', () => {
+    it('sends refund notification to provider via Mailtrap', async () => {
+      await emailService.sendRefundNotificationToProviderEmail('provider@example.com', {
+        providerName: 'Jane',
+        transactionId: 'txn_123',
+        amount: 5000,
+      });
+
+      expect(mockFetch).toHaveBeenCalled();
+    });
+  });
+
+  describe('sendDisputeAlertEmail', () => {
+    it('sends dispute alert email to admin via Mailtrap', async () => {
+      await emailService.sendDisputeAlertEmail('admin@example.com', {
+        adminName: 'Admin',
+        disputeId: 'dp_123',
+        chargeId: 'ch_123',
+        amount: 10000,
+        reason: 'fraudulent',
+        transactionId: 'txn_123',
+        customerEmail: 'customer@example.com',
+        providerEmail: 'provider@example.com',
+        evidenceDueBy: new Date('2025-01-15'),
+      });
+
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('includes URGENT in subject', async () => {
+      await emailService.sendDisputeAlertEmail('admin@example.com', {
+        adminName: 'Admin',
+        disputeId: 'dp_123',
+        chargeId: 'ch_123',
+        amount: 10000,
+        reason: 'fraudulent',
+      });
+
+      const fetchCall = mockFetch.mock.calls[0];
+      const body = JSON.parse(fetchCall[1].body);
+      expect(body.subject).toContain('URGENT');
+    });
+  });
 });
