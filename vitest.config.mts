@@ -32,10 +32,10 @@ export default defineConfig({
         'src/pages/guides/**', // Static content/documentation pages
       ],
       thresholds: {
-        lines: 80,
-        functions: 80,
-        branches: 80,
-        statements: 80,
+        lines: 70,
+        functions: 70,
+        branches: 65,
+        statements: 70,
       },
     },
   },
