@@ -39,7 +39,7 @@
     "@opentelemetry/semantic-conventions": "^1.21.0",
     "@prisma/client": "^6.19.1",
     "@sentry/node": "^8.47.0",
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "bullmq": "^5.64.1",
     "compression": "^1.7.4",
     "cookie": "^1.0.2",
@@ -70,7 +70,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
+    "@types/bcrypt": "^6.0.0",
     "@types/compression": "^1.7.5",
     "@types/cookie": "^0.6.0",
     "@types/cookie-parser": "^1.4.7",
