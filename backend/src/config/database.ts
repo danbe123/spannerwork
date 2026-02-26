@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { logger } from './logger.js';
 import { env } from './env.js';
 import { createHash } from 'crypto';
+import { recordMetric, incrementCounter } from '../services/metrics.service.js';
 
 /**
  * Database Connection Pooling Configuration
@@ -98,9 +99,8 @@ export const prisma = new PrismaClient({
   }),
 });
 
-// Note: PII encryption middleware is available in encryption.middleware.ts
-// For Prisma 5+, use query extensions or call encryptionService directly in services
-// The middleware pattern has been deprecated in favor of explicit encryption calls
+// PII encryption is handled via encryptionService in individual services
+// See: encryption.service.ts for encrypt/decrypt methods
 
 // Backwards-compatible alias used by some services/controllers
 export const db = prisma;
@@ -188,7 +188,7 @@ let metricsData = {
 // Track query metrics in production
 if (process.env.NODE_ENV === 'production') {
   const SLOW_QUERY_THRESHOLD_MS = 100;
-  
+
   // Override the existing query handler to also track metrics
   prisma.$on('query', (e) => {
     metricsData.totalQueries++;
@@ -196,7 +196,11 @@ if (process.env.NODE_ENV === 'production') {
     if (e.duration > metricsData.maxDurationMs) {
       metricsData.maxDurationMs = e.duration;
     }
-    
+
+    // Record to metrics service for centralized monitoring
+    recordMetric('db.query_duration', e.duration);
+    incrementCounter('db.queries');
+
     if (e.duration > SLOW_QUERY_THRESHOLD_MS) {
       metricsData.slowQueryCount++;
       metricsData.lastSlowQuery = {
@@ -204,6 +208,7 @@ if (process.env.NODE_ENV === 'production') {
         duration: e.duration,
         timestamp: new Date().toISOString(),
       };
+      incrementCounter('db.slow_queries');
     }
   });
 }

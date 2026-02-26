@@ -1,0 +1,1225 @@
+{
+  "timestamp": "2025-12-30T17:12:04.271Z",
+  "overallScore": 100,
+  "totalTests": 164,
+  "totalPassed": 164,
+  "totalFailed": 0,
+  "duration": 57,
+  "suites": [
+    {
+      "suite": "Payment & Escrow Tests",
+      "timestamp": "2025-12-30T17:12:04.219Z",
+      "totalTests": 23,
+      "passed": 23,
+      "failed": 0,
+      "score": 100,
+      "duration": 5,
+      "results": [
+        {
+          "name": "FREE tier platform fee (5%)",
+          "category": "Fee Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "FREE tier: £100 rental → £5 fee"
+        },
+        {
+          "name": "PRO tier platform fee (3%)",
+          "category": "Fee Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "PRO tier: £100 rental → £3 fee"
+        },
+        {
+          "name": "BUSINESS tier platform fee (2%)",
+          "category": "Fee Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "BUSINESS tier: £100 rental → £2 fee"
+        },
+        {
+          "name": "Unknown tier defaults to FREE",
+          "category": "Fee Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "Unknown tier should default to FREE tier rate"
+        },
+        {
+          "name": "Rounding: £10.01 at 5% → £0.50",
+          "category": "Rounding",
+          "passed": true,
+          "score": 100,
+          "details": "5% of 1001p = 50.05p → should round to 50p"
+        },
+        {
+          "name": "Rounding: £10.05 at 5% → £0.50",
+          "category": "Rounding",
+          "passed": true,
+          "score": 100,
+          "details": "5% of 1005p = 50.25p → should round to 50p"
+        },
+        {
+          "name": "Rounding: £10.10 at 5% → £0.51",
+          "category": "Rounding",
+          "passed": true,
+          "score": 100,
+          "details": "5% of 1010p = 50.5p → should round to 51p"
+        },
+        {
+          "name": "Minimum viable rental (£1)",
+          "category": "Rounding",
+          "passed": true,
+          "score": 100,
+          "details": "5% of 100p = 5p"
+        },
+        {
+          "name": "Edge: 1 penny rental",
+          "category": "Rounding",
+          "passed": true,
+          "score": 100,
+          "details": "5% of 1p = 0.05p → should round to 0p"
+        },
+        {
+          "name": "Large amount: £9,999.99",
+          "category": "Rounding",
+          "passed": true,
+          "score": 100,
+          "details": "5% of £9999.99 = £500"
+        },
+        {
+          "name": "Instant payout fee when selected",
+          "category": "Instant Payout",
+          "passed": true,
+          "score": 100,
+          "details": "Instant payout fee should be 1.5%"
+        },
+        {
+          "name": "No instant payout fee when not selected",
+          "category": "Instant Payout",
+          "passed": true,
+          "score": 100,
+          "details": "Should be 0 when not selected"
+        },
+        {
+          "name": "Total amount calculation (no insurance)",
+          "category": "Total Amount",
+          "passed": true,
+          "score": 100,
+          "details": "Total should be £105"
+        },
+        {
+          "name": "Application fee calculation",
+          "category": "Application Fee",
+          "passed": true,
+          "score": 100,
+          "details": "Application fee should be £8.5"
+        },
+        {
+          "name": "Escrow expiry: Day 6.9 (valid)",
+          "category": "Escrow Timing",
+          "passed": true,
+          "score": 100,
+          "details": "Capture at day 6.9 should be within expiry"
+        },
+        {
+          "name": "Escrow expiry: Day 7.0 (boundary)",
+          "category": "Escrow Timing",
+          "passed": true,
+          "score": 100,
+          "details": "Capture at day 7.0 is at boundary"
+        },
+        {
+          "name": "Escrow expiry: Day 7.1 (expired)",
+          "category": "Escrow Timing",
+          "passed": true,
+          "score": 100,
+          "details": "Capture at day 7.1 should be after expiry"
+        },
+        {
+          "name": "Fee never negative",
+          "category": "Boundary Validation",
+          "passed": true,
+          "score": 100,
+          "details": "All fees are non-negative"
+        },
+        {
+          "name": "Fee never exceeds rental amount",
+          "category": "Boundary Validation",
+          "passed": true,
+          "score": 100,
+          "details": "All fees are within bounds"
+        },
+        {
+          "name": "Fee percentage consistency across tiers",
+          "category": "Consistency",
+          "passed": true,
+          "score": 100,
+          "details": "FREE(500) > PRO(300) > BUSINESS(200)"
+        },
+        {
+          "name": "Sum verification: parts equal total",
+          "category": "Consistency",
+          "passed": true,
+          "score": 100,
+          "details": "All sums verified correct"
+        },
+        {
+          "name": "Provider earnings: FREE tier",
+          "category": "Provider Earnings",
+          "passed": true,
+          "score": 100,
+          "details": "FREE tier provider should get £95 from £100"
+        },
+        {
+          "name": "Provider earnings: BUSINESS tier advantage",
+          "category": "Provider Earnings",
+          "passed": true,
+          "score": 100,
+          "details": "BUSINESS tier saves £3 per £100 rental"
+        }
+      ]
+    },
+    {
+      "suite": "Fee Calculation Validator",
+      "timestamp": "2025-12-30T17:12:04.225Z",
+      "totalTests": 22,
+      "passed": 22,
+      "failed": 0,
+      "score": 100,
+      "duration": 3,
+      "results": [
+        {
+          "name": "VAT extraction: £120 gross → £100 net + £20 VAT",
+          "category": "VAT Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "£120 gross → £100 net + £20 VAT"
+        },
+        {
+          "name": "VAT extraction: £1 gross (small amount)",
+          "category": "VAT Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "£1 gross → 83p net + 17p VAT"
+        },
+        {
+          "name": "VAT extraction: sum equals original",
+          "category": "VAT Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "All VAT extractions sum correctly"
+        },
+        {
+          "name": "VAT addition: £100 net → £120 gross",
+          "category": "VAT Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "£100 net → £120 gross (£20 VAT)"
+        },
+        {
+          "name": "VAT roundtrip: gross → net → gross",
+          "category": "VAT Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "VAT roundtrip accurate within 1p"
+        },
+        {
+          "name": "Daily rate: 3 days at £20/day",
+          "category": "Rental Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "3 days × £20 = £60"
+        },
+        {
+          "name": "Weekly rate: 2 weeks at £100/week",
+          "category": "Rental Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "2 weeks × £100 = £200"
+        },
+        {
+          "name": "Hourly rate with callout fee",
+          "category": "Rental Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "3hrs × £50 + £25 callout = £175"
+        },
+        {
+          "name": "Smart fee: 6 days uses daily rate",
+          "category": "Rental Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "6 days should use daily rate"
+        },
+        {
+          "name": "Smart fee: 7 days uses weekly rate",
+          "category": "Rental Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "7 days should use 1 week rate"
+        },
+        {
+          "name": "Smart fee: 10 days uses 2 weeks",
+          "category": "Rental Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "10 days = ceil(10/7) = 2 weeks"
+        },
+        {
+          "name": "Smart fee: no weekly rate falls back to daily",
+          "category": "Rental Calculation",
+          "passed": true,
+          "score": 100,
+          "details": "14 days × £20 = £280 (no weekly rate)"
+        },
+        {
+          "name": "Sponsor CPA: 10% of £100 rental",
+          "category": "Sponsor CPA",
+          "passed": true,
+          "score": 100,
+          "details": "10% of £100 = £10"
+        },
+        {
+          "name": "Sponsor CPA: 0% means no fee",
+          "category": "Sponsor CPA",
+          "passed": true,
+          "score": 100,
+          "details": "0% CPA = £0 fee"
+        },
+        {
+          "name": "Sponsor CPA: rounding on fractional amounts",
+          "category": "Sponsor CPA",
+          "passed": true,
+          "score": 100,
+          "details": "10% of 3333p = 333p"
+        },
+        {
+          "name": "Sponsor CPA: never negative",
+          "category": "Sponsor CPA",
+          "passed": true,
+          "score": 100,
+          "details": "All CPA fees non-negative"
+        },
+        {
+          "name": "Sponsor CPA: never exceeds rental",
+          "category": "Sponsor CPA",
+          "passed": true,
+          "score": 100,
+          "details": "100% CPA (10000p) should not exceed rental (10000p)"
+        },
+        {
+          "name": "Large amount: No overflow at £1,000,000",
+          "category": "Edge Cases",
+          "passed": true,
+          "score": 100,
+          "details": "Large amounts should calculate correctly"
+        },
+        {
+          "name": "Zero handling: 0 rental fee",
+          "category": "Edge Cases",
+          "passed": true,
+          "score": 100,
+          "details": "Zero rental = zero CPA"
+        },
+        {
+          "name": "Insurance fees: sum of components",
+          "category": "Insurance Fees",
+          "passed": true,
+          "score": 100,
+          "details": "Insurance total = £10"
+        },
+        {
+          "name": "Insurance fees: optional components",
+          "category": "Insurance Fees",
+          "passed": true,
+          "score": 100,
+          "details": "Unselected insurance = £0"
+        },
+        {
+          "name": "Complete transaction: all fees sum correctly",
+          "category": "Complete Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Customer: £115 = Platform: £16.5 + Provider: £98.5"
+        }
+      ]
+    },
+    {
+      "suite": "Booking & Date Logic Tests",
+      "timestamp": "2025-12-30T17:12:04.230Z",
+      "totalTests": 30,
+      "passed": 30,
+      "failed": 0,
+      "score": 100,
+      "duration": 4,
+      "results": [
+        {
+          "name": "Overlap: Identical ranges",
+          "category": "Date Overlap",
+          "passed": true,
+          "score": 100,
+          "details": "Identical ranges should overlap"
+        },
+        {
+          "name": "Overlap: B entirely within A",
+          "category": "Date Overlap",
+          "passed": true,
+          "score": 100,
+          "details": "Contained range should overlap"
+        },
+        {
+          "name": "Overlap: A entirely within B",
+          "category": "Date Overlap",
+          "passed": true,
+          "score": 100,
+          "details": "Containing range should overlap"
+        },
+        {
+          "name": "Overlap: Partial overlap (A starts before B)",
+          "category": "Date Overlap",
+          "passed": true,
+          "score": 100,
+          "details": "Partial overlap should be detected"
+        },
+        {
+          "name": "No overlap: A before B",
+          "category": "Date Overlap",
+          "passed": true,
+          "score": 100,
+          "details": "Non-overlapping should return false"
+        },
+        {
+          "name": "No overlap: B before A",
+          "category": "Date Overlap",
+          "passed": true,
+          "score": 100,
+          "details": "Non-overlapping should return false"
+        },
+        {
+          "name": "Boundary: Adjacent ranges (A ends when B starts)",
+          "category": "Date Overlap",
+          "passed": true,
+          "score": 100,
+          "details": "Adjacent ranges at boundary should overlap (end date inclusive)"
+        },
+        {
+          "name": "Duration: Same day = 1 day minimum",
+          "category": "Duration",
+          "passed": true,
+          "score": 100,
+          "details": "Same day booking = 1 day"
+        },
+        {
+          "name": "Duration: 3 full days",
+          "category": "Duration",
+          "passed": true,
+          "score": 100,
+          "details": "Jan 15-18 = 3 days"
+        },
+        {
+          "name": "Duration: Partial day rounds up",
+          "category": "Duration",
+          "passed": true,
+          "score": 100,
+          "details": "1.5 days rounds up to 2"
+        },
+        {
+          "name": "Duration: Hours calculation",
+          "category": "Duration",
+          "passed": true,
+          "score": 100,
+          "details": "09:00-17:00 = 8 hours"
+        },
+        {
+          "name": "Duration: Minimum 1 hour",
+          "category": "Duration",
+          "passed": true,
+          "score": 100,
+          "details": "30 min rounds up to 1 hour"
+        },
+        {
+          "name": "Boundary: Feb 28 → Mar 1 (non-leap year)",
+          "category": "Date Boundary",
+          "passed": true,
+          "score": 100,
+          "details": "Feb 27 to Mar 2 (non-leap) = 3 days"
+        },
+        {
+          "name": "Boundary: Feb 28 → Mar 1 (leap year)",
+          "category": "Date Boundary",
+          "passed": true,
+          "score": 100,
+          "details": "Feb 27 to Mar 2 (leap) = 4 days"
+        },
+        {
+          "name": "Boundary: Dec 31 → Jan 1 (year boundary)",
+          "category": "Date Boundary",
+          "passed": true,
+          "score": 100,
+          "details": "Dec 30 to Jan 2 = 3 days"
+        },
+        {
+          "name": "Boundary: Midnight crossing",
+          "category": "Date Boundary",
+          "passed": true,
+          "score": 100,
+          "details": "Midnight crossing = 1 hour"
+        },
+        {
+          "name": "DST: Spring forward (March, lose 1 hour)",
+          "category": "DST",
+          "passed": true,
+          "score": 100,
+          "details": "DST spring: 4 UTC hours = 4 hours"
+        },
+        {
+          "name": "DST: Fall back (October, gain 1 hour)",
+          "category": "DST",
+          "passed": true,
+          "score": 100,
+          "details": "DST fall: 4 UTC hours = 4 hours"
+        },
+        {
+          "name": "Status: PENDING → CONFIRMED (valid)",
+          "category": "Status Transition",
+          "passed": true,
+          "score": 100,
+          "details": "PENDING → CONFIRMED should be valid"
+        },
+        {
+          "name": "Status: PENDING → CANCELLED (valid)",
+          "category": "Status Transition",
+          "passed": true,
+          "score": 100,
+          "details": "PENDING → CANCELLED should be valid"
+        },
+        {
+          "name": "Status: PENDING → COMPLETED (invalid)",
+          "category": "Status Transition",
+          "passed": true,
+          "score": 100,
+          "details": "PENDING → COMPLETED should be invalid (skip payment)"
+        },
+        {
+          "name": "Status: CONFIRMED → IN_PROGRESS (valid)",
+          "category": "Status Transition",
+          "passed": true,
+          "score": 100,
+          "details": "CONFIRMED → IN_PROGRESS should be valid"
+        },
+        {
+          "name": "Status: IN_PROGRESS → COMPLETED (valid)",
+          "category": "Status Transition",
+          "passed": true,
+          "score": 100,
+          "details": "IN_PROGRESS → COMPLETED should be valid"
+        },
+        {
+          "name": "Status: IN_PROGRESS → DISPUTED (valid)",
+          "category": "Status Transition",
+          "passed": true,
+          "score": 100,
+          "details": "IN_PROGRESS → DISPUTED should be valid"
+        },
+        {
+          "name": "Status: COMPLETED → any (invalid)",
+          "category": "Status Transition",
+          "passed": true,
+          "score": 100,
+          "details": "COMPLETED is properly terminal"
+        },
+        {
+          "name": "Status: CANCELLED → any (invalid)",
+          "category": "Status Transition",
+          "passed": true,
+          "score": 100,
+          "details": "CANCELLED is properly terminal"
+        },
+        {
+          "name": "Status: DISPUTED → COMPLETED (valid)",
+          "category": "Status Transition",
+          "passed": true,
+          "score": 100,
+          "details": "DISPUTED → COMPLETED should be valid"
+        },
+        {
+          "name": "Status: DISPUTED → REFUNDED (valid)",
+          "category": "Status Transition",
+          "passed": true,
+          "score": 100,
+          "details": "DISPUTED → REFUNDED should be valid"
+        },
+        {
+          "name": "Conflict: Same tool, overlapping dates",
+          "category": "Conflict Detection",
+          "passed": true,
+          "score": 100,
+          "details": "Overlapping tool bookings should conflict"
+        },
+        {
+          "name": "No Conflict: Same tool, non-overlapping dates",
+          "category": "Conflict Detection",
+          "passed": true,
+          "score": 100,
+          "details": "Non-overlapping bookings should not conflict"
+        }
+      ]
+    },
+    {
+      "suite": "State Machine Validator",
+      "timestamp": "2025-12-30T17:12:04.235Z",
+      "totalTests": 29,
+      "passed": 29,
+      "failed": 0,
+      "score": 100,
+      "duration": 4,
+      "results": [
+        {
+          "name": "Transaction: PENDING → CONFIRMED",
+          "category": "Transaction Status",
+          "passed": true,
+          "score": 100,
+          "details": "PENDING → CONFIRMED should be valid"
+        },
+        {
+          "name": "Transaction: PENDING → CANCELLED",
+          "category": "Transaction Status",
+          "passed": true,
+          "score": 100,
+          "details": "PENDING → CANCELLED should be valid"
+        },
+        {
+          "name": "Transaction: PENDING → COMPLETED invalid",
+          "category": "Transaction Status",
+          "passed": true,
+          "score": 100,
+          "details": "Cannot skip CONFIRMED step"
+        },
+        {
+          "name": "Transaction: COMPLETED is terminal",
+          "category": "Transaction Status",
+          "passed": true,
+          "score": 100,
+          "details": "COMPLETED should be terminal"
+        },
+        {
+          "name": "Transaction: CANCELLED is terminal",
+          "category": "Transaction Status",
+          "passed": true,
+          "score": 100,
+          "details": "CANCELLED should be terminal"
+        },
+        {
+          "name": "Transaction: REFUNDED is terminal",
+          "category": "Transaction Status",
+          "passed": true,
+          "score": 100,
+          "details": "REFUNDED should be terminal"
+        },
+        {
+          "name": "Transaction: DISPUTED can resolve",
+          "category": "Transaction Status",
+          "passed": true,
+          "score": 100,
+          "details": "DISPUTED can resolve to COMPLETED or REFUNDED"
+        },
+        {
+          "name": "Transaction: All states reachable from PENDING",
+          "category": "Transaction Status",
+          "passed": true,
+          "score": 100,
+          "details": "All 7 states reachable"
+        },
+        {
+          "name": "Payment: PENDING → PAID",
+          "category": "Payment Status",
+          "passed": true,
+          "score": 100,
+          "details": "PENDING → PAID should be valid"
+        },
+        {
+          "name": "Payment: PENDING → FAILED",
+          "category": "Payment Status",
+          "passed": true,
+          "score": 100,
+          "details": "PENDING → FAILED should be valid"
+        },
+        {
+          "name": "Payment: PAID → REFUNDED",
+          "category": "Payment Status",
+          "passed": true,
+          "score": 100,
+          "details": "PAID → REFUNDED should be valid"
+        },
+        {
+          "name": "Payment: FAILED cannot refund",
+          "category": "Payment Status",
+          "passed": true,
+          "score": 100,
+          "details": "FAILED → REFUNDED should be invalid"
+        },
+        {
+          "name": "Verification: UNVERIFIED → PENDING",
+          "category": "User Verification",
+          "passed": true,
+          "score": 100,
+          "details": "UNVERIFIED → PENDING should be valid"
+        },
+        {
+          "name": "Verification: PENDING → VERIFIED",
+          "category": "User Verification",
+          "passed": true,
+          "score": 100,
+          "details": "PENDING → VERIFIED should be valid"
+        },
+        {
+          "name": "Verification: REJECTED → PENDING",
+          "category": "User Verification",
+          "passed": true,
+          "score": 100,
+          "details": "REJECTED users can resubmit"
+        },
+        {
+          "name": "Verification: VERIFIED → SUSPENDED",
+          "category": "User Verification",
+          "passed": true,
+          "score": 100,
+          "details": "VERIFIED → SUSPENDED should be valid"
+        },
+        {
+          "name": "Verification: SUSPENDED → VERIFIED",
+          "category": "User Verification",
+          "passed": true,
+          "score": 100,
+          "details": "SUSPENDED → VERIFIED should be valid"
+        },
+        {
+          "name": "Verification: Cannot skip to VERIFIED",
+          "category": "User Verification",
+          "passed": true,
+          "score": 100,
+          "details": "Cannot skip PENDING step"
+        },
+        {
+          "name": "Listing: DRAFT → ACTIVE",
+          "category": "Listing Status",
+          "passed": true,
+          "score": 100,
+          "details": "DRAFT → ACTIVE should be valid"
+        },
+        {
+          "name": "Listing: ACTIVE → PAUSED",
+          "category": "Listing Status",
+          "passed": true,
+          "score": 100,
+          "details": "ACTIVE → PAUSED should be valid"
+        },
+        {
+          "name": "Listing: PAUSED → ACTIVE",
+          "category": "Listing Status",
+          "passed": true,
+          "score": 100,
+          "details": "PAUSED → ACTIVE should be valid"
+        },
+        {
+          "name": "Listing: SUSPENDED → ACTIVE",
+          "category": "Listing Status",
+          "passed": true,
+          "score": 100,
+          "details": "SUSPENDED → ACTIVE should be valid"
+        },
+        {
+          "name": "Listing: DELETED is terminal",
+          "category": "Listing Status",
+          "passed": true,
+          "score": 100,
+          "details": "DELETED should be terminal"
+        },
+        {
+          "name": "Listing: Any → DELETED",
+          "category": "Listing Status",
+          "passed": true,
+          "score": 100,
+          "details": "All non-deleted states can delete"
+        },
+        {
+          "name": "Dispute: OPEN → IN_REVIEW",
+          "category": "Dispute Status",
+          "passed": true,
+          "score": 100,
+          "details": "OPEN → IN_REVIEW should be valid"
+        },
+        {
+          "name": "Dispute: IN_REVIEW → RESOLVED",
+          "category": "Dispute Status",
+          "passed": true,
+          "score": 100,
+          "details": "IN_REVIEW → RESOLVED should be valid"
+        },
+        {
+          "name": "Dispute: CLOSED is terminal",
+          "category": "Dispute Status",
+          "passed": true,
+          "score": 100,
+          "details": "CLOSED should be terminal"
+        },
+        {
+          "name": "Integrity: No self-transitions",
+          "category": "Integrity",
+          "passed": true,
+          "score": 100,
+          "details": "No self-transitions found"
+        },
+        {
+          "name": "Integrity: Terminal states have no outgoing",
+          "category": "Integrity",
+          "passed": true,
+          "score": 100,
+          "details": "All terminal states properly configured"
+        }
+      ]
+    },
+    {
+      "suite": "Geographic Distance Validator",
+      "timestamp": "2025-12-30T17:12:04.239Z",
+      "totalTests": 22,
+      "passed": 22,
+      "failed": 0,
+      "score": 100,
+      "duration": 3,
+      "results": [
+        {
+          "name": "Same point = 0 distance",
+          "category": "Basic Distance",
+          "passed": true,
+          "score": 100,
+          "details": "Same point should have 0 distance"
+        },
+        {
+          "name": "Very close points (<0.1 miles)",
+          "category": "Basic Distance",
+          "passed": true,
+          "score": 100,
+          "details": "Big Ben to London Eye: 0.28 miles"
+        },
+        {
+          "name": "London to Manchester",
+          "category": "Basic Distance",
+          "passed": true,
+          "score": 100,
+          "details": "London to Manchester: 162.8 miles"
+        },
+        {
+          "name": "London to Edinburgh",
+          "category": "Basic Distance",
+          "passed": true,
+          "score": 100,
+          "details": "London to Edinburgh: 331.6 miles"
+        },
+        {
+          "name": "Known: London (Trafalgar Square) → Manchester",
+          "category": "Known Distances",
+          "passed": true,
+          "score": 100,
+          "details": "London (Trafalgar Square) to Manchester: 162.8 miles"
+        },
+        {
+          "name": "Known: London (Trafalgar Square) → Birmingham",
+          "category": "Known Distances",
+          "passed": true,
+          "score": 100,
+          "details": "London (Trafalgar Square) to Birmingham: 101.0 miles"
+        },
+        {
+          "name": "Known: London (Trafalgar Square) → Edinburgh",
+          "category": "Known Distances",
+          "passed": true,
+          "score": 100,
+          "details": "London (Trafalgar Square) to Edinburgh: 331.6 miles"
+        },
+        {
+          "name": "Known: London (Trafalgar Square) → Bristol",
+          "category": "Known Distances",
+          "passed": true,
+          "score": 100,
+          "details": "London (Trafalgar Square) to Bristol: 105.9 miles"
+        },
+        {
+          "name": "Known: Manchester → Leeds",
+          "category": "Known Distances",
+          "passed": true,
+          "score": 100,
+          "details": "Manchester to Leeds: 36.0 miles"
+        },
+        {
+          "name": "Known: Manchester → Liverpool",
+          "category": "Known Distances",
+          "passed": true,
+          "score": 100,
+          "details": "Manchester to Liverpool: 31.2 miles"
+        },
+        {
+          "name": "Known: Edinburgh → Glasgow",
+          "category": "Known Distances",
+          "passed": true,
+          "score": 100,
+          "details": "Edinburgh to Glasgow: 41.6 miles"
+        },
+        {
+          "name": "Radius: 1 mile precision",
+          "category": "Search Radius",
+          "passed": true,
+          "score": 100,
+          "details": "1 mile radius boundary correctly detected"
+        },
+        {
+          "name": "Radius: 5 mile typical search",
+          "category": "Search Radius",
+          "passed": true,
+          "score": 100,
+          "details": "Tower Bridge should be within 5 miles of central London"
+        },
+        {
+          "name": "Radius: 50 mile wide search",
+          "category": "Search Radius",
+          "passed": true,
+          "score": 100,
+          "details": "Bristol should be outside 50 mile radius of London"
+        },
+        {
+          "name": "Radius: 0 mile (exact location)",
+          "category": "Search Radius",
+          "passed": true,
+          "score": 100,
+          "details": "0 radius should only match exact coordinates"
+        },
+        {
+          "name": "Symmetry: A→B = B→A",
+          "category": "Edge Cases",
+          "passed": true,
+          "score": 100,
+          "details": "Distance should be symmetric"
+        },
+        {
+          "name": "Negative longitude (UK)",
+          "category": "Edge Cases",
+          "passed": true,
+          "score": 100,
+          "details": "Negative longitude calculation works: 162.8 miles"
+        },
+        {
+          "name": "Extreme: UK to antipodal point",
+          "category": "Edge Cases",
+          "passed": true,
+          "score": 100,
+          "details": "Antipodal distance: 12437 miles"
+        },
+        {
+          "name": "Equator crossing",
+          "category": "Edge Cases",
+          "passed": true,
+          "score": 100,
+          "details": "Equator crossing: 138.2 miles"
+        },
+        {
+          "name": "Prime Meridian crossing",
+          "category": "Edge Cases",
+          "passed": true,
+          "score": 100,
+          "details": "London to Paris: 213.5 miles"
+        },
+        {
+          "name": "Precision: 6 decimal places",
+          "category": "Precision",
+          "passed": true,
+          "score": 100,
+          "details": "Sub-meter precision: 0.4 feet"
+        },
+        {
+          "name": "Precision: 2 decimal places",
+          "category": "Precision",
+          "passed": true,
+          "score": 100,
+          "details": "Coarse precision: 0.81 miles"
+        }
+      ]
+    },
+    {
+      "suite": "Input Validation & Security",
+      "timestamp": "2025-12-30T17:12:04.268Z",
+      "totalTests": 38,
+      "passed": 38,
+      "failed": 0,
+      "score": 100,
+      "duration": 7,
+      "results": [
+        {
+          "name": "Email: Valid format",
+          "category": "Email Validation",
+          "passed": true,
+          "score": 100,
+          "details": "user@example.com should be valid"
+        },
+        {
+          "name": "Email: With subdomain",
+          "category": "Email Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Subdomain emails should be valid"
+        },
+        {
+          "name": "Email: Invalid - no @",
+          "category": "Email Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Missing @ should be invalid"
+        },
+        {
+          "name": "Email: Invalid - no domain",
+          "category": "Email Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Missing domain should be invalid"
+        },
+        {
+          "name": "Email: Too long",
+          "category": "Email Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Email > 255 chars should be invalid"
+        },
+        {
+          "name": "Password: Valid strong password",
+          "category": "Password Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Strong password should be valid"
+        },
+        {
+          "name": "Password: Too short",
+          "category": "Password Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Short password should be invalid"
+        },
+        {
+          "name": "Password: No uppercase",
+          "category": "Password Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Missing uppercase should be invalid"
+        },
+        {
+          "name": "Password: No lowercase",
+          "category": "Password Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Missing lowercase should be invalid"
+        },
+        {
+          "name": "Password: No number",
+          "category": "Password Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Missing number should be invalid"
+        },
+        {
+          "name": "Price: Valid (£10)",
+          "category": "Price Validation",
+          "passed": true,
+          "score": 100,
+          "details": "£10 should be valid"
+        },
+        {
+          "name": "Price: Minimum (£1)",
+          "category": "Price Validation",
+          "passed": true,
+          "score": 100,
+          "details": "£1 minimum should be valid"
+        },
+        {
+          "name": "Price: Below minimum",
+          "category": "Price Validation",
+          "passed": true,
+          "score": 100,
+          "details": "£0.50 should be invalid"
+        },
+        {
+          "name": "Price: Maximum (£10,000)",
+          "category": "Price Validation",
+          "passed": true,
+          "score": 100,
+          "details": "£10,000 should be valid"
+        },
+        {
+          "name": "Price: Above maximum",
+          "category": "Price Validation",
+          "passed": true,
+          "score": 100,
+          "details": "£15,000 should be invalid"
+        },
+        {
+          "name": "Price: NaN should fail",
+          "category": "Price Validation",
+          "passed": true,
+          "score": 100,
+          "details": "NaN should be invalid"
+        },
+        {
+          "name": "Deposit: Valid (equal to price)",
+          "category": "Deposit Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Deposit = price should be valid"
+        },
+        {
+          "name": "Deposit: Maximum (5x price)",
+          "category": "Deposit Validation",
+          "passed": true,
+          "score": 100,
+          "details": "5x deposit should be valid"
+        },
+        {
+          "name": "Deposit: Over maximum",
+          "category": "Deposit Validation",
+          "passed": true,
+          "score": 100,
+          "details": "6x deposit should be invalid"
+        },
+        {
+          "name": "Deposit: Negative",
+          "category": "Deposit Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Negative deposit should be invalid"
+        },
+        {
+          "name": "Rating: Valid (1-5)",
+          "category": "Rating Validation",
+          "passed": true,
+          "score": 100,
+          "details": "All ratings 1-5 valid"
+        },
+        {
+          "name": "Rating: Below minimum",
+          "category": "Rating Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Rating 0 should be invalid"
+        },
+        {
+          "name": "Rating: Above maximum",
+          "category": "Rating Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Rating 6 should be invalid"
+        },
+        {
+          "name": "Phone: Valid UK mobile",
+          "category": "Phone Validation",
+          "passed": true,
+          "score": 100,
+          "details": "All UK mobile formats valid"
+        },
+        {
+          "name": "Phone: Valid UK landline",
+          "category": "Phone Validation",
+          "passed": true,
+          "score": 100,
+          "details": "UK landline should be valid"
+        },
+        {
+          "name": "Phone: Invalid (too short)",
+          "category": "Phone Validation",
+          "passed": true,
+          "score": 100,
+          "details": "Short phone should be invalid"
+        },
+        {
+          "name": "Postcode: Valid formats",
+          "category": "Postcode Validation",
+          "passed": true,
+          "score": 100,
+          "details": "All UK postcode formats valid"
+        },
+        {
+          "name": "Postcode: Invalid format",
+          "category": "Postcode Validation",
+          "passed": true,
+          "score": 100,
+          "details": "US zip code format should be invalid"
+        },
+        {
+          "name": "XSS: Script tag detected",
+          "category": "XSS Detection",
+          "passed": true,
+          "score": 100,
+          "details": "Script tag should be detected"
+        },
+        {
+          "name": "XSS: Event handler detected",
+          "category": "XSS Detection",
+          "passed": true,
+          "score": 100,
+          "details": "Event handler should be detected"
+        },
+        {
+          "name": "XSS: javascript: protocol",
+          "category": "XSS Detection",
+          "passed": true,
+          "score": 100,
+          "details": "javascript: should be detected"
+        },
+        {
+          "name": "XSS: Clean text passes",
+          "category": "XSS Detection",
+          "passed": true,
+          "score": 100,
+          "details": "Normal text should not be flagged"
+        },
+        {
+          "name": "SQL: OR 1=1 detected",
+          "category": "SQL Injection",
+          "passed": true,
+          "score": 100,
+          "details": "OR 1=1 should be detected"
+        },
+        {
+          "name": "SQL: DROP TABLE detected",
+          "category": "SQL Injection",
+          "passed": true,
+          "score": 100,
+          "details": "DROP TABLE should be detected"
+        },
+        {
+          "name": "SQL: UNION SELECT detected",
+          "category": "SQL Injection",
+          "passed": true,
+          "score": 100,
+          "details": "UNION SELECT should be detected"
+        },
+        {
+          "name": "SQL: Clean text passes",
+          "category": "SQL Injection",
+          "passed": true,
+          "score": 100,
+          "details": "Normal apostrophes shouldn't trigger"
+        },
+        {
+          "name": "Sanitize: HTML brackets",
+          "category": "Sanitization",
+          "passed": true,
+          "score": 100,
+          "details": "Brackets should be escaped"
+        },
+        {
+          "name": "Sanitize: Quotes escaped",
+          "category": "Sanitization",
+          "passed": true,
+          "score": 100,
+          "details": "Double quotes should be escaped"
+        }
+      ]
+    }
+  ],
+  "criticalFailures": []
+}

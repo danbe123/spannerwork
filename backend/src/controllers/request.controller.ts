@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { requestService } from '../services/request.service.js';
+import { activityFeedService } from '../services/activityFeed.service.js';
 import { logger } from '../config/logger.js';
 
 export class RequestController {
@@ -45,6 +46,14 @@ export class RequestController {
 
       logger.info(`Request created: ${request.id} by ${req.user.email}`);
 
+      // Log activity for live feed
+      activityFeedService.recordRequestPosted(
+        req.user.id,
+        request.id,
+        request.category,
+        request.locationAddress?.split(',')[0] // Extract postcode area
+      ).catch(err => logger.error('Failed to record activity:', err));
+
       return res.status(201).json({
         message: 'Request created successfully',
         request,
@@ -67,8 +76,10 @@ export class RequestController {
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
+      // Pass current user ID to check if they've already quoted on this request
+      const currentUserId = req.user?.id;
 
-      const request = await requestService.getById(id);
+      const request = await requestService.getById(id, currentUserId);
 
       if (!request) {
         return res.status(404).json({
@@ -97,8 +108,9 @@ export class RequestController {
       }
 
       const { id } = req.params;
+      const isAdmin = req.user.role === 'ADMIN';
 
-      const request = await requestService.update(id, req.user.id, req.body);
+      const request = await requestService.update(id, req.user.id, req.body, isAdmin);
 
       logger.info(`Request updated: ${id} by ${req.user.email}`);
 
@@ -139,8 +151,9 @@ export class RequestController {
       }
 
       const { id } = req.params;
+      const isAdmin = req.user.role === 'ADMIN';
 
-      await requestService.delete(id, req.user.id);
+      await requestService.delete(id, req.user.id, isAdmin);
 
       logger.info(`Request deleted: ${id} by ${req.user.email}`);
 
@@ -200,6 +213,55 @@ export class RequestController {
         if (error.message.includes('permission')) {
           return res.status(403).json({
             error: 'Forbidden',
+            message: error.message,
+          });
+        }
+      }
+      return next(error);
+    }
+  }
+
+  /**
+   * Mark request as complete
+   * POST /api/v1/requests/:id/complete
+   */
+  async complete(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Authentication required',
+        });
+      }
+
+      const { id } = req.params;
+      const isAdmin = req.user.role === 'ADMIN';
+
+      const request = await requestService.markComplete(id, req.user.id, isAdmin);
+
+      logger.info(`Request marked complete: ${id} by ${req.user.email}`);
+
+      return res.json({
+        message: 'Request marked as complete',
+        request,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('not found')) {
+          return res.status(404).json({
+            error: 'Not Found',
+            message: error.message,
+          });
+        }
+        if (error.message.includes('permission')) {
+          return res.status(403).json({
+            error: 'Forbidden',
+            message: error.message,
+          });
+        }
+        if (error.message.includes('Cannot complete')) {
+          return res.status(409).json({
+            error: 'Conflict',
             message: error.message,
           });
         }

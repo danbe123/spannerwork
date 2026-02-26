@@ -1,23 +1,24 @@
 /**
- * Layout - Premium App Shell
- * 
- * A completely redesigned navigation experience:
- * - Desktop: Rich sidebar with user context, stats, visual depth
- * - Mobile: Contextual header + floating bottom nav with FAB
- * - Smooth animations and micro-interactions throughout
+ * Layout - App Shell & Navigation
+ *
+ * Responsive navigation wrapper for the application:
+ * - Desktop: Fixed sidebar with user context, quick actions, and stats
+ * - Mobile: Contextual header with floating bottom navigation bar
+ * - Animated transitions using Framer Motion
+ * - Handles authentication state and notification badges
  */
 
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Wrench, 
-  Home, 
-  Plus, 
-  MessageSquare, 
-  User, 
-  Menu, 
-  Bell, 
+import {
+  Wrench,
+  Home,
+  Plus,
+  MessageSquare,
+  User,
+  Menu,
+  Bell,
   Shield,
   Search,
   X,
@@ -27,6 +28,7 @@ import {
   Settings,
   LogOut,
   HelpCircle,
+  FileText,
   LucideIcon
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -52,9 +54,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService, gamificationService, messagesService } from "@/api/services";
 import { User as UserType, Conversation } from "@/types";
 import BackToTopFab from "@/components/BackToTopFab";
+import InstallPrompt from "@/components/InstallPrompt";
 import { queryKeys } from "@/lib/queryKeys";
 
-// Types
+// Component type definitions
 interface UserStats {
   totalTransactions: number;
   totalListings: number;
@@ -68,13 +71,14 @@ interface NavigationItem {
   badge?: number;
 }
 
-// Page title mapping
+// Dynamic page titles for header display
 const PAGE_TITLES: Record<string, string> = {
   '/feed': 'Find Jobs',
   '/create': 'Create',
   '/messages': 'Messages',
   '/profile': 'Profile',
   '/resources': 'Resources',
+  '/blog': 'Blog',
   '/admin': 'Admin',
   '/provider-dashboard': 'Dashboard',
   '/saved-searches': 'Saved Searches',
@@ -82,7 +86,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/analytics': 'Analytics',
 };
 
-// Marketing pages that don't show app navigation
+// Routes that use the marketing layout instead of app navigation
 const MARKETING_PATHS = [
   '/',
   '/home',
@@ -91,7 +95,6 @@ const MARKETING_PATHS = [
   '/safety',
   '/start-earning',
   '/success-stories',
-  '/resources',
   '/about',
   '/contact',
   '/terms',
@@ -106,6 +109,7 @@ const MARKETING_PATHS = [
   '/guides/renter',
   '/guides/safety',
   '/guides/pricing',
+  '/resources',
 ];
 
 const MARKETING_PREFIXES = [
@@ -113,7 +117,7 @@ const MARKETING_PREFIXES = [
   '/tool/',
   '/space/',
   '/service/',
-  '/resources/',
+  '/locations/',
 ];
 
 function isMarketingRoute(pathname: string): boolean {
@@ -133,6 +137,7 @@ const getNavigationItems = (userRole: string | undefined, unreadMessages: number
     { title: "Feed", url: "/feed", icon: Home, shortTitle: "Feed" },
     { title: "Create", url: "/create", icon: Plus, shortTitle: "Post" },
     { title: "Messages", url: "/messages", icon: MessageSquare, shortTitle: "Chat", badge: unreadMessages },
+    { title: "Blog", url: "/blog", icon: FileText, shortTitle: "Blog" },
     { title: "Resources", url: "/resources", icon: HelpCircle, shortTitle: "Help" },
     { title: "Profile", url: "/profile", icon: User, shortTitle: "Me" },
   ];
@@ -155,7 +160,7 @@ function ScrollToTop() {
         return;
       }
     } catch {
-      // ignore
+      // sessionStorage may be unavailable in private browsing mode
     }
     window.scrollTo(0, 0);
   }, [pathname, navigationType]);
@@ -175,7 +180,7 @@ function DesktopSidebar({ items, currentPath, currentUser, onLogout, userStats }
 
   return (
     <aside 
-      className="hidden md:flex md:flex-col w-72 h-screen sticky top-0 self-start shrink-0 border-r border-gray-100 bg-gradient-to-b from-white via-white to-gray-50/50 relative overflow-hidden"
+      className="hidden md:flex md:flex-col w-72 h-screen sticky top-0 self-start shrink-0 border-r border-gray-100 bg-gradient-to-b from-white via-white to-gray-50/50 relative overflow-hidden z-30"
     >
       {/* Decorative gradient line */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-800 via-brand-500 to-[#FFC107]" />
@@ -184,7 +189,7 @@ function DesktopSidebar({ items, currentPath, currentUser, onLogout, userStats }
       <div className="p-6 pb-4">
         <Link to="/" className="flex items-center gap-3 group">
           <motion.div 
-            className="w-11 h-11 bg-gradient-to-br from-brand-800 to-brand-900 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20"
+            className="w-11 h-11 bg-gradient-to-br from-brand-800 to-brand-900 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/20"
             whileHover={{ scale: 1.05, rotate: -5 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -215,8 +220,8 @@ function DesktopSidebar({ items, currentPath, currentUser, onLogout, userStats }
                     className={`
                       flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative group
                       ${isActive 
-                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25' 
-                        : 'hover:bg-orange-50 text-gray-700 hover:text-brand-800'
+                        ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-lg shadow-brand-500/25' 
+                        : 'hover:bg-brand-50 text-gray-700 hover:text-brand-800'
                       }
                     `}
                     whileHover={{ x: isActive ? 0 : 4 }}
@@ -229,7 +234,7 @@ function DesktopSidebar({ items, currentPath, currentUser, onLogout, userStats }
                         className={`
                           px-2 py-0.5 text-xs font-bold
                           ${isActive 
-                            ? 'bg-white text-orange-600' 
+                            ? 'bg-white text-brand-600' 
                             : 'bg-brand-800 text-white'
                           }
                         `}
@@ -252,7 +257,7 @@ function DesktopSidebar({ items, currentPath, currentUser, onLogout, userStats }
           <div className="px-4 pb-4">
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="w-4 h-4 text-amber-500" />
+                <Sparkles className="w-4 h-4 text-brand-500" />
                 <span className="text-sm font-semibold text-gray-700">Your Stats</span>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -274,7 +279,7 @@ function DesktopSidebar({ items, currentPath, currentUser, onLogout, userStats }
         {/* User Section - Above Help */}
         {currentUser && (
           <div className="px-4 pb-4">
-            <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-4 border border-orange-100">
+            <div className="bg-gradient-to-br from-brand-50 to-brand-100 rounded-2xl p-4 border border-brand-100">
               <div className="flex items-center gap-3">
                 <Avatar className="w-12 h-12 ring-2 ring-white shadow-md">
                   <AvatarImage src={currentUser.avatar || undefined} />
@@ -290,7 +295,7 @@ function DesktopSidebar({ items, currentPath, currentUser, onLogout, userStats }
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" aria-label="Settings menu">
                       <Settings className="w-4 h-4 text-gray-500" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -460,7 +465,7 @@ function MobileBottomNav({ items, currentPath }: MobileBottomNavProps) {
         {createItem && (
           <Link to={createItem.url} className="relative -mt-6">
             <motion.div
-              className="w-14 h-14 bg-gradient-to-br from-brand-800 to-brand-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/40"
+              className="w-14 h-14 bg-gradient-to-br from-brand-800 to-brand-500 rounded-2xl flex items-center justify-center shadow-lg shadow-brand-500/40"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -548,7 +553,7 @@ function MobileDrawer({ open, onClose, items, currentPath, currentUser, onLogout
             </div>
             <div>
               <h2 className="font-bold text-xl">SpannerWork</h2>
-              <p className="text-orange-200 text-sm">Tools · Skills · Space</p>
+              <p className="text-brand-200 text-sm">Tools · Skills · Space</p>
             </div>
           </div>
           
@@ -562,7 +567,7 @@ function MobileDrawer({ open, onClose, items, currentPath, currentUser, onLogout
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold truncate">{currentUser.name || 'Welcome!'}</p>
-                <p className="text-xs text-orange-200 truncate">{currentUser.email}</p>
+                <p className="text-xs text-brand-200 truncate">{currentUser.email}</p>
               </div>
             </div>
           )}
@@ -580,7 +585,7 @@ function MobileDrawer({ open, onClose, items, currentPath, currentUser, onLogout
                   <div
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                       isActive 
-                        ? 'bg-orange-50 text-brand-800 font-semibold' 
+                        ? 'bg-brand-50 text-brand-800 font-semibold' 
                         : 'hover:bg-gray-50 text-gray-700'
                     }`}
                   >
@@ -661,7 +666,7 @@ export default function Layout({ children }: LayoutProps) {
   const unreadMessages = conversationsData?.conversations?.reduce(
     (sum: number, conv: Conversation) => sum + (conv.unreadCount || 0), 0
   ) || 0;
-  const unreadNotifications = 0; // Would need a notifications API
+  const unreadNotifications = 0; // Notifications handled via NotificationManager component
 
   const navigationItems = getNavigationItems(currentUser?.role, unreadMessages);
 
@@ -675,7 +680,9 @@ export default function Layout({ children }: LayoutProps) {
       toast.success('Signed out successfully');
       navigate('/');
     } catch (error) {
-      console.error('Logout error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Logout error:', error);
+      }
     }
   };
 
@@ -747,8 +754,8 @@ export default function Layout({ children }: LayoutProps) {
             unreadNotifications={unreadNotifications}
           />
 
-          {/* Page Content */}
-          <div className="flex-1 w-full pb-24 md:pb-0">
+          {/* Page Content - no bottom padding for messages page (handles its own layout) */}
+          <div className={`flex-1 w-full ${location.pathname.toLowerCase() === '/messages' ? '' : 'pb-24'} md:pb-0`}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}
@@ -781,7 +788,8 @@ export default function Layout({ children }: LayoutProps) {
         />
       </div>
 
-      <BackToTopFab bottomClassName="bottom-24" />
+      <BackToTopFab bottomClassName="bottom-44 md:bottom-24" hideOnPaths={["/feed"]} />
+      <InstallPrompt />
     </div>
   );
 }

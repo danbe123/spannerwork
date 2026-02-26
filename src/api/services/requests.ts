@@ -70,4 +70,12 @@ export const requestsService = {
     const response = await apiClient.post<{ message: string; request: Request }>(`/requests/${id}/cancel`);
     return response.data;
   },
+
+  /**
+   * Mark request as complete/fulfilled
+   */
+  async markComplete(id: string): Promise<{ message: string; request: Request }> {
+    const response = await apiClient.post<{ message: string; request: Request }>(`/requests/${id}/complete`);
+    return response.data;
+  },
 };

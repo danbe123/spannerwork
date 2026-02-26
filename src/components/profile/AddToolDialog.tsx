@@ -9,11 +9,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AnimatedInput } from "@/components/ui/animated-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Slider } from "@/components/ui/slider";
 import { Loader2, Upload, X } from "lucide-react";
 import { User } from "@/types";
 import { queryKeys } from "@/lib/queryKeys";
@@ -66,9 +68,10 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
   });
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [sponsorEnabled, setSponsorEnabled] = useState(false);
+  const [sponsorCpaPercent, setSponsorCpaPercent] = useState(5); // 5% minimum
 
   const createToolMutation = useMutation({
-    // @ts-expect-error - API accepts additional fields
     mutationFn: (data: ToolFormData) => toolsService.create({
       name: data.name,
       category: data.category,
@@ -77,10 +80,9 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
       dailyRate: data.daily_rate,
       weeklyRate: data.weekly_rate || undefined,
       deposit: data.deposit_amount,
-      ownerId: currentUser.id,
       photos: photos,
-      available: true,
       postcode: currentUser.postcode || '',
+      sponsorCpaPercent: sponsorEnabled ? sponsorCpaPercent : 0,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.myTools() });
@@ -97,7 +99,9 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
       const result = await uploadService.uploadFile(file);
       setPhotos([...photos, result.data.fileUrl]);
     } catch (error) {
-      console.error("Error uploading photo:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error uploading photo:", error);
+      }
     }
     setUploadingPhoto(false);
   };
@@ -154,7 +158,7 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Describe the item, its condition, and any special notes..."
+              placeholder="Describe the item's condition, what's included (batteries, case, accessories), and what projects it's best suited for..."
               className="h-24"
               required
               maxLength={1000}
@@ -251,13 +255,13 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
             {(formData.lending_type === 'hourly' || formData.lending_type === 'rental') && (
               <div>
                 <Label htmlFor="hourly_rate">Hourly Rate (£) *</Label>
-                <Input
+                <AnimatedInput
                   id="hourly_rate"
                   type="number"
                   min="1"
                   value={formData.hourly_rate}
                   onChange={(e) => setFormData({ ...formData, hourly_rate: Math.max(1, parseFloat(e.target.value) || 0) })}
-                  placeholder="e.g., 12"
+                  placeholders={["8", "12", "15", "10"]}
                   required={formData.lending_type === 'hourly' || formData.lending_type === 'rental'}
                 />
               </div>
@@ -266,13 +270,13 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
             {(formData.lending_type === 'daily' || formData.lending_type === 'rental') && (
               <div>
                 <Label htmlFor="daily_rate">Daily Rate (£) *</Label>
-                <Input
+                <AnimatedInput
                   id="daily_rate"
                   type="number"
                   min="1"
                   value={formData.daily_rate}
                   onChange={(e) => setFormData({ ...formData, daily_rate: Math.max(1, parseFloat(e.target.value) || 0) })}
-                  placeholder="e.g., 40"
+                  placeholders={["25", "40", "55", "35"]}
                   required={formData.lending_type === 'daily' || formData.lending_type === 'rental'}
                 />
               </div>
@@ -282,25 +286,25 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
               <>
                 <div>
                   <Label htmlFor="weekly_rate">Weekly Rate (£) *</Label>
-                  <Input
+                  <AnimatedInput
                     id="weekly_rate"
                     type="number"
                     min="1"
                     value={formData.weekly_rate}
                     onChange={(e) => setFormData({ ...formData, weekly_rate: Math.max(1, parseFloat(e.target.value) || 0) })}
-                    placeholder="e.g., 150"
+                    placeholders={["100", "150", "200", "120"]}
                     required={formData.lending_type === 'recurring'}
                   />
                 </div>
                 <div>
                   <Label htmlFor="monthly_rate">Monthly Rate (£) *</Label>
-                  <Input
+                  <AnimatedInput
                     id="monthly_rate"
                     type="number"
                     min="1"
                     value={formData.monthly_rate}
                     onChange={(e) => setFormData({ ...formData, monthly_rate: Math.max(1, parseFloat(e.target.value) || 0) })}
-                    placeholder="e.g., 450"
+                    placeholders={["350", "450", "600", "400"]}
                     required={formData.lending_type === 'recurring'}
                   />
                 </div>
@@ -309,20 +313,20 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
 
             <div>
               <Label htmlFor="deposit">Security Deposit (£)</Label>
-              <Input
+              <AnimatedInput
                 id="deposit"
                 type="number"
                 min="0"
                 value={formData.deposit_amount}
                 onChange={(e) => setFormData({ ...formData, deposit_amount: Math.max(0, parseFloat(e.target.value) || 0) })}
-                placeholder="Optional - e.g., 80"
+                placeholders={["50", "80", "100", "60"]}
               />
-              <p className="text-xs text-gray-600 mt-1">Refundable deposit to protect your item</p>
+              <p className="text-xs text-gray-600 mt-1">Fully refundable deposit returned after item is returned in good condition</p>
             </div>
 
             <Alert>
               <AlertDescription className="text-sm">
-                💡 Competitive rates: Power tools £15-40/day, Hand tools £4-12/day, Speciality equipment £40-80/day
+                Suggested rates based on market data: Power tools £15-40/day, Hand tools £4-12/day, Specialist equipment £40-80/day
               </AlertDescription>
             </Alert>
           </div>
@@ -332,7 +336,7 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
             <div className="flex items-center justify-between">
               <div>
                 <Label>Offer Insurance Protection?</Label>
-                <p className="text-sm text-gray-500">Allow renters to purchase insurance</p>
+                <p className="text-sm text-gray-500">Let renters add damage protection for peace of mind</p>
               </div>
               <Switch
                 checked={formData.insurance_available}
@@ -371,7 +375,7 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div>
               <Label>Offer Teaching/Demonstration?</Label>
-              <p className="text-sm text-gray-500">Charge extra to show renters how to use this item</p>
+              <p className="text-sm text-gray-500">Earn more by showing renters proper usage and safety tips</p>
             </div>
             <Switch
               checked={formData.can_teach}
@@ -396,12 +400,46 @@ export default function AddToolDialog({ onClose, currentUser }: AddToolDialogPro
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div>
               <Label>Allow Calendar Booking?</Label>
-              <p className="text-sm text-gray-500">Let users book via calendar interface</p>
+              <p className="text-sm text-gray-500">Let renters see availability and book specific dates</p>
             </div>
             <Switch
               checked={formData.allow_calendar_booking}
               onCheckedChange={(checked) => setFormData({ ...formData, allow_calendar_booking: checked })}
             />
+          </div>
+
+          {/* Sponsor Section */}
+          <div className="space-y-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-yellow-800 font-semibold">Boost this listing</Label>
+                <p className="text-sm text-yellow-700">Appear higher in search results and get more enquiries</p>
+              </div>
+              <Switch
+                checked={sponsorEnabled}
+                onCheckedChange={setSponsorEnabled}
+              />
+            </div>
+
+            {sponsorEnabled && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-yellow-800">CPA Rate:</Label>
+                  <span className="font-semibold text-yellow-900">{sponsorCpaPercent}%</span>
+                </div>
+                <Slider
+                  value={[sponsorCpaPercent]}
+                  onValueChange={([value]) => setSponsorCpaPercent(value)}
+                  min={5}
+                  max={50}
+                  step={1}
+                  className="w-full"
+                />
+                <p className="text-xs text-yellow-700">
+                  Pay {sponsorCpaPercent}% only when you get a booking. Higher rates mean more visibility in search results.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">

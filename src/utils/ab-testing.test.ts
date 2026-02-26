@@ -91,10 +91,12 @@ describe('A/B Testing Utilities', () => {
     });
 
     it('renders children when no variants provided', () => {
+      const child = React.createElement('div', { 'data-testid': 'child' }, 'Child Content');
       render(
-        React.createElement(ABTest, { experiment: EXPERIMENTS.BADGE_PLACEMENT }, 
-          React.createElement('div', { 'data-testid': 'child' }, 'Child Content')
-        )
+        React.createElement(ABTest, {
+          experiment: EXPERIMENTS.BADGE_PLACEMENT,
+          children: child,
+        })
       );
       expect(screen.getByTestId('child')).toBeInTheDocument();
     });

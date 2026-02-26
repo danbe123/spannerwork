@@ -1,0 +1,214 @@
+{
+  "suite": "State Machine Validator",
+  "timestamp": "2026-01-02T10:02:00.803Z",
+  "totalTests": 29,
+  "passed": 29,
+  "failed": 0,
+  "score": 100,
+  "duration": 3,
+  "results": [
+    {
+      "name": "Transaction: PENDING → CONFIRMED",
+      "category": "Transaction Status",
+      "passed": true,
+      "score": 100,
+      "details": "PENDING → CONFIRMED should be valid"
+    },
+    {
+      "name": "Transaction: PENDING → CANCELLED",
+      "category": "Transaction Status",
+      "passed": true,
+      "score": 100,
+      "details": "PENDING → CANCELLED should be valid"
+    },
+    {
+      "name": "Transaction: PENDING → COMPLETED invalid",
+      "category": "Transaction Status",
+      "passed": true,
+      "score": 100,
+      "details": "Cannot skip CONFIRMED step"
+    },
+    {
+      "name": "Transaction: COMPLETED is terminal",
+      "category": "Transaction Status",
+      "passed": true,
+      "score": 100,
+      "details": "COMPLETED should be terminal"
+    },
+    {
+      "name": "Transaction: CANCELLED is terminal",
+      "category": "Transaction Status",
+      "passed": true,
+      "score": 100,
+      "details": "CANCELLED should be terminal"
+    },
+    {
+      "name": "Transaction: REFUNDED is terminal",
+      "category": "Transaction Status",
+      "passed": true,
+      "score": 100,
+      "details": "REFUNDED should be terminal"
+    },
+    {
+      "name": "Transaction: DISPUTED can resolve",
+      "category": "Transaction Status",
+      "passed": true,
+      "score": 100,
+      "details": "DISPUTED can resolve to COMPLETED or REFUNDED"
+    },
+    {
+      "name": "Transaction: All states reachable from PENDING",
+      "category": "Transaction Status",
+      "passed": true,
+      "score": 100,
+      "details": "All 7 states reachable"
+    },
+    {
+      "name": "Payment: PENDING → PAID",
+      "category": "Payment Status",
+      "passed": true,
+      "score": 100,
+      "details": "PENDING → PAID should be valid"
+    },
+    {
+      "name": "Payment: PENDING → FAILED",
+      "category": "Payment Status",
+      "passed": true,
+      "score": 100,
+      "details": "PENDING → FAILED should be valid"
+    },
+    {
+      "name": "Payment: PAID → REFUNDED",
+      "category": "Payment Status",
+      "passed": true,
+      "score": 100,
+      "details": "PAID → REFUNDED should be valid"
+    },
+    {
+      "name": "Payment: FAILED cannot refund",
+      "category": "Payment Status",
+      "passed": true,
+      "score": 100,
+      "details": "FAILED → REFUNDED should be invalid"
+    },
+    {
+      "name": "Verification: UNVERIFIED → PENDING",
+      "category": "User Verification",
+      "passed": true,
+      "score": 100,
+      "details": "UNVERIFIED → PENDING should be valid"
+    },
+    {
+      "name": "Verification: PENDING → VERIFIED",
+      "category": "User Verification",
+      "passed": true,
+      "score": 100,
+      "details": "PENDING → VERIFIED should be valid"
+    },
+    {
+      "name": "Verification: REJECTED → PENDING",
+      "category": "User Verification",
+      "passed": true,
+      "score": 100,
+      "details": "REJECTED users can resubmit"
+    },
+    {
+      "name": "Verification: VERIFIED → SUSPENDED",
+      "category": "User Verification",
+      "passed": true,
+      "score": 100,
+      "details": "VERIFIED → SUSPENDED should be valid"
+    },
+    {
+      "name": "Verification: SUSPENDED → VERIFIED",
+      "category": "User Verification",
+      "passed": true,
+      "score": 100,
+      "details": "SUSPENDED → VERIFIED should be valid"
+    },
+    {
+      "name": "Verification: Cannot skip to VERIFIED",
+      "category": "User Verification",
+      "passed": true,
+      "score": 100,
+      "details": "Cannot skip PENDING step"
+    },
+    {
+      "name": "Listing: DRAFT → ACTIVE",
+      "category": "Listing Status",
+      "passed": true,
+      "score": 100,
+      "details": "DRAFT → ACTIVE should be valid"
+    },
+    {
+      "name": "Listing: ACTIVE → PAUSED",
+      "category": "Listing Status",
+      "passed": true,
+      "score": 100,
+      "details": "ACTIVE → PAUSED should be valid"
+    },
+    {
+      "name": "Listing: PAUSED → ACTIVE",
+      "category": "Listing Status",
+      "passed": true,
+      "score": 100,
+      "details": "PAUSED → ACTIVE should be valid"
+    },
+    {
+      "name": "Listing: SUSPENDED → ACTIVE",
+      "category": "Listing Status",
+      "passed": true,
+      "score": 100,
+      "details": "SUSPENDED → ACTIVE should be valid"
+    },
+    {
+      "name": "Listing: DELETED is terminal",
+      "category": "Listing Status",
+      "passed": true,
+      "score": 100,
+      "details": "DELETED should be terminal"
+    },
+    {
+      "name": "Listing: Any → DELETED",
+      "category": "Listing Status",
+      "passed": true,
+      "score": 100,
+      "details": "All non-deleted states can delete"
+    },
+    {
+      "name": "Dispute: OPEN → IN_REVIEW",
+      "category": "Dispute Status",
+      "passed": true,
+      "score": 100,
+      "details": "OPEN → IN_REVIEW should be valid"
+    },
+    {
+      "name": "Dispute: IN_REVIEW → RESOLVED",
+      "category": "Dispute Status",
+      "passed": true,
+      "score": 100,
+      "details": "IN_REVIEW → RESOLVED should be valid"
+    },
+    {
+      "name": "Dispute: CLOSED is terminal",
+      "category": "Dispute Status",
+      "passed": true,
+      "score": 100,
+      "details": "CLOSED should be terminal"
+    },
+    {
+      "name": "Integrity: No self-transitions",
+      "category": "Integrity",
+      "passed": true,
+      "score": 100,
+      "details": "No self-transitions found"
+    },
+    {
+      "name": "Integrity: Terminal states have no outgoing",
+      "category": "Integrity",
+      "passed": true,
+      "score": 100,
+      "details": "All terminal states properly configured"
+    }
+  ]
+}

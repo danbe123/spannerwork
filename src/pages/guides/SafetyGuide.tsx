@@ -183,7 +183,7 @@ export default function SafetyGuide(): JSX.Element {
             </div>
             <div>
               <h1 className="text-4xl md:text-5xl font-bold">Safety Best Practices</h1>
-              <p className="text-xl text-orange-100 mt-2">Protect yourself, your equipment, and your community</p>
+              <p className="text-xl text-brand-100 mt-2">Protect yourself, your equipment, and your community</p>
             </div>
           </div>
         </div>
@@ -216,7 +216,7 @@ export default function SafetyGuide(): JSX.Element {
 
           <div className="min-w-0 flex-1">
             {/* Quick Safety Checklist */}
-        <Card className="mb-12 border-none shadow-lg bg-gradient-to-br from-orange-50 to-amber-50">
+        <Card className="mb-12 border-none shadow-lg bg-gradient-to-br from-brand-50 to-brand-100">
           <CardContent className="p-8">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Eye className="w-6 h-6 text-brand-800" />
@@ -329,14 +329,14 @@ export default function SafetyGuide(): JSX.Element {
           <CardContent className="p-12 text-center">
             <Shield className="w-16 h-16 mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-4">Stay Safe, Trade with Confidence</h2>
-            <p className="text-xl text-orange-100 mb-8">
+            <p className="text-xl text-brand-100 mb-8">
               Our community thrives on trust. Thank you for doing your part.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => navigate("/feed")}
                 size="lg"
-                className="bg-white text-brand-800 hover:bg-orange-50 text-lg px-8 py-6 font-bold"
+                className="bg-white text-brand-800 hover:bg-brand-50 text-lg px-8 py-6 font-bold"
               >
                 Browse Safely
               </Button>

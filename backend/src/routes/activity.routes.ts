@@ -68,8 +68,6 @@ router.get('/feed', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
     
-    // This will work once Prisma is regenerated
-    // For now, return empty array if table doesn't exist
     try {
       const events = await (prisma as unknown as { activityEvent: { findMany: (args: unknown) => Promise<ActivityEvent[]> } }).activityEvent.findMany({
         where: { isPublic: true },
@@ -80,7 +78,7 @@ router.get('/feed', async (req: Request, res: Response, next: NextFunction) => {
       const formatted = await Promise.all(events.map(formatActivity));
       res.json({ activities: formatted });
     } catch {
-      // Table doesn't exist yet - return empty
+      // Table may not exist in all environments - return empty array
       res.json({ activities: [] });
     }
   } catch (error) {

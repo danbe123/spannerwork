@@ -15,6 +15,10 @@ export { reviewReceivedTemplate } from './review-received.template.js';
 export { disputeUpdateTemplate } from './dispute-update.template.js';
 export { paymentReceivedTemplate } from './payment-received.template.js';
 export { referralInvitationTemplate } from './referral-invitation.template.js';
+export { generateBookingReminderEmail } from './booking-reminder.template.js';
+export { generateReviewRequestEmail } from './review-request.template.js';
+export { generatePayoutCompletedEmail } from './payout-completed.template.js';
+export { generateWeeklyEarningsSummaryEmail } from './weekly-earnings-summary.template.js';
 
 // Re-export the base layout renderer
 export { renderEmailLayout, escapeHtml } from '../services/emailTemplates.js';

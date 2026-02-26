@@ -3,6 +3,7 @@ import { messageController } from '../controllers/message.controller.js';
 import { requireAuth, requireEmailVerified } from '../middleware/auth.middleware.js';
 import { validateBody } from '../middleware/validate.middleware.js';
 import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
+import { noCache } from '../middleware/noCache.middleware.js';
 import { sendMessageSchema } from '../utils/validation.schemas.js';
 
 const router = Router();
@@ -26,22 +27,25 @@ router.post(
  * @route   GET /api/v1/messages/conversations
  * @desc    List all conversations
  * @access  Private
+ * @cache   No-cache - Messages must always be fresh
  */
-router.get('/conversations', requireAuth, messageController.listConversations.bind(messageController));
+router.get('/conversations', noCache, requireAuth, messageController.listConversations.bind(messageController));
 
 /**
  * @route   GET /api/v1/messages/unread/count
  * @desc    Get unread message count
  * @access  Private
+ * @cache   No-cache - Unread count must always be fresh
  */
-router.get('/unread/count', requireAuth, messageController.getUnreadCount.bind(messageController));
+router.get('/unread/count', noCache, requireAuth, messageController.getUnreadCount.bind(messageController));
 
 /**
  * @route   GET /api/v1/messages/conversation/:userId
  * @desc    Get conversation with specific user
  * @access  Private
+ * @cache   No-cache - Conversation messages must always be fresh
  */
-router.get('/conversation/:userId', requireAuth, messageController.getConversation.bind(messageController));
+router.get('/conversation/:userId', noCache, requireAuth, messageController.getConversation.bind(messageController));
 
 /**
  * @route   PATCH /api/v1/messages/conversation/:userId/read

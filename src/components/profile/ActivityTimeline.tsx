@@ -65,11 +65,14 @@ function groupByDate(activities: ActivityItem[]): Map<string, ActivityItem[]> {
     } else {
       dateKey = format(activity.date, 'MMMM d, yyyy');
     }
-    
+
     if (!groups.has(dateKey)) {
       groups.set(dateKey, []);
     }
-    groups.get(dateKey)!.push(activity);
+    const group = groups.get(dateKey);
+    if (group) {
+      group.push(activity);
+    }
   });
   
   return groups;
@@ -245,8 +248,8 @@ export default function ActivityTimeline({
       id: `badge-${badge.type}`,
       type: 'badge_earned',
       icon: Trophy,
-      iconColor: 'text-orange-500',
-      iconBg: 'bg-orange-100',
+      iconColor: 'text-brand-500',
+      iconBg: 'bg-brand-100',
       title: 'Badge Earned',
       description: `Earned the ${badge.type.replace(/_/g, ' ').toLowerCase()} badge`,
       date: new Date(badge.earnedAt),

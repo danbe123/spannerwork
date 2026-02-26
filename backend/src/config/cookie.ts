@@ -10,8 +10,9 @@ import { env } from './env.js';
 
 /**
  * Session expiry in days (aligned with auth.service.ts)
+ * Default: 7 days for security (reduced from 30)
  */
-const SESSION_EXPIRY_DAYS = parseInt(env.SESSION_EXPIRY_DAYS || '30', 10);
+const SESSION_EXPIRY_DAYS = parseInt(env.SESSION_EXPIRY_DAYS || '7', 10);
 
 /**
  * Session cookie configuration

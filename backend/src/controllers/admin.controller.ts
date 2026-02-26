@@ -23,18 +23,8 @@ export class AdminController {
         userAgent: req.get('user-agent'),
       });
 
-      const [
-        totalUsers,
-        activeUsers,
-        totalTransactions,
-        completedTransactions,
-        totalRevenue,
-        openDisputes,
-        totalTools,
-        totalSpaces,
-        totalServices,
-        totalRequests,
-      ] = await Promise.all([
+      // Use Promise.allSettled to ensure one failing query doesn't crash the entire endpoint
+      const results = await Promise.allSettled([
         prisma.user.count(),
         prisma.user.count({ where: { accountStatus: 'ACTIVE' } }),
         prisma.transaction.count(),
@@ -44,11 +34,35 @@ export class AdminController {
           _sum: { platformFee: true },
         }),
         prisma.dispute.count({ where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } }),
+        prisma.insuranceDocument.count({ where: { status: 'PENDING_REVIEW' } }),
         prisma.tool.count(),
         prisma.space.count(),
         prisma.service.count(),
         prisma.request.count({ where: { status: 'ACTIVE' } }),
       ]);
+
+      // Extract values with fallbacks for any failed queries
+      const getValue = <T>(result: PromiseSettledResult<T>, fallback: T): T =>
+        result.status === 'fulfilled' ? result.value : fallback;
+
+      const totalUsers = getValue(results[0], 0);
+      const activeUsers = getValue(results[1], 0);
+      const totalTransactions = getValue(results[2], 0);
+      const completedTransactions = getValue(results[3], 0);
+      const totalRevenue = getValue(results[4], { _sum: { platformFee: null } });
+      const openDisputes = getValue(results[5], 0);
+      const pendingInsurance = getValue(results[6], 0);
+      const totalTools = getValue(results[7], 0);
+      const totalSpaces = getValue(results[8], 0);
+      const totalServices = getValue(results[9], 0);
+      const totalRequests = getValue(results[10], 0);
+
+      // Log any failed queries for monitoring
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          logger.warn(`Analytics query ${index} failed:`, result.reason);
+        }
+      });
 
       // Get recent transactions (last 30 days)
       const thirtyDaysAgo = new Date();
@@ -91,6 +105,9 @@ export class AdminController {
           },
           disputes: {
             open: openDisputes,
+          },
+          insurance: {
+            pending: pendingInsurance,
           },
           listings: {
             tools: totalTools,
@@ -174,6 +191,11 @@ export class AdminController {
             createdDate: true,
             suspendedDate: true,
             suspendedReason: true,
+            stats: {
+              select: {
+                lastActiveAt: true,
+              },
+            },
           },
           orderBy: { createdDate: 'desc' },
           skip,
@@ -182,8 +204,15 @@ export class AdminController {
         prisma.user.count({ where }),
       ]);
 
+      // Flatten stats.lastActiveAt into the user object
+      const flattenedUsers = users.map(user => ({
+        ...user,
+        lastActiveAt: user.stats?.lastActiveAt || null,
+        stats: undefined,
+      }));
+
       return res.json({
-        users,
+        users: flattenedUsers,
         pagination: {
           page,
           limit,
@@ -503,6 +532,22 @@ export class AdminController {
         select: { role: true, email: true },
       });
 
+      if (!oldUser) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'User not found',
+        });
+      }
+
+      // Prevent demoting other admins - requires super-admin or system-level intervention
+      // This prevents privilege escalation attacks where a rogue admin removes other admins
+      if (oldUser.role === 'ADMIN' && role !== 'ADMIN') {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'Cannot demote other administrators. Contact system administrator for admin role changes.',
+        });
+      }
+
       const user = await prisma.user.update({
         where: { id },
         data: { role },
@@ -627,6 +672,172 @@ export class AdminController {
       return res.status(500).json({
         error: 'Internal Server Error',
         message: 'Failed to get audit logs',
+      });
+    }
+  }
+
+  /**
+   * FIX #13: Force-complete a stuck transaction (admin only)
+   * POST /api/v1/admin/transactions/:id/force-complete
+   *
+   * Use case: When escrow is about to expire and customer is unresponsive,
+   * admin can force-complete to protect the provider.
+   */
+  async forceCompleteTransaction(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      if (!reason || reason.length < 10) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Please provide a detailed reason for force-completing this transaction (min 10 chars)',
+        });
+      }
+
+      // Get transaction with payment details
+      const transaction = await prisma.transaction.findUnique({
+        where: { id },
+        include: {
+          user: { select: { id: true, email: true, name: true } },
+          provider: { select: { id: true, email: true, name: true, stripeConnectId: true } },
+          tool: { select: { name: true } },
+          space: { select: { name: true } },
+          service: { select: { name: true } },
+        },
+      });
+
+      if (!transaction) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Transaction not found',
+        });
+      }
+
+      // Only allow force-complete for transactions in CONFIRMED or IN_PROGRESS status
+      if (!['CONFIRMED', 'IN_PROGRESS'].includes(transaction.status)) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: `Cannot force-complete a transaction in ${transaction.status} status`,
+        });
+      }
+
+      const resourceName = transaction.tool?.name || transaction.space?.name || transaction.service?.name || 'booking';
+
+      // Try to capture payment if there's a payment intent
+      let stripeTransferId: string | null = null;
+      if (transaction.stripePaymentIntentId && transaction.paymentStatus === 'PENDING') {
+        try {
+          const { stripeService } = await import('../services/stripe.service.js');
+
+          if (stripeService.isEnabled()) {
+            const escrowStatus = await stripeService.getEscrowStatus(transaction.stripePaymentIntentId);
+
+            if (escrowStatus.requiresCapture) {
+              // Calculate CPA fees before capture
+              const rentalFee = Number(transaction.rentalFee || 0);
+              const currentAppFee = Number(transaction.applicationFeeAmount || 0);
+              const providerSponsorCpaFee = Math.round(rentalFee * ((transaction.providerSponsorCpaPercent || 0) / 100));
+              const renterSponsorCpaFee = Math.round(rentalFee * ((transaction.renterSponsorCpaPercent || 0) / 100));
+              const totalCpaFees = providerSponsorCpaFee + renterSponsorCpaFee;
+              const updatedApplicationFeeAmount = currentAppFee + totalCpaFees;
+
+              if (totalCpaFees > 0) {
+                await stripeService.updateApplicationFee(transaction.stripePaymentIntentId, updatedApplicationFeeAmount);
+              }
+
+              const capture = await stripeService.capturePayment({
+                paymentIntentId: transaction.stripePaymentIntentId,
+              });
+              stripeTransferId = capture.transferId || null;
+            }
+          }
+        } catch (stripeError) {
+          logger.error('Failed to capture payment during force-complete:', stripeError);
+          // Continue with status update even if payment capture fails
+        }
+      }
+
+      // Update transaction status
+      const updatedTransaction = await prisma.transaction.update({
+        where: { id },
+        data: {
+          status: 'COMPLETED',
+          paymentStatus: stripeTransferId ? 'PAID' : transaction.paymentStatus,
+          completedDate: new Date(),
+          stripeTransferId: stripeTransferId || transaction.stripeTransferId,
+          notes: `${transaction.notes || ''}\n[Admin Force-Complete by ${req.user!.id}: ${reason}]`.trim(),
+        },
+      });
+
+      // Update transaction counts
+      await prisma.user.update({
+        where: { id: transaction.userId },
+        data: { totalTransactions: { increment: 1 } },
+      });
+      if (transaction.providerId) {
+        await prisma.user.update({
+          where: { id: transaction.providerId },
+          data: { totalTransactions: { increment: 1 } },
+        });
+      }
+
+      // Log audit event
+      await auditService.log({
+        action: 'ADMIN_TRANSACTION_FORCE_COMPLETED',
+        userId: req.user!.id,
+        resourceType: 'Transaction',
+        resourceId: id,
+        metadata: {
+          reason,
+          previousStatus: transaction.status,
+          paymentCaptured: !!stripeTransferId,
+          customerEmail: transaction.user?.email,
+          providerEmail: transaction.provider?.email,
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+
+      logger.info(`Admin ${req.user!.id} force-completed transaction ${id}: ${reason}`);
+
+      // Send notifications
+      try {
+        const { emailService } = await import('../services/email.service.js');
+
+        if (transaction.user?.email) {
+          await emailService.sendAdminActionNotificationEmail(transaction.user.email, {
+            userName: transaction.user.name,
+            action: 'Transaction Completed',
+            resourceType: 'booking',
+            resourceName,
+            reason: `Your booking for "${resourceName}" has been marked as completed by an administrator.`,
+          });
+        }
+
+        if (transaction.provider?.email) {
+          await emailService.sendAdminActionNotificationEmail(transaction.provider.email, {
+            userName: transaction.provider.name,
+            action: 'Transaction Completed',
+            resourceType: 'booking',
+            resourceName,
+            reason: `The booking for "${resourceName}" has been marked as completed by an administrator. Payment has been released.`,
+          });
+        }
+      } catch (emailError) {
+        logger.error('Failed to send force-complete notifications:', emailError);
+      }
+
+      return res.json({
+        message: 'Transaction force-completed successfully',
+        transaction: updatedTransaction,
+        paymentCaptured: !!stripeTransferId,
+      });
+    } catch (error) {
+      logger.error('Error force-completing transaction:', error);
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Failed to force-complete transaction',
       });
     }
   }

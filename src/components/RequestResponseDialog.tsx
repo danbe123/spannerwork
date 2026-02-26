@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -98,10 +99,11 @@ export default function RequestResponseDialog({ request, onClose }: RequestRespo
       setSubmitError(null);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.requests() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.request(request.id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.allMessages() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.pendingResponses() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.requests(), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.request(request.id), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations(), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversation(request.seekerId), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pendingResponses(), refetchType: 'all' });
       navigate(`/Chat?userId=${request.seekerId}&requestId=${request.id}`);
     },
     onError: (error) => {
@@ -121,7 +123,9 @@ export default function RequestResponseDialog({ request, onClose }: RequestRespo
       const result = await uploadService.uploadFile(file);
       updatePhotos((prev) => [...prev, result.data.fileUrl]);
     } catch (error) {
-      console.error("Error uploading photo:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error uploading photo:", error);
+      }
       setPhotoUploadError('Upload failed. Please try again.');
     }
     setUploadingPhoto(false);
@@ -150,10 +154,13 @@ export default function RequestResponseDialog({ request, onClose }: RequestRespo
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Send Your Quote</DialogTitle>
+          <DialogDescription>
+            Review the request details and submit your competitive quote. The client will receive your offer in their messages.
+          </DialogDescription>
         </DialogHeader>
 
         {/* Request Summary */}
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+        <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 mb-6">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
               <CategoryIcon className="w-5 h-5 text-brand-800" />
@@ -236,7 +243,7 @@ export default function RequestResponseDialog({ request, onClose }: RequestRespo
             <Label htmlFor="message">Message (Optional)</Label>
             <Textarea
               id="message"
-              placeholder="Add any details that help the seeker decide (timing, experience, what’s included, etc.)"
+              placeholder="Include your availability, relevant experience, what's included in your quote, and why you're the right choice for this job..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               className="mt-2 h-32"
@@ -274,7 +281,7 @@ export default function RequestResponseDialog({ request, onClose }: RequestRespo
               />
             </div>
             <p className="text-xs text-gray-600 mt-2">
-              {photos.length}/5 attached. Links will be included in the chat message.
+              {photos.length}/5 photos attached. Show your work, equipment, or relevant examples.
             </p>
             {photoUploadError && (
               <p className="text-xs text-red-700 mt-1">{photoUploadError}</p>

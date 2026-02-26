@@ -159,16 +159,16 @@ export default function MyStats({ currentUser, transactions, reviews }: MyStatsP
 
       {/* Review Prompts */}
       {pendingReviews.length > 0 && (
-        <Alert className="border-orange-300 bg-orange-50">
-          <Star className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="text-orange-800">
+        <Alert className="border-brand-300 bg-brand-50">
+          <Star className="h-4 w-4 text-brand-600" />
+          <AlertDescription className="text-brand-800">
             <p className="font-semibold mb-2">Leave a Review</p>
             <p className="text-sm mb-3">
               You have {pendingReviews.length} completed transaction{pendingReviews.length > 1 ? 's' : ''} waiting for review
             </p>
             <Button
               size="sm"
-              className="bg-orange-600 hover:bg-orange-700"
+              className="bg-brand-600 hover:bg-brand-700"
               onClick={() => navigate(`/TransactionDetail?id=${pendingReviews[0].id}`)}
             >
               Review Now
@@ -200,7 +200,7 @@ export default function MyStats({ currentUser, transactions, reviews }: MyStatsP
           icon={Star}
           value={averageRating.toFixed(1)}
           label="Average Rating"
-          color="from-amber-500 to-orange-600"
+          color="from-amber-500 to-brand-600"
         />
         <StatCard 
           icon={Award}

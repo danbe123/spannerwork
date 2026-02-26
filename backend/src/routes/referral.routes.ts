@@ -4,6 +4,7 @@ import { referralService } from '../services/referral.service.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
+import { referralLimiter, referralSmsLimiter } from '../middleware/rateLimit.middleware.js';
 import { logger } from '../config/logger.js';
 import { emailService } from '../services/email.service.js';
 import { smsService } from '../services/sms.service.js';
@@ -26,9 +27,11 @@ const sendSmsReferralSchema = z.object({
  * POST /api/v1/referrals
  * Create a new referral invitation
  * @auth Required
+ * @rateLimit 10 per hour per IP
  */
 router.post(
   '/',
+  referralLimiter,
   requireAuth,
   verifyCsrfToken,
   validate(createReferralSchema),
@@ -68,9 +71,11 @@ router.post(
  * POST /api/v1/referrals/sms
  * Send a referral invitation via SMS
  * @auth Required
+ * @rateLimit 5 per hour per IP (strict due to SMS costs)
  */
 router.post(
   '/sms',
+  referralSmsLimiter,
   requireAuth,
   verifyCsrfToken,
   validate(sendSmsReferralSchema),
@@ -184,35 +189,9 @@ router.get('/code/:code', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * POST /api/v1/referrals/complete
- * Complete a referral (called during signup)
- * @public (called during registration)
- */
-router.post('/complete', async (req: Request, res: Response) => {
-  try {
-    const { referralCode, referredUserId } = req.body;
-
-    if (!referralCode || !referredUserId) {
-      return res.status(400).json({
-        error: 'Missing required fields',
-        message: 'Referral code and user ID are required',
-      });
-    }
-
-    const referral = await referralService.completeReferral(referralCode, referredUserId);
-
-    return res.status(200).json({
-      success: true,
-      data: { referral },
-    });
-  } catch (error) {
-    logger.error('Complete referral error:', error);
-    return res.status(500).json({
-      error: 'Failed to complete referral',
-      message: error instanceof Error ? error.message : 'An error occurred',
-    });
-  }
-});
+// SECURITY: The /complete endpoint has been removed.
+// Referral completion is now handled internally during user registration
+// in auth.service.ts to prevent unauthorized referral manipulation.
+// Users should pass referralCode during registration instead.
 
 export default router;

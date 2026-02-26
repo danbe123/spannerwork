@@ -257,6 +257,31 @@ export async function paginateWithOffset<T, WhereInput, OrderByInput>(
   };
 }
 
+/**
+ * Safe pagination helper for controllers
+ * Validates and bounds-checks page and limit parameters
+ */
+export function parsePagination(params: { page?: string | number; limit?: string | number }): {
+  page: number;
+  limit: number;
+  skip: number;
+} {
+  const page = Math.max(
+    typeof params.page === 'string' ? parseInt(params.page, 10) || 1 : params.page || 1,
+    1
+  );
+  const limit = Math.min(
+    Math.max(
+      typeof params.limit === 'string' ? parseInt(params.limit, 10) || DEFAULT_LIMIT : params.limit || DEFAULT_LIMIT,
+      1
+    ),
+    MAX_LIMIT
+  );
+  const skip = (page - 1) * limit;
+
+  return { page, limit, skip };
+}
+
 export default {
   encodeCursor,
   decodeCursor,
@@ -264,4 +289,5 @@ export default {
   offsetPaginationSchema,
   paginateWithCursor,
   paginateWithOffset,
+  parsePagination,
 };

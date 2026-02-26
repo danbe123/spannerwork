@@ -79,8 +79,8 @@ services:
     # Security hardening
     security_opt:
       - no-new-privileges:true
-    # Run as non-root user (ensure Dockerfile creates this user)
-    user: "node"
+    # Run as non-root user (matches backend/Dockerfile: adduser --uid 1001 spannerwork)
+    user: "1001:1001"
     deploy:
       resources:
         limits:

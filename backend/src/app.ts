@@ -19,6 +19,8 @@ import { requestTimeout } from './middleware/timeout.middleware.js';
 import { apiVersionHeaders, validateApiVersion } from './middleware/apiVersion.middleware.js';
 import { apiLimiter } from './middleware/rateLimit.middleware.js';
 import webhookRoutes from './routes/webhook.routes.js';
+import { emailService } from './services/email.service.js';
+import { PrismaClient } from '@prisma/client';
 
 // Initialize Sentry (if configured)
 if (env.SENTRY_DSN) {
@@ -53,12 +55,16 @@ if (env.NODE_ENV === 'production') {
 }
 
 // Security headers
+// Note on CSP styleSrc 'unsafe-inline':
+// Required for Tailwind CSS and React UI libraries that inject inline styles.
+// To remove this, the frontend would need to use CSS-in-JS with nonces or style hashing.
+// This is a known trade-off documented in SECURITY_INCIDENT_RESPONSE.md
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"], // Required for Tailwind CSS
         scriptSrc: ["'self'"],
         imgSrc: [
           "'self'",
@@ -86,6 +92,15 @@ app.use(
 );
 
 // CORS
+const getAllowedOrigins = (): string[] => {
+  const origins = [env.FRONTEND_URL];
+  if (env.CORS_ALLOWED_ORIGINS) {
+    const additionalOrigins = env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim());
+    origins.push(...additionalOrigins);
+  }
+  return origins;
+};
+
 const isAllowedDevOrigin = (origin: string): boolean => {
   try {
     const url = new URL(origin);
@@ -95,7 +110,8 @@ const isAllowedDevOrigin = (origin: string): boolean => {
     if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
       return true;
     }
-    return origin === env.FRONTEND_URL;
+    const allowedOrigins = getAllowedOrigins();
+    return allowedOrigins.includes(origin);
   } catch {
     return false;
   }
@@ -117,7 +133,7 @@ const corsOptions =
         allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Request-Id'],
       }
     : {
-        origin: env.FRONTEND_URL,
+        origin: getAllowedOrigins(),
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Request-Id'],
@@ -127,9 +143,32 @@ app.use(cors(corsOptions));
 
 app.use('/api/webhooks', webhookRoutes);
 
-// Body parsers - default limit is conservative (100KB)
-// Upload routes get larger limits specifically configured
-app.use(express.json({ limit: '100kb' }));
+// Custom middleware to fix Apache-escaped characters in JSON bodies
+// Apache mod_proxy escapes special characters like ! into \! which breaks JSON parsing
+app.use(express.raw({ type: 'application/json', limit: '100kb' }), (req, _res, next) => {
+  if (req.body && Buffer.isBuffer(req.body)) {
+    try {
+      let bodyStr = req.body.toString('utf8');
+      // Try parsing first to see if it's already valid JSON
+      try {
+        req.body = JSON.parse(bodyStr);
+        return next();
+      } catch {
+        // If parsing fails, try unescaping Apache-escaped characters
+        // Apache escapes special chars like \! \@ \# etc.
+        bodyStr = bodyStr.replace(/\\([!@#$%^&*()_+=[\]{};':",.<>?/|`~-])/g, '$1');
+        req.body = JSON.parse(bodyStr);
+        return next();
+      }
+    } catch (error) {
+      // If still can't parse, let the default error handling take over
+      logger.warn('Failed to parse request body', { error });
+    }
+  }
+  next();
+});
+
+// Body parsers for other content types
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // Cookie parser
@@ -294,18 +333,122 @@ app.get('/api/v1', (_req: Request, res: Response) => {
   });
 });
 
+// Rate limit alert endpoint - notifies admins when users hit rate limits
+// This endpoint is intentionally unauthenticated to allow rate-limited users to trigger alerts
+// Includes rate limiting itself to prevent abuse
+const rateLimitPrisma = new PrismaClient();
+
+// Track recent alerts to prevent spam (in-memory, resets on restart)
+const recentAlerts = new Map<string, number>();
+const ALERT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes between alerts from same IP
+
+// Periodic cleanup of expired entries (runs every 5 minutes)
+const cleanupRecentAlerts = () => {
+  const threshold = Date.now() - ALERT_COOLDOWN_MS;
+  for (const [key, time] of recentAlerts.entries()) {
+    if (time < threshold) recentAlerts.delete(key);
+  }
+};
+const alertCleanupInterval = setInterval(cleanupRecentAlerts, ALERT_COOLDOWN_MS);
+// Prevent interval from keeping the process alive during shutdown
+alertCleanupInterval.unref();
+
+// Rate limit alert endpoint - notifies admins when users hit rate limits
+// Note: This is intentionally a public endpoint (not behind admin auth) as it's
+// called by the client-side RateLimited page to alert admins about rate limit events
+app.post('/api/v1/notifications/rate-limit-alert', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ip = req.ip || 'unknown';
+    const lastAlert = recentAlerts.get(ip);
+    const now = Date.now();
+
+    // Rate limit the alerts themselves
+    if (lastAlert && now - lastAlert < ALERT_COOLDOWN_MS) {
+      res.status(200).json({ success: true, message: 'Alert already sent recently' });
+      return;
+    }
+
+    recentAlerts.set(ip, now);
+
+    // Clean up old entries if map gets too large (safety valve)
+    // Regular cleanup happens via alertCleanupInterval
+    if (recentAlerts.size > 10000) {
+      cleanupRecentAlerts();
+    }
+
+    const { timestamp, returnPath, userAgent } = req.body;
+
+    // Try to get the user if they're logged in (from session)
+    // Note: This is best-effort for logging purposes only. We don't expose
+    // any session information in the response to prevent enumeration attacks.
+    let userId: string | undefined;
+    let userEmail: string | undefined;
+    try {
+      const sessionCookie = req.cookies?.['connect.sid'];
+      if (sessionCookie && typeof sessionCookie === 'string') {
+        // Extract session ID: format is s:SESSION_ID.SIGNATURE
+        // Only proceed if format looks valid (UUID-like after 's:')
+        const match = sessionCookie.match(/^s:([a-f0-9-]{36})\./);
+        if (match && match[1]) {
+          const sessionId = match[1];
+          // Use exact match to prevent enumeration attacks
+          const session = await rateLimitPrisma.session.findUnique({
+            where: { id: sessionId },
+            select: { userId: true, user: { select: { email: true } } },
+          });
+          if (session) {
+            userId = session.userId || undefined;
+            userEmail = session.user?.email || undefined;
+          }
+        }
+      }
+    } catch {
+      // Ignore session lookup errors - this is best-effort for logging only
+    }
+
+    // Find admin users to notify
+    const admins = await rateLimitPrisma.user.findMany({
+      where: { role: 'ADMIN', email: { not: undefined } },
+      select: { email: true },
+    });
+
+    // Send email to each admin (fire-and-forget)
+    for (const admin of admins) {
+      if (admin.email) {
+        emailService.sendRateLimitAlertEmail(admin.email, {
+          timestamp: timestamp || new Date().toISOString(),
+          returnPath: returnPath || '/',
+          userAgent,
+          ip,
+          userId,
+          userEmail,
+        }).catch(() => {
+          // Ignore email sending errors - this is best-effort
+        });
+      }
+    }
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    logger.error('Error processing rate limit alert:', error);
+    // Return success anyway - we don't want to expose internal errors
+    res.status(200).json({ success: true });
+  }
+});
+
 // OpenAPI/Swagger documentation
 // Interactive UI available at /api/v1/docs (non-production only)
 // Raw JSON spec available at /api/v1/docs.json
 setupSwagger(app);
 
-// Legacy OpenAPI spec endpoint (for backwards compatibility)
+// Alternative OpenAPI spec endpoint (some tools prefer /openapi.json)
 app.get('/api/v1/openapi.json', (_req: Request, res: Response) => {
   res.json(openApiSpec);
 });
 
 // Serve uploaded files with security controls
 // - Block access to .trash directory (soft-deleted files)
+// - Block access to /invoices directory (requires authentication via API)
 // - Block directory listing
 // - Add security headers
 app.use('/uploads', (req: Request, res: Response, next) => {
@@ -313,14 +456,28 @@ app.use('/uploads', (req: Request, res: Response, next) => {
   if (req.path.includes('.trash') || req.path.includes('..')) {
     return res.status(404).json({ error: 'Not Found', message: 'File not found' });
   }
-  
+
+  // SECURITY: Block direct access to invoices - must use authenticated API endpoint
+  // Invoice PDFs contain sensitive financial information and should only be
+  // accessed via /api/v1/invoices/:id/download which verifies ownership
+  if (req.path.startsWith('/invoices')) {
+    logger.warn('Blocked direct access attempt to invoice file', {
+      path: req.path,
+      ip: req.ip,
+    });
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'Invoice PDFs must be accessed via the authenticated API endpoint',
+    });
+  }
+
   // Validate file extension - only allow expected types
   const ext = path.extname(req.path).toLowerCase();
   const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf'];
   if (ext && !allowedExtensions.includes(ext)) {
     return res.status(404).json({ error: 'Not Found', message: 'File not found' });
   }
-  
+
   return next();
 }, express.static('uploads', {
   dotfiles: 'deny', // Block dotfiles (.trash, etc.)
@@ -334,6 +491,7 @@ app.use('/uploads', (req: Request, res: Response, next) => {
 
 // Import and use route modules
 import authRoutes from './routes/auth.routes.js';
+import oauthRoutes from './routes/oauth.routes.js';
 import requestRoutes from './routes/request.routes.js';
 import toolRoutes from './routes/tool.routes.js';
 import userRoutes from './routes/user.routes.js';
@@ -359,8 +517,14 @@ import quickAcceptRoutes from './routes/quickAccept.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import insuranceRoutes from './routes/insurance.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
+import blogRoutes from './routes/blog.routes.js';
+import bookmarkRoutes from './routes/bookmark.routes.js';
+import invoiceRoutes from './routes/invoice.routes.js';
+import tradeAccountRoutes from './routes/tradeAccount.routes.js';
+import addressRoutes from './routes/address.routes.js';
 
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/auth/oauth', oauthRoutes);
 app.use('/api/v1/requests', requestRoutes);
 app.use('/api/v1/tools', toolRoutes);
 app.use('/api/v1/users', userRoutes);
@@ -386,6 +550,11 @@ app.use('/api/v1/quick-accept', quickAcceptRoutes);
 app.use('/api/v1/admin/analytics', analyticsRoutes);
 app.use('/api/v1/insurance', insuranceRoutes);
 app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/blog', blogRoutes);
+app.use('/api/v1/bookmarks', bookmarkRoutes);
+app.use('/api/v1/invoices', invoiceRoutes);
+app.use('/api/v1/trade-account', tradeAccountRoutes);
+app.use('/api/v1/address', addressRoutes);
 
 // ============================================================================
 // ERROR HANDLING

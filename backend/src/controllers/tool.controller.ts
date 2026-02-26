@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { toolService } from '../services/tool.service.js';
+import { activityFeedService } from '../services/activityFeed.service.js';
 import { logger } from '../config/logger.js';
 
 export class ToolController {
@@ -53,6 +54,15 @@ export class ToolController {
       const tool = await toolService.create(req.user.id, req.body);
 
       logger.info(`Tool created: ${tool.id} by ${req.user.email}`);
+
+      // Log activity for live feed
+      activityFeedService.recordListingCreated(
+        req.user.id,
+        'tool',
+        tool.name,
+        tool.postcode || undefined,
+        tool.id
+      ).catch(err => logger.error('Failed to record activity:', err));
 
       return res.status(201).json({
         message: 'Tool created successfully',

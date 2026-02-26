@@ -43,10 +43,11 @@ export function renderEmailLayout(options: RenderEmailLayoutOptions): string {
   const currentYear = new Date().getFullYear();
 
   // Generate CTA button if provided
+  // Brand colors: #C43B12 (brand-800), #A52F0C (brand-900), #FFC107 (yellow accent)
   const ctaButton = ctaText && ctaUrl ? `
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 32px auto;">
       <tr>
-        <td style="border-radius: 8px; background: linear-gradient(135deg, #D84315 0%, #BF360C 100%); box-shadow: 0 4px 14px rgba(216, 67, 21, 0.4);">
+        <td style="border-radius: 8px; background: linear-gradient(135deg, #C43B12 0%, #A52F0C 100%); box-shadow: 0 4px 14px rgba(196, 59, 18, 0.4);">
           <a href="${ctaUrl}" target="_blank" style="display: inline-block; padding: 16px 32px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px;">
             ${escapeHtml(ctaText)}
           </a>
@@ -96,28 +97,28 @@ export function renderEmailLayout(options: RenderEmailLayoutOptions): string {
     
     img { border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
     
-    a { color: #D84315; text-decoration: none; }
+    a { color: #C43B12; text-decoration: none; }
     a:hover { text-decoration: underline; }
-    
+
     .button-primary {
       display: inline-block;
       padding: 14px 28px;
       border-radius: 8px;
-      background: linear-gradient(135deg, #D84315 0%, #BF360C 100%);
+      background: linear-gradient(135deg, #C43B12 0%, #A52F0C 100%);
       color: #ffffff !important;
       font-weight: 600;
       font-size: 15px;
       text-decoration: none;
-      box-shadow: 0 4px 14px rgba(216, 67, 21, 0.35);
+      box-shadow: 0 4px 14px rgba(196, 59, 18, 0.35);
     }
-    
+
     .button-secondary {
       display: inline-block;
       padding: 12px 24px;
       border-radius: 8px;
       background: #ffffff;
-      border: 2px solid #D84315;
-      color: #D84315 !important;
+      border: 2px solid #C43B12;
+      color: #C43B12 !important;
       font-weight: 600;
       font-size: 14px;
       text-decoration: none;
@@ -152,13 +153,13 @@ export function renderEmailLayout(options: RenderEmailLayoutOptions): string {
       <td align="center" style="padding: 40px 16px;">
         
         <!-- Main Container -->
-        <table role="presentation" class="container" width="100%" cellpadding="0" cellspacing="0" style="max-width: 580px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(216, 67, 21, 0.08), 0 1px 3px rgba(0,0,0,0.04);">
-          
+        <table role="presentation" class="container" width="100%" cellpadding="0" cellspacing="0" style="max-width: 580px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(196, 59, 18, 0.08), 0 1px 3px rgba(0,0,0,0.04);">
+
           <!-- Header -->
           <tr>
-            <td class="header" style="padding: 40px 40px 32px; text-align: center; background: linear-gradient(145deg, #D84315 0%, #BF360C 50%, #8D2B0B 100%);">
+            <td class="header" style="padding: 40px 40px 32px; text-align: center; background: linear-gradient(145deg, #C43B12 0%, #A52F0C 50%, #7A2409 100%);">
               <!-- Logo -->
-              <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 20px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 16px;">
                 <tr>
                   <td style="background: rgba(255,255,255,0.15); border-radius: 14px; padding: 14px;">
                     <table role="presentation" cellpadding="0" cellspacing="0">
@@ -169,10 +170,14 @@ export function renderEmailLayout(options: RenderEmailLayoutOptions): string {
                   </td>
                 </tr>
               </table>
-              
+
               <!-- Brand Name -->
-              <p style="margin: 0 0 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(255,255,255,0.7);">
+              <p style="margin: 0 0 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 0.02em; color: #ffffff;">
                 SpannerWork
+              </p>
+              <!-- Tagline -->
+              <p style="margin: 0 0 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; color: #FFC107;">
+                Tools. Skills. Space.
               </p>
               
               <!-- Heading -->
@@ -212,7 +217,7 @@ export function renderEmailLayout(options: RenderEmailLayoutOptions): string {
             <td class="footer" style="padding: 28px 40px 36px; text-align: center;">
               <!-- Social/Help Links -->
               <p style="margin: 0 0 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; color: #9CA3AF;">
-                Questions? <a href="mailto:support@spannerwork.co.uk" style="color: #D84315; font-weight: 500;">Contact Support</a>
+                Questions? <a href="mailto:support@spannerwork.co.uk" style="color: #C43B12; font-weight: 500;">Contact Support</a>
               </p>
               
               <!-- Footer Note -->

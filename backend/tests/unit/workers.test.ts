@@ -69,6 +69,7 @@ vi.mock('../../src/config/queue.js', () => ({
     SMS: 'sms',
     NOTIFICATIONS: 'notifications',
   },
+  BULL_PREFIX: 'test-bull',
 }));
 
 import { startWorkers, closeWorkers, getWorkersHealth } from '../../src/workers/index.js';

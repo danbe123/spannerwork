@@ -1,5 +1,3 @@
-// Prisma schema for SpannerWork marketplace
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,660 +7,775 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================================
-// USER MANAGEMENT
-// ============================================================================
+model ActivityEvent {
+  id         String       @id @default(cuid())
+  type       ActivityType
+  actorId    String?
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  isPublic   Boolean      @default(true)
+  postcode   String?
+  createdAt  DateTime     @default(now())
 
-model User {
-  id                String        @id @default(cuid())
-  email             String        @unique
-  passwordHash      String?
-  name              String?
-  username          String?       @unique
-  phone             String?
-  avatar            String?
-  bio               String?       @db.Text
-  postcode          String?
-  locationAddress   String?
-  locationLat       Float?
-  locationLng       Float?
-  role              Role          @default(USER)
-  accountStatus     AccountStatus @default(ACTIVE)
-  emailVerified     Boolean       @default(false)
-  emailVerifiedAt   DateTime?
-  rating            Float?        @default(0)
-  totalTransactions Int           @default(0)
-  totalReviews      Int           @default(0)
-  createdDate       DateTime      @default(now())
-  updatedDate       DateTime      @updatedAt
-  suspendedDate     DateTime?
-  suspendedReason   String?       @db.Text
-
-  // Relations
-  sessions          Session[]
-  requestsCreated   Request[]           @relation("RequesterRequests")
-  tools             Tool[]
-  spaces            Space[]
-  services          Service[]
-  transactions      Transaction[]       @relation("UserTransactions")
-  transactionsAsProvider Transaction[]  @relation("ProviderTransactions")
-  reviewsGiven      Review[]            @relation("ReviewerReviews")
-  reviewsReceived   Review[]            @relation("ReviewedUserReviews")
-  messagesFrom      Message[]           @relation("SenderMessages")
-  messagesTo        Message[]           @relation("RecipientMessages")
-  disputesInitiated Dispute[]           @relation("InitiatorDisputes")
-  disputesAgainst   Dispute[]           @relation("RespondentDisputes")
-  savedSearches     SavedSearch[]
-  referralsGiven    Referral[]          @relation("ReferrerReferrals")
-  referralsReceived Referral[]          @relation("ReferredReferrals")
-  auditLogs         AuditLog[]
-  passwordResetTokens PasswordResetToken[]
-  emailVerificationTokens EmailVerificationToken[]
-  passwordHistory     PasswordHistory[]
-  pushSubscriptions   PushSubscription[]
-  
-  // Stripe Connect (for providers to receive payments)
-  stripeConnectId     String?       @unique
-  stripeCustomerId    String?       @unique
-
-  providerPlan        ProviderPlan  @default(FREE)
-  stripeSubscriptionId String?      @unique
-  stripeSubscriptionStatus String?
-  defaultPayoutSpeed  PayoutSpeed   @default(STANDARD)
-
-  // Terms & Conditions acceptance
-  termsAcceptedAt         DateTime?
-  termsVersion            String?
-  privacyPolicyAcceptedAt DateTime?
-  privacyPolicyVersion    String?
-
-  // Provider insurance (for mechanics/service providers)
-  insuranceDocuments      InsuranceDocument[]
-
-  // Gamification & UX features
-  badges              UserBadge[]
-  stats               UserStats?
-  quickRebooks        QuickRebook[]
-  notificationPrefs   NotificationPreferences?
-
-  @@index([email])
-  @@index([postcode])
-  @@index([accountStatus])
-  @@map("users")
+  @@index([actorId, createdAt])
+  @@index([isPublic, createdAt])
+  @@index([postcode, createdAt])
+  @@index([type, createdAt])
+  @@map("activity_events")
 }
 
-enum Role {
-  USER
-  ADMIN
-  MODERATOR
+model AuditLog {
+  id           String   @id @default(cuid())
+  action       String
+  userId       String
+  resourceType String?
+  resourceId   String?
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+  timestamp    DateTime @default(now())
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([action])
+  @@index([resourceType, resourceId])
+  @@index([timestamp])
+  @@index([userId, timestamp])
+  @@map("audit_logs")
 }
 
-enum AccountStatus {
-  ACTIVE
-  SUSPENDED
-  DELETED
+// Webhook event tracking for idempotency
+// Prevents duplicate processing when Stripe retries webhooks
+model WebhookEvent {
+  eventId     String   @id // Stripe event ID (e.g., evt_xxx)
+  eventType   String   // Event type (e.g., transfer.created)
+  processedAt DateTime @default(now())
+
+  @@index([eventType, processedAt])
+  @@map("webhook_events")
 }
 
-enum ProviderPlan {
-  FREE
-  PRO
-  BUSINESS
-}
-
-enum PayoutSpeed {
-  STANDARD
-  INSTANT
-}
-
-// ============================================================================
-// AUTHENTICATION
-// ============================================================================
-
-model Session {
-  id        String   @id
-  userId    String
-  expiresAt DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([expiresAt])
-  @@map("sessions")
-}
-
-// ============================================================================
-// JOB REQUESTS
-// ============================================================================
-
-model Request {
-  id              String        @id @default(cuid())
-  title           String
-  description     String        @db.Text
-  category        Category
-  urgency         Urgency
-  budget          Int // Stored in pence
-  rateType        RateType
-  broadcastRadius Int // in miles
-  postcode        String
-  locationAddress String?
-  locationLat     Float?
-  locationLng     Float?
-  photos          String[] // Array of URLs
-  status          RequestStatus @default(ACTIVE)
-  responseCount   Int           @default(0)
-  seekerId        String
-  expiresAt       DateTime
-  createdDate     DateTime      @default(now())
-  updatedDate     DateTime      @updatedAt
-
-  // Relations
-  seeker       User          @relation("RequesterRequests", fields: [seekerId], references: [id])
-  transactions Transaction[]
-
-  @@index([status, createdDate])
-  @@index([category])
-  @@index([seekerId])
-  @@index([locationLat, locationLng])
-  @@map("requests")
-}
-
-enum Category {
-  TOOLS
-  EXPERTISE
-  SPACE
-}
-
-enum Urgency {
-  ASAP
-  TODAY
-  THIS_WEEKEND
-  FLEXIBLE
-}
-
-enum RateType {
-  FIXED
-  HOURLY
-  DAILY
-}
-
-enum RequestStatus {
-  ACTIVE
-  FULFILLED
-  EXPIRED
-  CANCELLED
-}
-
-// ============================================================================
-// TOOLS FOR RENT
-// ============================================================================
-
-model Tool {
-  id          String   @id @default(cuid())
-  name        String
-  description String   @db.Text
-  category    String
-  dailyRate   Int // Stored in pence
-  weeklyRate  Int? // Stored in pence
-  deposit     Int // Stored in pence
-  photos      String[] // Array of URLs
-  condition   String
-  available   Boolean  @default(true)
-  postcode    String
-  locationLat Float?
-  locationLng Float?
-  ownerId     String
-  createdDate DateTime @default(now())
-  updatedDate DateTime @updatedAt
-
-  // Relations
-  owner        User          @relation(fields: [ownerId], references: [id])
-  transactions Transaction[]
-
-  @@index([ownerId])
-  @@index([available])
-  @@index([category])
-  @@index([ownerId, available]) // Compound index for user's available tools
-  @@index([category, available, dailyRate]) // Compound index for filtered searches
-  @@map("tools")
-}
-
-// ============================================================================
-// WORKSPACE RENTALS
-// ============================================================================
-
-model Space {
+model DailyMetric {
   id              String   @id @default(cuid())
-  name            String
-  description     String   @db.Text
-  hourlyRate      Int // Stored in pence
-  dailyRate       Int // Stored in pence
-  weeklyRate      Int? // Stored in pence
-  size            Int? // square feet
-  features        String[] // Array of features
-  photos          String[] // Array of URLs
-  available       Boolean  @default(true)
-  postcode        String
-  locationAddress String
-  locationLat     Float?
-  locationLng     Float?
-  ownerId         String
-  createdDate     DateTime @default(now())
-  updatedDate     DateTime @updatedAt
+  date            DateTime @unique
+  totalUsers      Int
+  newUsers        Int
+  activeUsers     Int
+  totalListings   Int
+  totalBookings   Int
+  gmv             Int
+  platformRevenue Int
+  createdAt       DateTime @default(now())
 
-  // Relations
-  owner        User          @relation(fields: [ownerId], references: [id])
-  transactions Transaction[]
+  @@index([date])
+  @@map("daily_metrics")
+}
 
+model DeletedFile {
+  id                 String   @id @default(cuid())
+  filename           String
+  originalPath       String
+  fileUrl            String
+  ownerId            String
+  ownerType          String
+  resourceId         String?
+  deletedAt          DateTime @default(now())
+  deletedBy          String
+  expiresAt          DateTime
+  permanentlyDeleted Boolean  @default(false)
+
+  @@index([expiresAt])
   @@index([ownerId])
-  @@index([available])
-  @@map("spaces")
+  @@index([permanentlyDeleted, expiresAt])
+  @@map("deleted_files")
 }
-
-// ============================================================================
-// PROFESSIONAL SERVICES
-// ============================================================================
-
-model Service {
-  id          String   @id @default(cuid())
-  name        String
-  description String   @db.Text
-  specialties String[] // Array of specialties
-  hourlyRate  Int // Stored in pence
-  calloutFee  Int? // Stored in pence
-  radius      Int // service area in miles
-  photos      String[] // Array of URLs
-  available   Boolean  @default(true)
-  postcode    String
-  locationLat Float?
-  locationLng Float?
-  providerId  String
-  createdDate DateTime @default(now())
-  updatedDate DateTime @updatedAt
-
-  // Insurance requirement for this service type
-  requiresInsurance       Boolean  @default(true)
-
-  // Relations
-  provider     User          @relation(fields: [providerId], references: [id])
-  transactions Transaction[]
-
-  @@index([providerId])
-  @@index([available])
-  @@map("services")
-}
-
-// ============================================================================
-// TRANSACTIONS
-// ============================================================================
-
-model Transaction {
-  id            String            @id @default(cuid())
-  requestId     String?
-  toolId        String?
-  spaceId       String?
-  serviceId     String?
-  userId        String
-  providerId    String?
-  startDate     DateTime
-  endDate       DateTime
-  rentalFee     Int // Stored in pence (e.g., £10.00 = 1000 pence)
-  platformFee   Int // Stored in pence
-  totalAmount   Int // Stored in pence
-
-  providerPlanAtBooking ProviderPlan @default(FREE)
-  platformFeePercent    Int          @default(5)
-  applicationFeeAmount  Int          @default(0)
-  instantPayoutSelected Boolean      @default(false)
-  instantPayoutFee      Int          @default(0)
-  insuranceDamageProtectionSelected Boolean @default(false)
-  insuranceDamageProtectionFee      Int     @default(0)
-  insuranceLiabilitySelected        Boolean @default(false)
-  insuranceLiabilityFee             Int     @default(0)
-  insuranceCancellationSelected     Boolean @default(false)
-  insuranceCancellationFee          Int     @default(0)
-  status        TransactionStatus @default(PENDING)
-  paymentStatus PaymentStatus     @default(PENDING)
-  notes         String?           @db.Text
-  version       Int               @default(1) // Optimistic locking version
-  
-  // Stripe payment tracking
-  stripePaymentIntentId String?   @unique
-  stripeTransferId      String?   @unique
-  stripeInstantPayoutId  String?   @unique
-
-  // Liability waivers
-  customerWaiverAcceptedAt  DateTime?
-  providerWaiverAcceptedAt  DateTime?
-  waiverVersion             String?
-  
-  createdDate   DateTime          @default(now())
-  updatedDate   DateTime          @updatedAt
-  completedDate DateTime?
-
-  // Relations
-  user     User     @relation("UserTransactions", fields: [userId], references: [id], onDelete: Cascade)
-  provider User?    @relation("ProviderTransactions", fields: [providerId], references: [id], onDelete: SetNull)
-  request  Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
-  tool     Tool?    @relation(fields: [toolId], references: [id], onDelete: SetNull)
-  space    Space?   @relation(fields: [spaceId], references: [id], onDelete: SetNull)
-  service  Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  reviews  Review[]
-  disputes Dispute[]
-
-  @@index([userId])
-  @@index([providerId])
-  @@index([status])
-  @@index([createdDate])
-  @@index([userId, status]) // Compound index for user transaction filtering
-  @@index([providerId, status]) // Compound index for provider transaction filtering
-  @@index([startDate, endDate]) // Date range queries for booking conflicts
-  @@index([toolId, startDate, endDate]) // Tool booking conflict checks
-  @@index([spaceId, startDate, endDate]) // Space booking conflict checks
-  @@index([serviceId, startDate, endDate]) // Service booking conflict checks
-  @@map("transactions")
-}
-
-enum TransactionStatus {
-  PENDING
-  CONFIRMED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-enum PaymentStatus {
-  PENDING
-  PAID
-  REFUNDED
-  FAILED
-}
-
-// ============================================================================
-// REVIEWS
-// ============================================================================
-
-model Review {
-  id             String   @id @default(cuid())
-  transactionId  String
-  reviewerId     String
-  reviewedUserId String
-  rating         Int // 1-5
-  comment        String?  @db.Text
-  createdDate    DateTime @default(now())
-  updatedDate    DateTime @updatedAt
-
-  // Relations
-  transaction  Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  reviewer     User        @relation("ReviewerReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
-  reviewedUser User        @relation("ReviewedUserReviews", fields: [reviewedUserId], references: [id], onDelete: Cascade)
-
-  @@unique([transactionId, reviewerId])
-  @@index([reviewerId])
-  @@index([reviewedUserId])
-  @@index([transactionId])
-  @@map("reviews")
-}
-
-// ============================================================================
-// MESSAGES
-// ============================================================================
-
-model Message {
-  id          String   @id @default(cuid())
-  senderId    String
-  recipientId String
-  content     String   @db.Text
-  read        Boolean  @default(false)
-  createdDate DateTime @default(now())
-  updatedDate DateTime @updatedAt
-
-  // Relations
-  sender    User @relation("SenderMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  recipient User @relation("RecipientMessages", fields: [recipientId], references: [id], onDelete: Cascade)
-
-  @@index([senderId]) // For "sent messages" queries
-  @@index([recipientId, read])
-  @@index([senderId, recipientId, createdDate]) // Conversation thread lookup (sender initiated)
-  @@index([recipientId, senderId, createdDate]) // Reverse lookup for conversation threads
-  @@index([createdDate]) // For recent messages queries
-  @@map("messages")
-}
-
-// ============================================================================
-// DISPUTES
-// ============================================================================
 
 model Dispute {
-  id                     String        @id @default(cuid())
-  transactionId          String
-  initiatorId            String
-  respondentId           String
-  reason                 String
-  description            String        @db.Text
-  status                 DisputeStatus @default(OPEN)
-  resolution             String?       @db.Text
-  refundAmountInitiator  Int? // Stored in pence
-  refundAmountRespondent Int? // Stored in pence
-  createdDate            DateTime      @default(now())
-  updatedDate            DateTime      @updatedAt
-  resolvedDate           DateTime?
-
-  // Relations
-  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  initiator   User        @relation("InitiatorDisputes", fields: [initiatorId], references: [id], onDelete: Cascade)
-  respondent  User        @relation("RespondentDisputes", fields: [respondentId], references: [id], onDelete: Cascade)
+  id                                 String        @id @default(cuid())
+  transactionId                      String
+  initiatorId                        String
+  respondentId                       String
+  reason                             String
+  description                        String
+  status                             DisputeStatus @default(OPEN)
+  resolution                         String?
+  refundAmountInitiator              Int?
+  refundAmountRespondent             Int?
+  createdDate                        DateTime      @default(now())
+  updatedDate                        DateTime @updatedAt
+  resolvedDate                       DateTime?
+  deadlineDate                       DateTime?
+  initiator   User              @relation("disputes_initiatorIdTousers", fields: [initiatorId], references: [id], onDelete: Cascade)
+  respondent  User              @relation("disputes_respondentIdTousers", fields: [respondentId], references: [id], onDelete: Cascade)
+  transaction Transaction       @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  evidence    DisputeEvidence[]
 
   @@index([status])
   @@index([transactionId])
   @@map("disputes")
 }
 
-enum DisputeStatus {
-  OPEN
-  UNDER_REVIEW
-  RESOLVED
-  CLOSED
-}
-
-// ============================================================================
-// SAVED SEARCHES
-// ============================================================================
-
-model SavedSearch {
+model DisputeEvidence {
   id          String   @id @default(cuid())
-  userId      String
-  name        String
-  filters     Json // { category, urgency, budget, etc }
+  disputeId   String
+  uploaderId  String
+  fileUrl     String
+  fileName    String
+  fileType    String
+  fileSize    Int
+  description String?
   createdDate DateTime @default(now())
-  updatedDate DateTime @updatedAt
+  dispute     Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  uploader    User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
 
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("saved_searches")
+  @@index([disputeId])
+  @@index([uploaderId])
+  @@map("dispute_evidence")
 }
-
-// ============================================================================
-// REFERRALS
-// ============================================================================
-
-model Referral {
-  id            String         @id @default(cuid())
-  referrerId    String
-  referredId    String?
-  code          String         @unique
-  email         String?
-  phone         String?
-  status        ReferralStatus @default(PENDING)
-  reward        Int? // Stored in pence
-  createdDate   DateTime       @default(now())
-  updatedDate   DateTime       @updatedAt
-  completedDate DateTime?
-
-  // Relations
-  referrer User  @relation("ReferrerReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
-  referred User? @relation("ReferredReferrals", fields: [referredId], references: [id], onDelete: SetNull)
-
-  @@index([code])
-  @@index([referrerId])
-  @@map("referrals")
-}
-
-enum ReferralStatus {
-  PENDING
-  COMPLETED
-  EXPIRED
-}
-
-// ============================================================================
-// PASSWORD RESET TOKENS
-// ============================================================================
-
-model PasswordResetToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  userId    String
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([token])
-  @@index([userId])
-  @@index([expiresAt])
-  @@map("password_reset_tokens")
-}
-
-// ============================================================================
-// EMAIL VERIFICATION TOKENS
-// ============================================================================
 
 model EmailVerificationToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
+  id        String    @id @default(cuid())
+  token     String    @unique
   userId    String
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  @@index([expiresAt])
   @@index([token])
   @@index([userId])
-  @@index([expiresAt])
   @@map("email_verification_tokens")
 }
 
-// ============================================================================
-// AUDIT LOGS
-// ============================================================================
+model LinkedAccount {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String   // 'google', 'facebook', 'apple'
+  providerId String   // External account ID from OAuth provider
+  email      String?  // Email from OAuth provider (may differ from user email)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-model AuditLog {
-  id           String   @id @default(cuid())
-  action       String   // e.g., "USER_SUSPENDED", "TRANSACTION_CANCELLED", "ROLE_CHANGED"
-  userId       String   // User who performed the action
-  resourceType String?  // e.g., "User", "Transaction", "Tool"
-  resourceId   String?  // ID of the affected resource
-  metadata     Json?    // Additional context about the action
-  ipAddress    String?
-  userAgent    String?
-  timestamp    DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, timestamp])
-  @@index([resourceType, resourceId])
-  @@index([action])
-  @@index([timestamp])
-  @@map("audit_logs")
-}
-
-// ============================================================================
-// DELETED FILES (Soft Delete with Recovery)
-// ============================================================================
-
-model DeletedFile {
-  id            String   @id @default(cuid())
-  filename      String   // Original filename (UUID format)
-  originalPath  String   // Original file path
-  fileUrl       String   // URL that was used
-  ownerId       String   // User who owned the file
-  ownerType     String   // "avatar", "tool", "space", "service", "request"
-  resourceId    String?  // ID of the resource (tool, space, etc.)
-  deletedAt     DateTime @default(now())
-  deletedBy     String   // User who deleted it
-  expiresAt     DateTime // When the file will be permanently deleted
-  permanentlyDeleted Boolean @default(false)
-
-  @@index([ownerId])
-  @@index([expiresAt])
-  @@index([permanentlyDeleted, expiresAt])
-  @@map("deleted_files")
-}
-
-// ============================================================================
-// PUSH SUBSCRIPTIONS (Web Push API)
-// ============================================================================
-
-model PushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  endpoint  String   @db.Text
-  p256dh    String   // Public key for encryption
-  auth      String   // Auth secret
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, endpoint])
+  @@unique([provider, providerId])
   @@index([userId])
-  @@map("push_subscriptions")
+  @@map("linked_accounts")
 }
 
-// ============================================================================
-// PASSWORD HISTORY (Prevent Password Reuse)
-// ============================================================================
+model InsuranceDocument {
+  id              String          @id @default(cuid())
+  userId          String
+  documentUrl     String
+  documentType    InsuranceType   @default(PUBLIC_LIABILITY)
+  provider        String?
+  policyNumber    String?
+  coverageAmount  Int?
+  expiryDate      DateTime?
+  status          InsuranceStatus @default(PENDING_REVIEW)
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  rejectionReason String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime @updatedAt
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  claims         InsuranceClaim[]
+
+  @@index([expiryDate])
+  @@index([status])
+  @@index([userId, status])
+  @@map("insurance_documents")
+}
+
+model InsuranceClaim {
+  id                  String             @id @default(cuid())
+  transactionId       String
+  claimantId          String
+  insuranceDocumentId String?
+  claimType           InsuranceClaimType
+  incidentDate        DateTime
+  description         String
+  claimAmount         Int                // Amount in pence
+  status              InsuranceClaimStatus @default(SUBMITTED)
+  adminNotes          String?
+  settlementAmount    Int?               // Final settlement in pence
+  rejectionReason     String?
+  reviewedAt          DateTime?
+  reviewedBy          String?
+  settledAt           DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  transaction         Transaction        @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  claimant            User               @relation("claimsFiled", fields: [claimantId], references: [id], onDelete: Cascade)
+  insuranceDocument   InsuranceDocument? @relation(fields: [insuranceDocumentId], references: [id], onDelete: SetNull)
+  evidence            InsuranceClaimEvidence[]
+
+  @@index([transactionId])
+  @@index([claimantId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("insurance_claims")
+}
+
+model InsuranceClaimEvidence {
+  id          String         @id @default(cuid())
+  claimId     String
+  uploaderId  String
+  fileUrl     String
+  fileName    String
+  fileType    String
+  fileSize    Int
+  description String?
+  createdAt   DateTime       @default(now())
+  claim       InsuranceClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  uploader    User           @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  @@index([claimId])
+  @@index([uploaderId])
+  @@map("insurance_claim_evidence")
+}
+
+model Message {
+  id                                String    @id @default(cuid())
+  senderId                          String
+  recipientId                       String
+  content                           String
+  read                              Boolean   @default(false)
+  readAt                            DateTime?
+  createdDate                       DateTime  @default(now())
+  updatedDate                       DateTime  @updatedAt
+  recipient User    @relation("messages_recipientIdTousers", fields: [recipientId], references: [id], onDelete: Cascade)
+  sender    User    @relation("messages_senderIdTousers", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([createdDate])
+  @@index([recipientId, read])
+  @@index([recipientId, createdDate])
+  @@index([recipientId, senderId, createdDate])
+  @@index([senderId])
+  @@index([senderId, recipientId, createdDate])
+  @@index([senderId, read])
+  @@map("messages")
+}
+
+model NotificationPreference {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  newMatchingRequests  Boolean  @default(true)
+  requestResponses     Boolean  @default(true)
+  bookingConfirmations Boolean  @default(true)
+  bookingReminders     Boolean  @default(true)
+  paymentAlerts        Boolean  @default(true)
+  weekendAvailability  Boolean  @default(true)
+  renewalReminders     Boolean  @default(true)
+  reviewReminders      Boolean  @default(true)
+  tipsAndSuggestions   Boolean  @default(true)
+  communityUpdates     Boolean  @default(false)
+  emailEnabled         Boolean  @default(true)
+  pushEnabled          Boolean  @default(true)
+  smsEnabled           Boolean  @default(false)
+  quietHoursStart      Int?
+  quietHoursEnd        Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("notification_preferences")
+}
 
 model PasswordHistory {
   id           String   @id @default(cuid())
   userId       String
   passwordHash String
   createdAt    DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@map("password_history")
 }
 
-// ============================================================================
-// ACTIVITY FEED (Live Platform Activity)
-// ============================================================================
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-model ActivityEvent {
-  id          String       @id @default(cuid())
-  type        ActivityType
-  actorId     String?      // User who performed action (null for system events)
-  targetType  String?      // "tool", "space", "service", "request", "transaction"
-  targetId    String?      // ID of the target entity
-  metadata    Json?        // Additional context (item name, amount, etc.)
-  isPublic    Boolean      @default(true) // Show in public feed
-  postcode    String?      // For location-based feeds
-  createdAt   DateTime     @default(now())
+  @@index([expiresAt])
+  @@index([token])
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
 
-  @@index([type, createdAt])
-  @@index([actorId, createdAt])
-  @@index([postcode, createdAt])
-  @@index([isPublic, createdAt])
-  @@map("activity_events")
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+model QuickRebook {
+  id           String   @id @default(cuid())
+  userId       String
+  listingType  String
+  listingId    String
+  providerId   String
+  lastBookedAt DateTime
+  bookingCount Int      @default(1)
+  isFavorite   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingType, listingId])
+  @@index([userId, lastBookedAt])
+  @@map("quick_rebooks")
+}
+
+model Referral {
+  id                                String         @id @default(cuid())
+  referrerId                        String
+  referredId                        String?
+  code                              String         @unique
+  email                             String?
+  status                            ReferralStatus @default(PENDING)
+  reward                            Int?
+  createdDate                       DateTime       @default(now())
+  updatedDate                       DateTime @updatedAt
+  completedDate                     DateTime?
+  phone                             String?
+  referred User?         @relation("referrals_referredIdTousers", fields: [referredId], references: [id])
+  referrer User          @relation("referrals_referrerIdTousers", fields: [referrerId], references: [id], onDelete: Cascade)
+
+  @@index([code])
+  @@index([referrerId])
+  @@map("referrals")
+}
+
+model Request {
+  id                String         @id @default(cuid())
+  title             String
+  description       String
+  category          Category
+  urgency           Urgency
+  budget            Int
+  rateType          RateType
+  broadcastRadius   Int
+  postcode          String
+  locationAddress   String?
+  locationLat       Float?
+  locationLng       Float?
+  photos            String[]
+  status            RequestStatus  @default(ACTIVE)
+  responseCount     Int            @default(0)
+  seekerId          String
+  sponsorCpaPercent Int            @default(0)  // 0-50, 0 means not sponsored
+  expiresAt         DateTime
+  createdDate       DateTime       @default(now())
+  updatedDate       DateTime       @updatedAt
+  seeker            User           @relation(fields: [seekerId], references: [id])
+  transactions      Transaction[]
+  bookmarks         Bookmark[]
+
+  @@index([category])
+  @@index([locationLat, locationLng])
+  @@index([seekerId])
+  @@index([seekerId, status])
+  @@index([status, createdDate])
+  @@index([status, expiresAt])
+  @@index([category, status])
+  @@index([sponsorCpaPercent, status, createdDate])
+  @@map("requests")
+}
+
+model Review {
+  id                                  String       @id @default(cuid())
+  transactionId                       String
+  reviewerId                          String
+  reviewedUserId                      String
+  rating                              Int
+  comment                             String?
+  createdDate                         DateTime     @default(now())
+  updatedDate                         DateTime @updatedAt
+  reviewedUser User        @relation("reviews_reviewedUserIdTousers", fields: [reviewedUserId], references: [id], onDelete: Cascade)
+  reviewer     User        @relation("reviews_reviewerIdTousers", fields: [reviewerId], references: [id], onDelete: Cascade)
+  transaction                        Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, reviewerId])
+  @@index([reviewedUserId])
+  @@index([reviewerId])
+  @@index([transactionId])
+  @@map("reviews")
+}
+
+model SavedSearch {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  filters     Json
+  createdDate DateTime @default(now())
+  updatedDate DateTime @updatedAt
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("saved_searches")
+}
+
+model Service {
+  id                String         @id @default(cuid())
+  name              String
+  description       String
+  specialties       String[]
+  hourlyRate        Int
+  calloutFee        Int?
+  radius            Int
+  photos            String[]
+  available         Boolean        @default(true)
+  postcode          String
+  locationLat       Float?
+  locationLng       Float?
+  providerId        String
+  sponsorCpaPercent Int            @default(0)  // 0-50, 0 means not sponsored
+  createdDate       DateTime       @default(now())
+  updatedDate       DateTime       @updatedAt
+  requiresInsurance Boolean        @default(true)
+  provider          User           @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  transactions      Transaction[]
+  availabilityHolds AvailabilityHold[]
+
+  @@index([available])
+  @@index([providerId])
+  @@index([providerId, available, createdDate])
+  @@index([locationLat, locationLng, available])
+  @@map("services")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Space {
+  id                String         @id @default(cuid())
+  name              String
+  description       String
+  hourlyRate        Int
+  dailyRate         Int
+  weeklyRate        Int?
+  size              Int?
+  features          String[]
+  photos            String[]
+  available         Boolean        @default(true)
+  postcode          String
+  locationAddress   String
+  locationLat       Float?
+  locationLng       Float?
+  ownerId           String
+  sponsorCpaPercent Int            @default(0)  // 0-50, 0 means not sponsored
+  createdDate       DateTime       @default(now())
+  updatedDate       DateTime       @updatedAt
+  owner             User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  transactions      Transaction[]
+  availabilityHolds AvailabilityHold[]
+
+  @@index([available])
+  @@index([ownerId])
+  @@index([ownerId, available, createdDate])
+  @@index([locationLat, locationLng, available])
+  @@map("spaces")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model SpatialRefSys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+  @@map("spatial_ref_sys")
+}
+
+model Tool {
+  id                String         @id @default(cuid())
+  name              String
+  description       String
+  category          String
+  dailyRate         Int
+  weeklyRate        Int?
+  deposit           Int
+  photos            String[]
+  condition         String
+  available         Boolean        @default(true)
+  postcode          String
+  locationLat       Float?
+  locationLng       Float?
+  ownerId           String
+  sponsorCpaPercent Int            @default(0)  // 0-50, 0 means not sponsored
+  createdDate       DateTime       @default(now())
+  updatedDate       DateTime       @updatedAt
+  owner             User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  transactions      Transaction[]
+  availabilityHolds AvailabilityHold[]
+
+  @@index([available])
+  @@index([category, available, dailyRate])
+  @@index([category])
+  @@index([ownerId, available])
+  @@index([ownerId])
+  @@index([ownerId, createdDate])
+  @@index([locationLat, locationLng, available])
+  @@map("tools")
+}
+
+model Transaction {
+  id                                   String            @id @default(cuid())
+  requestId                            String?
+  toolId                               String?
+  spaceId                              String?
+  serviceId                            String?
+  userId                               String
+  providerId                           String?
+  startDate                            DateTime
+  endDate                              DateTime
+  rentalFee                            Int
+  platformFee                          Int
+  totalAmount                          Int
+  status                               TransactionStatus @default(PENDING)
+  paymentStatus                        PaymentStatus     @default(PENDING)
+  notes                                String?
+  createdDate                          DateTime          @default(now())
+  updatedDate                          DateTime @updatedAt
+  completedDate                        DateTime?
+  version                              Int               @default(1)
+  customerWaiverAcceptedAt             DateTime?
+  providerWaiverAcceptedAt             DateTime?
+  stripePaymentIntentId                String?           @unique
+  stripeTransferId                     String?           @unique
+  waiverVersion                        String?
+  providerPlanAtBooking                ProviderPlan      @default(FREE)
+  platformFeePercent                   Int               @default(5)
+  applicationFeeAmount                 Int               @default(0)
+  instantPayoutSelected                Boolean           @default(false)
+  instantPayoutFee                     Int               @default(0)
+  instantPayoutFeeReimbursed           Boolean           @default(false)
+  instantPayoutFeeReimbursedAt         DateTime?
+  instantPayoutFeeTransferId           String?           @unique
+  insuranceDamageProtectionSelected    Boolean           @default(false)
+  insuranceDamageProtectionFee         Int               @default(0)
+  insuranceLiabilitySelected           Boolean           @default(false)
+  insuranceLiabilityFee                Int               @default(0)
+  insuranceCancellationSelected        Boolean           @default(false)
+  insuranceCancellationFee             Int               @default(0)
+  stripeInstantPayoutId                String?           @unique
+  purchaseOrderNumber                  String?           // B2B purchase order reference
+  providerSponsorCpaPercent            Int               @default(0)  // Snapshotted from listing
+  providerSponsorCpaFee                Int               @default(0)  // Fee in pence (calculated on completion)
+  renterSponsorCpaPercent              Int               @default(0)  // Snapshotted from request
+  renterSponsorCpaFee                  Int               @default(0)  // Fee in pence (calculated on completion)
+  totalRefunded                        Int               @default(0)  // Cumulative refunded amount in pence
+  cancelledById                        String?           // Tracks who initiated the cancellation (user or provider)
+  disputes                             Dispute[]
+  reviews                              Review[]
+  insuranceClaims                      InsuranceClaim[]
+  invoices                             Invoice[]
+  provider User?            @relation("transactions_providerIdTousers", fields: [providerId], references: [id])
+  request                             Request?         @relation(fields: [requestId], references: [id])
+  service                             Service?         @relation(fields: [serviceId], references: [id])
+  space                               Space?           @relation(fields: [spaceId], references: [id])
+  tool                                Tool?            @relation(fields: [toolId], references: [id])
+  user     User             @relation("transactions_userIdTousers", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdDate])
+  @@index([providerId])
+  @@index([providerId, status])
+  @@index([providerId, createdDate])
+  @@index([serviceId, startDate, endDate])
+  @@index([spaceId, startDate, endDate])
+  @@index([startDate, endDate])
+  @@index([status])
+  @@index([status, completedDate])
+  @@index([toolId, startDate, endDate])
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, createdDate])
+  @@index([requestId, status])
+  @@map("transactions")
+}
+
+// FIX: Availability hold tokens to prevent race conditions between availability check and booking
+model AvailabilityHold {
+  id          String    @id @default(cuid())
+  token       String    @unique @default(cuid())
+  userId      String
+  toolId      String?
+  spaceId     String?
+  serviceId   String?
+  startDate   DateTime
+  endDate     DateTime
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  consumed    Boolean   @default(false)  // Set to true when booking is created
+  consumedAt  DateTime?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tool    Tool?    @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  space   Space?   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([toolId, startDate, endDate, expiresAt])
+  @@index([spaceId, startDate, endDate, expiresAt])
+  @@index([serviceId, startDate, endDate, expiresAt])
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("availability_holds")
+}
+
+model UserBadge {
+  id       String    @id @default(cuid())
+  userId   String
+  badge    BadgeType
+  earnedAt DateTime  @default(now())
+  metadata Json?
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badge])
+  @@index([userId])
+  @@map("user_badges")
+}
+
+model UserStats {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  totalListings          Int      @default(0)
+  totalRequests          Int      @default(0)
+  totalRentalsAsRenter   Int      @default(0)
+  totalRentalsAsProvider Int      @default(0)
+  averageResponseMinutes Int?
+  cancellationRate       Float    @default(0)
+  completionRate         Float    @default(100)
+  totalEarned            Int      @default(0)
+  totalSpent             Int      @default(0)
+  currentStreak          Int      @default(0)
+  longestStreak          Int      @default(0)
+  lastActiveAt           DateTime @default(now())
+  successfulReferrals    Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("user_stats")
+}
+
+model User {
+  id                                          String                      @id @default(cuid())
+  email                                       String                      @unique
+  passwordHash                                String?
+  name                                        String?
+  phone                                       String?
+  avatar                                      String?
+  bio                                         String?
+  postcode                                    String?
+  street                                      String?
+  city                                        String?
+  county                                      String?
+  country                                     String?                     @default("GB")
+  locationAddress                             String?
+  locationLat                                 Float?
+  locationLng                                 Float?
+  role                                        Role                        @default(USER)
+  accountStatus                               AccountStatus               @default(ACTIVE)
+  emailVerified                               Boolean                     @default(false)
+  emailVerifiedAt                             DateTime?
+  phoneVerified                               Boolean                     @default(false)
+  phoneVerifiedAt                             DateTime?
+  insuranceVerified                           Boolean                     @default(false)
+  idVerified                                  Boolean                     @default(false)
+  rating                                      Float?                      @default(0)
+  totalTransactions                           Int                         @default(0)
+  totalReviews                                Int                         @default(0)
+  createdDate                                 DateTime                    @default(now())
+  updatedDate                                 DateTime                    @default(now())
+  suspendedDate                               DateTime?
+  suspendedReason                             String?
+  username                                    String?                     @unique
+  privacyPolicyAcceptedAt                     DateTime?
+  privacyPolicyVersion                        String?
+  stripeConnectId                             String?                     @unique
+  stripeCustomerId                            String?                     @unique
+  termsAcceptedAt                             DateTime?
+  termsVersion                                String?
+  providerPlan                                ProviderPlan                @default(FREE)
+  stripeSubscriptionId                        String?                     @unique
+  stripeSubscriptionStatus                    String?
+  // FIX: Track when the current subscription period ends to honor paid plans until expiry
+  subscriptionPeriodEnd                       DateTime?
+  defaultPayoutSpeed                          PayoutSpeed                 @default(STANDARD)
+  auditLogs                                  AuditLog[]
+  disputesInitiated        Dispute[]                  @relation("disputes_initiatorIdTousers")
+  disputesAgainst       Dispute[]                  @relation("disputes_respondentIdTousers")
+  disputeEvidence                            DisputeEvidence[]
+  emailVerificationTokens                   EmailVerificationToken[]
+  insuranceDocuments                         InsuranceDocument[]
+  messagesTo        Message[]                  @relation("messages_recipientIdTousers")
+  messagesFrom           Message[]                  @relation("messages_senderIdTousers")
+  notificationPreferences                    NotificationPreference?
+  passwordHistory                            PasswordHistory[]
+  passwordResetTokens                       PasswordResetToken[]
+  pushSubscriptions                          PushSubscription[]
+  quickRebooks                               QuickRebook[]
+  referralsReceived       Referral[]                 @relation("referrals_referredIdTousers")
+  referralsGiven       Referral[]                 @relation("referrals_referrerIdTousers")
+  requestsCreated                                    Request[]
+  reviewsReceived       Review[]                   @relation("reviews_reviewedUserIdTousers")
+  reviewsGiven           Review[]                   @relation("reviews_reviewerIdTousers")
+  savedSearches                              SavedSearch[]
+  services                                    Service[]
+  sessions                                    Session[]
+  spaces                                      Space[]
+  tools                                       Tool[]
+  transactionsAsProvider Transaction[]              @relation("transactions_providerIdTousers")
+  transactions     Transaction[]              @relation("transactions_userIdTousers")
+  badges                                 UserBadge[]
+  stats                                  UserStats?
+  linkedAccounts                              LinkedAccount[]
+  blogPostsCreated                            BlogPost[]                 @relation("blog_posts_createdBy")
+  blogPostsUpdated                            BlogPost[]                 @relation("blog_posts_updatedBy")
+  insuranceClaims                             InsuranceClaim[]           @relation("claimsFiled")
+  insuranceClaimEvidence                      InsuranceClaimEvidence[]
+  bookmarks                                   Bookmark[]
+  invoiceSettings                             InvoiceSettings?
+  tradeAccount                                TradeAccount?
+  teamMemberships                             TeamMember[]
+  invoices                                    Invoice[]
+  aiFeedback                                  AIFeedback[]
+  emailLogs                                   EmailLog[]
+  availabilityHolds                           AvailabilityHold[]
+
+  @@index([accountStatus])
+  @@index([createdDate])
+  @@index([email])
+  @@index([postcode])
+  @@index([accountStatus, createdDate])
+  @@map("users")
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
 }
 
 enum ActivityType {
@@ -676,223 +789,44 @@ enum ActivityType {
   BADGE_EARNED
 }
 
-// ============================================================================
-// GAMIFICATION - USER BADGES & ACHIEVEMENTS
-// ============================================================================
-
-model UserBadge {
-  id        String   @id @default(cuid())
-  userId    String
-  badge     BadgeType
-  earnedAt  DateTime @default(now())
-  metadata  Json?    // Progress data, milestone info
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, badge])
-  @@index([userId])
-  @@map("user_badges")
-}
-
 enum BadgeType {
-  // Onboarding
   EARLY_ADOPTER
   FOUNDING_MEMBER
   PROFILE_COMPLETE
   FIRST_LISTING
   FIRST_REQUEST
-  
-  // Activity milestones
   FIRST_RENTAL
   FIVE_RENTALS
   TEN_RENTALS
   TWENTY_FIVE_RENTALS
   FIFTY_RENTALS
-  CENTURY_CLUB        // 100 rentals
-  
-  // Provider milestones
+  CENTURY_CLUB
   TOOL_PROVIDER
   SPACE_PROVIDER
   SERVICE_PROVIDER
-  SUPER_PROVIDER      // 50+ completed as provider
-  
-  // Quality
+  SUPER_PROVIDER
   FIVE_STAR_RATING
-  TOP_RATED           // Consistent 4.8+ rating
-  QUICK_RESPONDER     // <1hr avg response
-  RELIABLE            // No cancellations
-  
-  // Community
-  HELPFUL_REVIEWER    // 10+ reviews given
-  COMMUNITY_BUILDER   // 5+ referrals
-  LOCAL_HERO          // Top provider in area
-  
-  // Special
+  TOP_RATED
+  QUICK_RESPONDER
+  RELIABLE
+  HELPFUL_REVIEWER
+  COMMUNITY_BUILDER
+  LOCAL_HERO
   VERIFIED_PRO
   BETA_TESTER
 }
 
-// ============================================================================
-// USER STATS (For Gamification & Trust)
-// ============================================================================
-
-model UserStats {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  
-  // Activity counts
-  totalListings         Int      @default(0)
-  totalRequests         Int      @default(0)
-  totalRentalsAsRenter  Int      @default(0)
-  totalRentalsAsProvider Int     @default(0)
-  
-  // Quality metrics
-  averageResponseMinutes Int?    // Avg response time
-  cancellationRate       Float   @default(0)
-  completionRate         Float   @default(100)
-  
-  // Earnings & spending
-  totalEarned           Int      @default(0) // In pence
-  totalSpent            Int      @default(0) // In pence
-  
-  // Streaks & engagement
-  currentStreak         Int      @default(0) // Days active
-  longestStreak         Int      @default(0)
-  lastActiveAt          DateTime @default(now())
-  
-  // Referrals
-  successfulReferrals   Int      @default(0)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_stats")
+enum Category {
+  TOOLS
+  EXPERTISE
+  SPACE
 }
 
-// ============================================================================
-// QUICK REBOOK (Previous Rentals for One-Tap Rebooking)
-// ============================================================================
-
-model QuickRebook {
-  id            String   @id @default(cuid())
-  userId        String
-  listingType   String   // "tool", "space", "service"
-  listingId     String
-  providerId    String
-  lastBookedAt  DateTime
-  bookingCount  Int      @default(1)
-  isFavorite    Boolean  @default(false)
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, listingType, listingId])
-  @@index([userId, lastBookedAt])
-  @@map("quick_rebooks")
-}
-
-// ============================================================================
-// SMART NOTIFICATIONS PREFERENCES
-// ============================================================================
-
-model NotificationPreferences {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  
-  // Request alerts
-  newMatchingRequests   Boolean  @default(true)
-  requestResponses      Boolean  @default(true)
-  
-  // Transaction alerts
-  bookingConfirmations  Boolean  @default(true)
-  bookingReminders      Boolean  @default(true)
-  paymentAlerts         Boolean  @default(true)
-  
-  // Engagement
-  weekendAvailability   Boolean  @default(true) // "Your workshop is empty this weekend"
-  renewalReminders      Boolean  @default(true) // "Your rental ends tomorrow"
-  reviewReminders       Boolean  @default(true)
-  
-  // Marketing
-  tipsAndSuggestions    Boolean  @default(true)
-  communityUpdates      Boolean  @default(false)
-  
-  // Delivery preferences
-  emailEnabled          Boolean  @default(true)
-  pushEnabled           Boolean  @default(true)
-  smsEnabled            Boolean  @default(false)
-  quietHoursStart       Int?     // Hour (0-23)
-  quietHoursEnd         Int?     // Hour (0-23)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("notification_preferences")
-}
-
-// ============================================================================
-// DAILY METRICS (Time-Series Analytics Snapshots)
-// ============================================================================
-
-model DailyMetrics {
-  id              String   @id @default(cuid())
-  date            DateTime @unique
-  totalUsers      Int
-  newUsers        Int
-  activeUsers     Int
-  totalListings   Int
-  totalBookings   Int
-  gmv             Int      // Gross Merchandise Value in pence
-  platformRevenue Int      // Platform fees in pence
-  createdAt       DateTime @default(now())
-
-  @@index([date])
-  @@map("daily_metrics")
-}
-
-// ============================================================================
-// INSURANCE & COMPLIANCE
-// ============================================================================
-
-model InsuranceDocument {
-  id                String          @id @default(cuid())
-  userId            String
-  
-  // Document details
-  documentUrl       String          // S3/R2 URL to uploaded certificate
-  documentType      InsuranceType   @default(PUBLIC_LIABILITY)
-  provider          String?         // Insurance company name
-  policyNumber      String?
-  coverageAmount    Int?            // Coverage amount in pence (e.g., £1M = 100000000)
-  expiryDate        DateTime?
-  
-  // Verification status
-  status            InsuranceStatus @default(PENDING_REVIEW)
-  reviewedAt        DateTime?
-  reviewedBy        String?         // Admin user ID who reviewed
-  rejectionReason   String?         @db.Text
-  
-  // Audit
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-
-  // Relations
-  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, status])
-  @@index([status])
-  @@index([expiryDate])
-  @@map("insurance_documents")
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  CLOSED
 }
 
 enum InsuranceStatus {
@@ -908,4 +842,391 @@ enum InsuranceType {
   EMPLOYERS_LIABILITY
   TOOL_COVER
   OTHER
+}
+
+enum InsuranceClaimType {
+  TOOL_DAMAGE          // Damage to rented tool
+  PROPERTY_DAMAGE      // Damage to property during service
+  PERSONAL_INJURY      // Injury during rental/service
+  THEFT                // Tool theft during rental
+  ACCIDENTAL_DAMAGE    // Accidental damage to third party property
+  OTHER
+}
+
+enum InsuranceClaimStatus {
+  SUBMITTED            // Initial submission
+  UNDER_REVIEW         // Admin is reviewing
+  ADDITIONAL_INFO      // More info needed from claimant
+  APPROVED             // Claim approved, awaiting settlement
+  SETTLED              // Claim paid out
+  REJECTED             // Claim rejected
+  WITHDRAWN            // Claimant withdrew the claim
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  FAILED
+}
+
+enum PayoutSpeed {
+  STANDARD
+  INSTANT
+}
+
+enum ProviderPlan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum RateType {
+  FIXED
+  HOURLY
+  DAILY
+}
+
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+}
+
+enum RequestStatus {
+  ACTIVE
+  FULFILLED
+  EXPIRED
+  CANCELLED
+}
+
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum Urgency {
+  ASAP
+  TODAY
+  THIS_WEEKEND
+  FLEXIBLE
+}
+
+enum BlogPostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model BlogPost {
+  id              String         @id @default(cuid())
+  slug            String         @unique
+  title           String
+  excerpt         String
+  content         String         @db.Text
+  featuredImage   String?
+  category        String
+  tags            String[]
+  author          String
+  authorAvatar    String?
+  readTime        Int            @default(5)
+  status          BlogPostStatus @default(DRAFT)
+  publishedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  createdById     String?
+  updatedById     String?
+  metaTitle       String?
+  metaDescription String?
+  createdBy       User?          @relation("blog_posts_createdBy", fields: [createdById], references: [id])
+  updatedBy       User?          @relation("blog_posts_updatedBy", fields: [updatedById], references: [id])
+
+  @@index([status, publishedAt])
+  @@index([category])
+  @@index([slug])
+  @@map("blog_posts")
+}
+
+model Bookmark {
+  id          String   @id @default(cuid())
+  userId      String
+  requestId   String
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, requestId])
+  @@index([userId])
+  @@index([requestId])
+  @@map("bookmarks")
+}
+
+// ============================================
+// B2B Trade Account & Invoicing Models
+// ============================================
+
+model InvoiceSettings {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  businessName  String?
+  logoUrl       String?
+  address       String?
+  city          String?
+  postcode      String?
+  country       String?  @default("GB")
+  vatNumber     String?
+  vatRegistered Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_settings")
+}
+
+model Invoice {
+  id               String      @id @default(cuid())
+  invoiceNumber    String      @unique
+  transactionId    String
+  userId           String
+  type             InvoiceType
+  recipientName    String
+  recipientAddress String?
+  recipientVat     String?
+  issueDate        DateTime    @default(now())
+  subtotal         Int         // Amount in pence before VAT
+  vatAmount        Int         // VAT amount in pence (20%)
+  totalAmount      Int         // Total in pence including VAT
+  lineItems        Json        // Array of line items
+  pdfUrl           String?
+  purchaseOrder    String?     // B2B purchase order reference
+  createdAt        DateTime    @default(now())
+  transaction      Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([transactionId])
+  @@index([invoiceNumber])
+  @@map("invoices")
+}
+
+enum InvoiceType {
+  RENTER   // Invoice for the customer/renter
+  PROVIDER // Invoice for provider income
+}
+
+// FIX #8: Invoice sequence table to prevent race conditions
+// Guarantees unique invoice numbers even under concurrent requests
+model InvoiceSequence {
+  year       Int      @id // Year (e.g., 2026)
+  lastNumber Int      @default(0) // Last assigned invoice number for this year
+  updatedAt  DateTime @updatedAt
+
+  @@map("invoice_sequences")
+}
+
+model TradeAccount {
+  id                    String       @id @default(cuid())
+  userId                String       @unique
+  accountType           AccountType  @default(INDIVIDUAL)
+  companyName           String?
+  companyRegistrationNo String?
+  vatNumber             String?
+  billingAddress        String?
+  billingCity           String?
+  billingPostcode       String?
+  billingCountry        String?      @default("GB")
+  bulkDiscountPercent   Int          @default(0)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamMembers           TeamMember[]
+
+  @@map("trade_accounts")
+}
+
+enum AccountType {
+  INDIVIDUAL
+  COMPANY
+}
+
+model TeamMember {
+  id             String       @id @default(cuid())
+  tradeAccountId String
+  userId         String
+  email          String       // Email used for invitation
+  role           TeamRole     @default(MEMBER)
+  status         MemberStatus @default(PENDING)
+  invitedAt      DateTime     @default(now())
+  acceptedAt     DateTime?
+  invitedById    String?
+  tradeAccount   TradeAccount @relation(fields: [tradeAccountId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tradeAccountId, userId])
+  @@index([userId])
+  @@index([email])
+  @@map("team_members")
+}
+
+enum TeamRole {
+  ADMIN
+  MEMBER
+}
+
+enum MemberStatus {
+  PENDING
+  ACTIVE
+  REMOVED
+}
+
+// AI Feedback Tracking - for learning and improving AI suggestions
+enum AIFeatureType {
+  LISTING_GENERATION
+  REQUEST_OPTIMIZATION
+  LISTING_IMPROVEMENT
+  MATCHING
+  BUNDLE_SUGGESTION
+  IMAGE_ANALYSIS
+}
+
+enum AIFeedbackAction {
+  PENDING          // AI generated, user hasn't acted yet
+  ACCEPTED_FULL    // User accepted AI output as-is
+  ACCEPTED_PARTIAL // User accepted some fields, modified others
+  REJECTED         // User dismissed AI suggestions
+  REGENERATED      // User asked for new suggestions
+}
+
+model AIFeedback {
+  id             String           @id @default(cuid())
+  userId         String
+  sessionId      String           // Group related interactions
+  featureType    AIFeatureType
+  inputData      Json             // Original user input
+  outputData     Json             // AI-generated result
+  action         AIFeedbackAction @default(PENDING)
+  selectedFields String[]         // Which fields user kept
+  modifiedFields Json?            // What user changed: {field: {original, modified}}
+  finalData      Json?            // What user actually submitted
+  promptVersion  String           // Track which prompt version
+  modelUsed      String           // Which AI model was used
+  latencyMs      Int              // Response time for performance tracking
+  confidence     Float?           // AI's confidence score if available
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([featureType, action])
+  @@index([userId, createdAt])
+  @@index([promptVersion])
+  @@index([createdAt])
+  @@map("ai_feedback")
+}
+
+// ============================================
+// Email Tracking & Reliability System
+// ============================================
+
+enum EmailStatus {
+  QUEUED
+  PROCESSING
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+  CANCELLED
+}
+
+enum EmailPriority {
+  LOW        // Marketing, newsletters
+  NORMAL     // Standard notifications
+  HIGH       // Auth, payment, booking confirmations
+  CRITICAL   // Password reset, security alerts
+}
+
+model EmailLog {
+  id                String       @id @default(cuid())
+  jobId             String       @unique
+  type              String       // 'verification', 'booking-confirmation', etc.
+  recipientEmail    String
+  recipientId       String?      // User ID if known
+  status            EmailStatus  @default(QUEUED)
+  priority          EmailPriority @default(NORMAL)
+  provider          String?      // 'mailtrap', 'resend'
+  providerMessageId String?
+  subject           String?
+  attempts          Int          @default(0)
+  maxAttempts       Int          @default(3)
+  lastAttemptAt     DateTime?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  bouncedAt         DateTime?
+  bounceType        String?      // 'hard', 'soft'
+  bounceReason      String?
+  error             String?
+  metadata          Json?        // Template variables, etc.
+  idempotencyKey    String?      @unique
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  recipient         User?        @relation(fields: [recipientId], references: [id], onDelete: SetNull)
+
+  @@index([recipientEmail])
+  @@index([recipientId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([recipientEmail, createdAt])
+  @@map("email_logs")
+}
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  slug        String   @unique // 'welcome', 'booking-confirmation'
+  name        String
+  subject     String
+  htmlBody    String   @db.Text
+  textBody    String?  @db.Text
+  variables   Json     // Expected variables schema
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  priority    EmailPriority @default(NORMAL)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+
+  @@index([slug, isActive])
+  @@index([isActive])
+  @@map("email_templates")
+}
+
+model EmailBounce {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  bounceType    String   // 'hard', 'soft'
+  bounceCount   Int      @default(1)
+  lastBounceAt  DateTime @default(now())
+  suppressed    Boolean  @default(false)
+  suppressedAt  DateTime?
+  reason        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([email])
+  @@index([suppressed])
+  @@map("email_bounces")
 }

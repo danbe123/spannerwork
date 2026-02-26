@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { messagesService, requestsService } from '@/api/services';
 import useAuth from '@/hooks/use-auth';
@@ -19,7 +19,11 @@ export default function NotificationManager() {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().then(result => {
         setPermission(result);
-      }).catch(() => {
+      }).catch((error: Error) => {
+        // Notification permission denied or unavailable
+        if (import.meta.env.DEV) {
+          console.warn('Notification permission request failed:', error.message);
+        }
         setPermission('denied');
       });
     }
@@ -29,11 +33,13 @@ export default function NotificationManager() {
     queryKey: queryKeys.unreadMessages(),
     queryFn: () => messagesService.getUnreadCount(),
     enabled: !!currentUser,
-    refetchInterval: 5000,
+    // Increased from 5s to 60s - WebSocket handles real-time updates,
+    // this is a fallback for when socket is disconnected
+    refetchInterval: 60000,
   });
 
-  // @ts-expect-error - API returns messages array
-  const messages: Message[] = messagesData?.messages || [];
+  // messagesData may include a messages array for unread count calculations
+  const messages: Message[] = useMemo(() => (messagesData as { messages?: Message[] })?.messages || [], [messagesData]);
 
   const { data: newRequestsData } = useQuery({
     queryKey: queryKeys.newRequests(),
@@ -60,7 +66,9 @@ export default function NotificationManager() {
               tag: latestMessage.id,
             });
           } catch (error) {
-            console.error('Failed to show notification:', error);
+            if (import.meta.env.DEV) {
+              console.error('Failed to show notification:', error);
+            }
           }
         }
 
@@ -112,7 +120,10 @@ export default function NotificationManager() {
                 if (result === 'granted') {
                   toast.success('Notifications enabled!');
                 }
-              }).catch(() => {
+              }).catch((error: Error) => {
+                if (import.meta.env.DEV) {
+                  console.warn('Notification permission request failed:', error.message);
+                }
                 setPermission('denied');
                 toast.error('Notifications not available');
               });

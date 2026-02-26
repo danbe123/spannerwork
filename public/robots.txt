@@ -1,0 +1,9 @@
+# robots.txt for SpannerWork
+# https://www.spannerwork.co.uk
+# TEMPORARY: Site not ready for indexing yet
+
+User-agent: *
+Disallow: /
+
+# Sitemap (for when we're ready to index)
+# Sitemap: https://www.spannerwork.co.uk/sitemap.xml

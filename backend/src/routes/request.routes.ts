@@ -1,12 +1,14 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { requestController } from '../controllers/request.controller.js';
 import { requireAuth, requireEmailVerified, optionalAuth } from '../middleware/auth.middleware.js';
-import { validateBody } from '../middleware/validate.middleware.js';
+import { validateBody, validateQuery } from '../middleware/validate.middleware.js';
 import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
 import { geocodingLimiter } from '../middleware/rateLimit.middleware.js';
+import { noCache } from '../middleware/noCache.middleware.js';
 import {
   createRequestSchema,
   updateRequestSchema,
+  requestListQuerySchema,
 } from '../utils/validation.schemas.js';
 
 const router = Router();
@@ -27,10 +29,14 @@ const conditionalGeoLimiter = (req: Request, res: Response, next: NextFunction):
  * GET /api/v1/requests
  * List all requests with filters and pagination
  * Rate limited when using geo queries (postcode + radius)
+ * No-cache: Feed must always show fresh content
+ * Query parameters validated to prevent injection attacks
  */
 router.get(
   '/',
+  noCache,
   optionalAuth,
+  validateQuery(requestListQuerySchema),
   conditionalGeoLimiter,
   requestController.list.bind(requestController)
 );
@@ -53,9 +59,11 @@ router.post(
 /**
  * GET /api/v1/requests/:id
  * Get request details by ID
+ * No-cache: Request details must always be fresh
  */
 router.get(
   '/:id',
+  noCache,
   optionalAuth,
   requestController.getById.bind(requestController)
 );
@@ -95,6 +103,18 @@ router.post(
   requireAuth,
   verifyCsrfToken,
   requestController.cancel.bind(requestController)
+);
+
+/**
+ * POST /api/v1/requests/:id/complete
+ * Mark request as complete/fulfilled
+ * CSRF protected
+ */
+router.post(
+  '/:id/complete',
+  requireAuth,
+  verifyCsrfToken,
+  requestController.complete.bind(requestController)
 );
 
 export default router;

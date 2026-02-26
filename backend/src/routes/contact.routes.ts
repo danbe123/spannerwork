@@ -3,15 +3,28 @@ import { z } from 'zod';
 import { logger } from '../config/logger.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { emailService } from '../services/email.service.js';
+import { sanitizeUserContent } from '../utils/sanitize.js';
 
 const router = Router();
 
-// Contact form validation schema
+// Contact form validation schema with XSS sanitization
 const contactSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
-  subject: z.string().min(5, 'Subject must be at least 5 characters'),
-  message: z.string().min(10, 'Message must be at least 10 characters'),
+  name: z
+    .string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100)
+    .transform((val) => sanitizeUserContent(val, 100)),
+  email: z.string().email('Invalid email address').max(254),
+  subject: z
+    .string()
+    .min(5, 'Subject must be at least 5 characters')
+    .max(200)
+    .transform((val) => sanitizeUserContent(val, 200)),
+  message: z
+    .string()
+    .min(10, 'Message must be at least 10 characters')
+    .max(5000)
+    .transform((val) => sanitizeUserContent(val, 5000)),
 });
 
 /**

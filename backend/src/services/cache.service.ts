@@ -5,9 +5,10 @@
  * Uses read-through caching pattern with TTL-based invalidation.
  */
 
-import { safeGet, safeSetex, safeDel, isRedisAvailable } from '../config/redis.js';
+import { safeGet, safeSetex, safeDel, isRedisAvailable, redis, prefixKey } from '../config/redis.js';
 import { logger } from '../config/logger.js';
 import { Tool, Space, Service, User } from '@prisma/client';
+import { recordMetric, incrementCounter } from './metrics.service.js';
 
 // Type definitions for cached entities
 type CachedTool = Tool & { owner?: Partial<User> };
@@ -23,7 +24,9 @@ export const CACHE_TTL = {
   LISTING_MEDIUM: 5 * 60,      // 5 minutes - for listing details
   LISTING_LONG: 15 * 60,       // 15 minutes - for list pages
   USER_PROFILE: 5 * 60,        // 5 minutes - for user profiles
+  USER_RATING: 5 * 60,         // 5 minutes - for user ratings (rarely changes)
   STATS: 60,                   // 1 minute - for statistics
+  ANALYTICS: 10 * 60,          // 10 minutes - for analytics dashboards
 } as const;
 
 // Cache key prefixes
@@ -37,24 +40,34 @@ export const CACHE_KEYS = {
   REQUEST: 'request',
   REQUEST_LIST: 'request:list',
   USER: 'user',
+  USER_RATING: 'user:rating',
   STATS: 'stats',
+  ANALYTICS: 'analytics',
 } as const;
 
 /**
- * Generic cache get with JSON parsing
+ * Generic cache get with JSON parsing and hit/miss tracking
  */
 export async function cacheGet<T>(key: string): Promise<T | null> {
   if (!isRedisAvailable()) {
+    incrementCounter('cache.unavailable');
     return null;
   }
 
+  const startTime = Date.now();
   try {
     const cached = await safeGet(key);
+    const duration = Date.now() - startTime;
+    recordMetric('cache.get_latency', duration, { key: key.split(':')[0] });
+
     if (cached) {
+      incrementCounter('cache.hit', 1, { prefix: key.split(':')[0] });
       return JSON.parse(cached) as T;
     }
+    incrementCounter('cache.miss', 1, { prefix: key.split(':')[0] });
     return null;
   } catch (error) {
+    incrementCounter('cache.error');
     logger.error(`Cache get error for key ${key}:`, error);
     return null;
   }
@@ -85,13 +98,37 @@ export async function cacheDelete(key: string): Promise<boolean> {
 }
 
 /**
- * Delete cache entries matching a pattern (simple prefix-based)
+ * Delete cache entries matching a pattern using SCAN (production-safe)
  */
-export async function cacheDeleteByPrefix(prefix: string): Promise<void> {
-  // Note: Redis KEYS command is not recommended for production
-  // In a real application, use SCAN or maintain a set of keys
-  logger.debug(`Cache invalidation requested for prefix: ${prefix}`);
-  // For now, we just log - individual caches will expire naturally
+export async function cacheDeleteByPrefix(prefix: string): Promise<number> {
+  if (!isRedisAvailable()) {
+    return 0;
+  }
+
+  try {
+    let cursor = '0';
+    let deletedCount = 0;
+    const pattern = prefixKey(`${prefix}:*`);
+
+    do {
+      // Use SCAN instead of KEYS for production safety
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = nextCursor;
+
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        deletedCount += keys.length;
+      }
+    } while (cursor !== '0');
+
+    if (deletedCount > 0) {
+      logger.debug(`Cache invalidation: deleted ${deletedCount} keys for prefix: ${prefix}`);
+    }
+    return deletedCount;
+  } catch (error) {
+    logger.error(`Cache delete by prefix error for ${prefix}:`, error);
+    return 0;
+  }
 }
 
 /**
@@ -231,6 +268,61 @@ export class UserCache {
 }
 
 /**
+ * User rating cache - caches aggregate rating data
+ */
+export interface CachedUserRating {
+  rating: number;
+  reviewCount: number;
+  cachedAt: number;
+}
+
+export class UserRatingCache {
+  static async get(userId: string): Promise<CachedUserRating | null> {
+    const key = `${CACHE_KEYS.USER_RATING}:${userId}`;
+    return cacheGet<CachedUserRating>(key);
+  }
+
+  static async set(userId: string, rating: number, reviewCount: number): Promise<void> {
+    const key = `${CACHE_KEYS.USER_RATING}:${userId}`;
+    const data: CachedUserRating = {
+      rating,
+      reviewCount,
+      cachedAt: Date.now(),
+    };
+    await cacheSet(key, data, CACHE_TTL.USER_RATING);
+  }
+
+  static async invalidate(userId: string): Promise<void> {
+    const key = `${CACHE_KEYS.USER_RATING}:${userId}`;
+    await cacheDelete(key);
+  }
+}
+
+/**
+ * Analytics cache - for expensive aggregate queries
+ */
+export class AnalyticsCache {
+  static async get<T>(key: string): Promise<T | null> {
+    const cacheKey = `${CACHE_KEYS.ANALYTICS}:${key}`;
+    return cacheGet<T>(cacheKey);
+  }
+
+  static async set(key: string, data: unknown): Promise<void> {
+    const cacheKey = `${CACHE_KEYS.ANALYTICS}:${key}`;
+    await cacheSet(cacheKey, data, CACHE_TTL.ANALYTICS);
+  }
+
+  static async invalidate(key: string): Promise<void> {
+    const cacheKey = `${CACHE_KEYS.ANALYTICS}:${key}`;
+    await cacheDelete(cacheKey);
+  }
+
+  static async invalidateAll(): Promise<void> {
+    await cacheDeleteByPrefix(CACHE_KEYS.ANALYTICS);
+  }
+}
+
+/**
  * Stats cache
  */
 export class StatsCache {
@@ -251,5 +343,7 @@ export default {
   cacheDelete,
   ListingCache,
   UserCache,
+  UserRatingCache,
+  AnalyticsCache,
   StatsCache,
 };

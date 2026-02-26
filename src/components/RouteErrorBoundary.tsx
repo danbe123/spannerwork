@@ -149,8 +149,10 @@ class RouteErrorBoundaryClass extends Component<RouteErrorBoundaryClassProps, Ro
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    console.error('Route Error:', error, errorInfo);
-    
+    if (import.meta.env.DEV) {
+      console.error('Route Error:', error, errorInfo);
+    }
+
     if (import.meta.env.PROD && window.Sentry) {
       window.Sentry.captureException(error, { extra: errorInfo });
     }

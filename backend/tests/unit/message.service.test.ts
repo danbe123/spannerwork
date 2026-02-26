@@ -42,6 +42,8 @@ vi.mock('../../src/services/websocket.service.js', () => ({
   websocketService: {
     sendToUser: vi.fn(),
   },
+  notifyConversationRead: vi.fn(),
+  notifyMessageRead: vi.fn(),
 }));
 
 import { messageService } from '../../src/services/message.service.js';
@@ -123,6 +125,7 @@ describe('MessageService', () => {
         { id: 'msg-1', senderId: userId, recipientId: otherUserId, content: 'Hi', read: true },
         { id: 'msg-2', senderId: otherUserId, recipientId: userId, content: 'Hello', read: true },
       ];
+      const mockOtherUser = { id: otherUserId, name: 'Other User', avatarUrl: null };
 
       // Mock the $transaction to execute the callback with a mock tx
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
@@ -131,6 +134,9 @@ describe('MessageService', () => {
             findMany: vi.fn().mockResolvedValue(mockMessages),
             count: vi.fn().mockResolvedValue(2),
             updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+          user: {
+            findUnique: vi.fn().mockResolvedValue(mockOtherUser),
           },
         };
         return callback(mockTx);
@@ -143,6 +149,8 @@ describe('MessageService', () => {
     });
 
     it('should paginate results', async () => {
+      const mockOtherUser = { id: otherUserId, name: 'Other User', avatarUrl: null };
+
       // Mock the $transaction to execute the callback with a mock tx
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
@@ -150,6 +158,9 @@ describe('MessageService', () => {
             findMany: vi.fn().mockResolvedValue([]),
             count: vi.fn().mockResolvedValue(0),
             updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          },
+          user: {
+            findUnique: vi.fn().mockResolvedValue(mockOtherUser),
           },
         };
         return callback(mockTx);
@@ -232,17 +243,18 @@ describe('MessageService', () => {
       const mockMessage = {
         id: messageId,
         recipientId: userId,
+        senderId: 'sender-123',
         read: false,
       };
 
       (prisma.message.findUnique as any).mockResolvedValue(mockMessage);
-      (prisma.message.update as any).mockResolvedValue({ ...mockMessage, read: true });
+      (prisma.message.update as any).mockResolvedValue({ ...mockMessage, read: true, readAt: new Date() });
 
       await messageService.markAsRead(messageId, userId);
 
       expect(prisma.message.update).toHaveBeenCalledWith({
         where: { id: messageId },
-        data: { read: true },
+        data: { read: true, readAt: expect.any(Date) },
       });
     });
 
@@ -282,7 +294,10 @@ describe('MessageService', () => {
           recipientId: userId,
           read: false,
         },
-        data: { read: true },
+        data: {
+          read: true,
+          readAt: expect.any(Date),
+        },
       });
     });
   });

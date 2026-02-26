@@ -260,7 +260,7 @@ export default function Referrals() {
               </div>
 
               <div className="flex gap-4">
-                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <span className="text-brand-800 font-bold">3</span>
                 </div>
                 <div>
@@ -285,7 +285,7 @@ export default function Referrals() {
                 {referrals.map((referral) => (
                   <div key={referral.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-orange-100 to-orange-50 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-gradient-to-br from-brand-100 to-brand-50 rounded-full flex items-center justify-center">
                         <Mail className="w-5 h-5 text-brand-800" />
                       </div>
                       <div>

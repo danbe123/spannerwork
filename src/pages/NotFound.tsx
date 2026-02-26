@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Home, ArrowLeft, Search } from "lucide-react";
+import SEO from "@/components/SEO";
 
 /**
  * 404 Not Found page
@@ -14,7 +15,12 @@ export default function NotFound(): JSX.Element {
   };
 
   return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center px-4">
+    <>
+      <SEO
+        title="Page Not Found - SpannerWork"
+        description="The page you're looking for doesn't exist. Return to SpannerWork to find tools, mechanics, and workshop spaces near you."
+      />
+      <div className="min-h-[80vh] flex flex-col items-center justify-center px-4">
       <div className="text-center max-w-md">
         {/* 404 Illustration */}
         <div className="mb-8">
@@ -70,5 +76,6 @@ export default function NotFound(): JSX.Element {
         </p>
       </div>
     </div>
+    </>
   );
 }

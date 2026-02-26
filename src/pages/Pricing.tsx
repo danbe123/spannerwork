@@ -107,7 +107,7 @@ export default function Pricing(): JSX.Element {
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Simple, Transparent Pricing
             </h1>
-            <p className="text-xl text-orange-100 max-w-2xl mx-auto">
+            <p className="text-xl text-brand-100 max-w-2xl mx-auto">
               No subscriptions. No hidden fees. Just a fair 5% platform fee when you make money.
             </p>
           </div>
@@ -131,7 +131,7 @@ export default function Pricing(): JSX.Element {
               <div className="-mt-8 mb-8">
           <div className="grid md:grid-cols-2 gap-6">
             {pricingTiers.map((tier) => (
-              <Card 
+              <Card
                 key={tier.name}
                 className={`relative ${tier.highlighted ? 'border-brand-800 border-2 shadow-xl' : 'shadow-lg'}`}
               >
@@ -144,13 +144,13 @@ export default function Pricing(): JSX.Element {
                   <CardTitle className="text-2xl">{tier.name}</CardTitle>
                   <CardDescription>{tier.description}</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="text-center">
+                <CardContent className="p-6">
+                  <div className="text-center mb-6">
                     <div className="text-4xl font-bold text-gray-900">{tier.price}</div>
                     <div className="text-gray-500 text-sm">{tier.priceDescription}</div>
                   </div>
-                  
-                  <ul className="space-y-3">
+
+                  <ul className="space-y-3 mb-6">
                     {tier.features.map((feature, idx) => (
                       <li key={idx} className="flex items-center gap-3">
                         <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
@@ -158,9 +158,9 @@ export default function Pricing(): JSX.Element {
                       </li>
                     ))}
                   </ul>
-                  
+
                   <Link to={tier.ctaLink}>
-                    <Button 
+                    <Button
                       className={`w-full ${tier.highlighted ? 'bg-brand-800 hover:bg-brand-900' : ''}`}
                       variant={tier.highlighted ? 'default' : 'outline'}
                     >
@@ -178,21 +178,21 @@ export default function Pricing(): JSX.Element {
           <h2 className="text-2xl font-bold text-center mb-8">What's Included</h2>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="text-center p-6">
-              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Shield className="w-6 h-6 text-brand-800" />
               </div>
               <h3 className="font-semibold mb-2">Secure Payments</h3>
               <p className="text-gray-600 text-sm">All transactions protected with bank-level security</p>
             </div>
             <div className="text-center p-6">
-              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Zap className="w-6 h-6 text-brand-800" />
               </div>
               <h3 className="font-semibold mb-2">Instant Matching</h3>
               <p className="text-gray-600 text-sm">Connect with nearby providers in minutes</p>
             </div>
             <div className="text-center p-6">
-              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="w-6 h-6 text-brand-800" />
               </div>
               <h3 className="font-semibold mb-2">Trusted Community</h3>

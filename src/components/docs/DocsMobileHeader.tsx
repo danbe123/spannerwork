@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, Wrench, Home, X } from "lucide-react";
+import { Menu, Wrench, Home, X, Plus, User, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { DOCS_LINK_GROUPS } from "./docsLinks";
+import { DOCS_LINKS } from "./docsLinks";
 
 export default function DocsMobileHeader(): JSX.Element {
   const [open, setOpen] = useState(false);
@@ -45,7 +45,7 @@ export default function DocsMobileHeader(): JSX.Element {
                       <SheetTitle className="text-white text-lg font-bold leading-tight">
                         SpannerWork
                       </SheetTitle>
-                      <p className="text-orange-100 text-xs font-medium truncate">
+                      <p className="text-brand-100 text-xs font-medium truncate">
                         Tools. Skills. Space.
                       </p>
                     </div>
@@ -63,45 +63,84 @@ export default function DocsMobileHeader(): JSX.Element {
               </SheetHeader>
 
               <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-                <Link
-                  to="/"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-orange-50 hover:text-brand-800 transition-colors"
-                >
-                  <Home className="w-5 h-5" />
-                  <span className="font-medium">Home</span>
-                </Link>
-
-                {DOCS_LINK_GROUPS.map((group) => (
-                  <div key={group.title} className="space-y-2">
-                    <p className="text-[11px] font-semibold tracking-wide text-gray-400 px-4">
-                      {group.title}
-                    </p>
-                    <div className="space-y-1">
-                      {group.links.map((link) => {
-                        const isActive = currentPath === link.href.toLowerCase();
-                        return (
-                          <Link
-                            key={link.href}
-                            to={link.href}
-                            onClick={() => setOpen(false)}
-                            className={
-                              "flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors " +
-                              (isActive
-                                ? "bg-orange-50 text-brand-800 font-semibold"
-                                : "text-gray-700 hover:bg-gray-50 hover:text-brand-800")
-                            }
-                          >
-                            <span className="truncate">{link.title}</span>
-                            {isActive && (
-                              <span className="text-[11px] text-gray-400 shrink-0">Current</span>
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </div>
+                {/* Main App Navigation */}
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold tracking-wide text-gray-400 px-4">
+                    QUICK LINKS
+                  </p>
+                  <div className="space-y-1">
+                    <Link
+                      to="/"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-brand-50 hover:text-brand-800 transition-colors"
+                    >
+                      <Home className="w-5 h-5" />
+                      <span className="font-medium">Home</span>
+                    </Link>
+                    <Link
+                      to="/feed"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-brand-50 hover:text-brand-800 transition-colors"
+                    >
+                      <Home className="w-5 h-5" />
+                      <span className="font-medium">Feed</span>
+                    </Link>
+                    <Link
+                      to="/create"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-brand-50 hover:text-brand-800 transition-colors"
+                    >
+                      <Plus className="w-5 h-5" />
+                      <span className="font-medium">Post a Job</span>
+                    </Link>
+                    <Link
+                      to="/messages"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-brand-50 hover:text-brand-800 transition-colors"
+                    >
+                      <MessageSquare className="w-5 h-5" />
+                      <span className="font-medium">Messages</span>
+                    </Link>
+                    <Link
+                      to="/profile"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-brand-50 hover:text-brand-800 transition-colors"
+                    >
+                      <User className="w-5 h-5" />
+                      <span className="font-medium">Profile</span>
+                    </Link>
                   </div>
-                ))}
+                </div>
+
+                {/* Compact Resources Navigation - Single Section */}
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold tracking-wide text-gray-400 px-4">
+                    RESOURCES
+                  </p>
+                  <div className="space-y-1">
+                    {DOCS_LINKS.map((link) => {
+                      const isActive = currentPath === link.href.toLowerCase();
+                      return (
+                        <Link
+                          key={link.href}
+                          to={link.href}
+                          onClick={() => setOpen(false)}
+                          className={
+                            "flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors " +
+                            (isActive
+                              ? "bg-brand-50 text-brand-800 font-semibold"
+                              : "text-gray-700 hover:bg-gray-50 hover:text-brand-800")
+                          }
+                        >
+                          <span className="truncate">{link.title}</span>
+                          {isActive && (
+                            <span className="text-[11px] text-gray-400 shrink-0">Current</span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               </nav>
 
               <div className="p-4 border-t border-gray-100 bg-gray-50">

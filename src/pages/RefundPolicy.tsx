@@ -56,7 +56,7 @@ const refundScenarios: RefundScenario[] = [
   {
     title: "Item not as described",
     icon: AlertCircle,
-    iconColor: "text-orange-500",
+    iconColor: "text-brand-500",
     description: "Full or partial refund if the item or service doesn't match the listing description.",
     refundAmount: "Up to 100% refund",
   },
@@ -109,7 +109,7 @@ export default function RefundPolicy(): JSX.Element {
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Refund Policy
             </h1>
-            <p className="text-xl text-orange-100 max-w-2xl mx-auto">
+            <p className="text-xl text-brand-100 max-w-2xl mx-auto">
               We aim to be fair to both seekers and providers. Here's how refunds work on SpannerWork.
             </p>
           </div>
@@ -154,7 +154,7 @@ export default function RefundPolicy(): JSX.Element {
                               scenario.refundAmount.includes('100%') ? 'bg-green-100 text-green-700' :
                               scenario.refundAmount.includes('50%') ? 'bg-yellow-100 text-yellow-700' :
                               scenario.refundAmount.includes('No') ? 'bg-red-100 text-red-700' :
-                              'bg-orange-100 text-orange-700'
+                              'bg-brand-100 text-brand-700'
                             }`}>
                               {scenario.refundAmount}
                             </span>
@@ -202,7 +202,7 @@ export default function RefundPolicy(): JSX.Element {
               </div>
 
               {/* Contact CTA */}
-              <Card className="bg-gradient-to-r from-brand-50 to-orange-50 border-brand-100">
+              <Card className="bg-gradient-to-r from-brand-50 to-brand-50 border-brand-100">
                 <CardContent className="p-8 text-center">
                   <HelpCircle className="w-12 h-12 text-brand-800 mx-auto mb-4" />
                   <h3 className="text-xl font-bold mb-2">Need Help with a Refund?</h3>

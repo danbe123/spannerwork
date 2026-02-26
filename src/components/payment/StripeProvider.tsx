@@ -33,7 +33,9 @@ async function getStripePromise(): Promise<Stripe | null> {
       return stripePromise;
     }
   } catch (error) {
-    console.warn('Failed to load Stripe config:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Failed to load Stripe config:', error);
+    }
   }
 
   return null;

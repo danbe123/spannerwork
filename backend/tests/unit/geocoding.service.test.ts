@@ -22,6 +22,8 @@ vi.mock('../../src/config/env.js', () => ({
 const mockRedisGet = vi.hoisted(() => vi.fn());
 const mockRedisSetex = vi.hoisted(() => vi.fn());
 const mockRedisExists = vi.hoisted(() => vi.fn());
+const mockSafeGet = vi.hoisted(() => vi.fn());
+const mockSafeSetex = vi.hoisted(() => vi.fn());
 
 vi.mock('../../src/config/redis.js', () => ({
   redis: {
@@ -29,6 +31,9 @@ vi.mock('../../src/config/redis.js', () => ({
     setex: mockRedisSetex,
     exists: mockRedisExists,
   },
+  safeGet: mockSafeGet,
+  safeSetex: mockSafeSetex,
+  prefixKey: vi.fn((key: string) => key),
 }));
 
 // Mock global fetch
@@ -44,6 +49,8 @@ describe('Geocoding Service', () => {
     mockRedisGet.mockResolvedValue(null);
     mockRedisSetex.mockResolvedValue('OK');
     mockRedisExists.mockResolvedValue(0);
+    mockSafeGet.mockResolvedValue(null);
+    mockSafeSetex.mockResolvedValue('OK');
   });
 
   afterEach(() => {
@@ -53,11 +60,11 @@ describe('Geocoding Service', () => {
   describe('geocodePostcode', () => {
     it('returns cached result if available', async () => {
       const cachedResult = { lat: 51.5074, lng: -0.1278, address: 'London, UK' };
-      mockRedisGet.mockResolvedValue(JSON.stringify(cachedResult));
+      mockSafeGet.mockResolvedValue(JSON.stringify(cachedResult));
 
       const result = await geocodingService.geocodePostcode('SW1A 1AA');
 
-      expect(mockRedisGet).toHaveBeenCalledWith('geocode:SW1A 1AA');
+      expect(mockSafeGet).toHaveBeenCalledWith('geocode:SW1A 1AA');
       expect(result).toEqual(cachedResult);
       expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('cache hit'));
     });
@@ -73,7 +80,7 @@ describe('Geocoding Service', () => {
 
       await geocodingService.geocodePostcode('  sw1a 1aa  ');
 
-      expect(mockRedisGet).toHaveBeenCalledWith('geocode:SW1A 1AA');
+      expect(mockSafeGet).toHaveBeenCalledWith('geocode:SW1A 1AA');
     });
 
     it('geocodes using Postcodes.io as fallback', async () => {
@@ -113,7 +120,7 @@ describe('Geocoding Service', () => {
 
       await geocodingService.geocodePostcode('EC1A 1BB');
 
-      expect(mockRedisSetex).toHaveBeenCalledWith(
+      expect(mockSafeSetex).toHaveBeenCalledWith(
         'geocode:EC1A 1BB',
         30 * 24 * 60 * 60, // 30 days in seconds
         expect.any(String)

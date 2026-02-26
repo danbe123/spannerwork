@@ -4,6 +4,7 @@
 
 import { motion } from "framer-motion";
 import { Camera, Eye, Heart, MessageCircle, Share2 } from "lucide-react";
+import { OptimizedImage } from "@/components/ui/optimized-image";
 import { NeedData, OfferData } from "./types";
 
 interface LivePreviewCardProps {
@@ -46,7 +47,7 @@ export function LivePreviewCard({ intent, category, data, photos }: LivePreviewC
         {/* Photos Preview */}
         {photos && photos.length > 0 ? (
           <div className="aspect-video rounded-lg overflow-hidden mb-3 bg-gray-100">
-            <img src={photos[0]} alt="" className="w-full h-full object-cover" />
+            <OptimizedImage src={photos[0]} alt="" sizes="card" aspectRatio="16/9" className="w-full h-full" />
           </div>
         ) : (
           <div className="aspect-video rounded-lg bg-gradient-to-br from-gray-100 to-gray-50 mb-3 flex items-center justify-center">
@@ -75,7 +76,7 @@ export function LivePreviewCard({ intent, category, data, photos }: LivePreviewC
             </span>
           )}
           {category && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-medium">
+            <span className="inline-flex items-center px-2 py-1 rounded-full bg-brand-100 text-brand-700 text-xs font-medium">
               {category === "TOOLS" || category === "tool" ? "Tool" : 
                category === "SPACE" || category === "space" ? "Space" : 
                category === "EXPERTISE" || category === "service" ? "Service" : ""}

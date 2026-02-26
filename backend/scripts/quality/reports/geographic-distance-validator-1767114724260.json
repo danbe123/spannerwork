@@ -1,0 +1,165 @@
+{
+  "suite": "Geographic Distance Validator",
+  "timestamp": "2025-12-30T17:12:04.239Z",
+  "totalTests": 22,
+  "passed": 22,
+  "failed": 0,
+  "score": 100,
+  "duration": 3,
+  "results": [
+    {
+      "name": "Same point = 0 distance",
+      "category": "Basic Distance",
+      "passed": true,
+      "score": 100,
+      "details": "Same point should have 0 distance"
+    },
+    {
+      "name": "Very close points (<0.1 miles)",
+      "category": "Basic Distance",
+      "passed": true,
+      "score": 100,
+      "details": "Big Ben to London Eye: 0.28 miles"
+    },
+    {
+      "name": "London to Manchester",
+      "category": "Basic Distance",
+      "passed": true,
+      "score": 100,
+      "details": "London to Manchester: 162.8 miles"
+    },
+    {
+      "name": "London to Edinburgh",
+      "category": "Basic Distance",
+      "passed": true,
+      "score": 100,
+      "details": "London to Edinburgh: 331.6 miles"
+    },
+    {
+      "name": "Known: London (Trafalgar Square) → Manchester",
+      "category": "Known Distances",
+      "passed": true,
+      "score": 100,
+      "details": "London (Trafalgar Square) to Manchester: 162.8 miles"
+    },
+    {
+      "name": "Known: London (Trafalgar Square) → Birmingham",
+      "category": "Known Distances",
+      "passed": true,
+      "score": 100,
+      "details": "London (Trafalgar Square) to Birmingham: 101.0 miles"
+    },
+    {
+      "name": "Known: London (Trafalgar Square) → Edinburgh",
+      "category": "Known Distances",
+      "passed": true,
+      "score": 100,
+      "details": "London (Trafalgar Square) to Edinburgh: 331.6 miles"
+    },
+    {
+      "name": "Known: London (Trafalgar Square) → Bristol",
+      "category": "Known Distances",
+      "passed": true,
+      "score": 100,
+      "details": "London (Trafalgar Square) to Bristol: 105.9 miles"
+    },
+    {
+      "name": "Known: Manchester → Leeds",
+      "category": "Known Distances",
+      "passed": true,
+      "score": 100,
+      "details": "Manchester to Leeds: 36.0 miles"
+    },
+    {
+      "name": "Known: Manchester → Liverpool",
+      "category": "Known Distances",
+      "passed": true,
+      "score": 100,
+      "details": "Manchester to Liverpool: 31.2 miles"
+    },
+    {
+      "name": "Known: Edinburgh → Glasgow",
+      "category": "Known Distances",
+      "passed": true,
+      "score": 100,
+      "details": "Edinburgh to Glasgow: 41.6 miles"
+    },
+    {
+      "name": "Radius: 1 mile precision",
+      "category": "Search Radius",
+      "passed": true,
+      "score": 100,
+      "details": "1 mile radius boundary correctly detected"
+    },
+    {
+      "name": "Radius: 5 mile typical search",
+      "category": "Search Radius",
+      "passed": true,
+      "score": 100,
+      "details": "Tower Bridge should be within 5 miles of central London"
+    },
+    {
+      "name": "Radius: 50 mile wide search",
+      "category": "Search Radius",
+      "passed": true,
+      "score": 100,
+      "details": "Bristol should be outside 50 mile radius of London"
+    },
+    {
+      "name": "Radius: 0 mile (exact location)",
+      "category": "Search Radius",
+      "passed": true,
+      "score": 100,
+      "details": "0 radius should only match exact coordinates"
+    },
+    {
+      "name": "Symmetry: A→B = B→A",
+      "category": "Edge Cases",
+      "passed": true,
+      "score": 100,
+      "details": "Distance should be symmetric"
+    },
+    {
+      "name": "Negative longitude (UK)",
+      "category": "Edge Cases",
+      "passed": true,
+      "score": 100,
+      "details": "Negative longitude calculation works: 162.8 miles"
+    },
+    {
+      "name": "Extreme: UK to antipodal point",
+      "category": "Edge Cases",
+      "passed": true,
+      "score": 100,
+      "details": "Antipodal distance: 12437 miles"
+    },
+    {
+      "name": "Equator crossing",
+      "category": "Edge Cases",
+      "passed": true,
+      "score": 100,
+      "details": "Equator crossing: 138.2 miles"
+    },
+    {
+      "name": "Prime Meridian crossing",
+      "category": "Edge Cases",
+      "passed": true,
+      "score": 100,
+      "details": "London to Paris: 213.5 miles"
+    },
+    {
+      "name": "Precision: 6 decimal places",
+      "category": "Precision",
+      "passed": true,
+      "score": 100,
+      "details": "Sub-meter precision: 0.4 feet"
+    },
+    {
+      "name": "Precision: 2 decimal places",
+      "category": "Precision",
+      "passed": true,
+      "score": 100,
+      "details": "Coarse precision: 0.81 miles"
+    }
+  ]
+}

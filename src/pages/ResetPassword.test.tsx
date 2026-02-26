@@ -10,7 +10,7 @@ vi.mock('@/api/services', () => ({
 
 const { authService } = await import('@/api/services')
 
-function wrap(route) {
+function wrap(route: string) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   window.history.pushState({}, '', route)
   return render(

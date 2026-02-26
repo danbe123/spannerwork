@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { messageService } from '../services/message.service.js';
 import { logger } from '../config/logger.js';
+import { unifiedNotificationService } from '../services/unifiedNotification.service.js';
+import { isUserOnline } from '../services/websocket.service.js';
 
 export class MessageController {
   /**
@@ -25,6 +27,25 @@ export class MessageController {
         recipientId,
         content,
       });
+
+      // Send notification to recipient (async - don't await to not slow down response)
+      // Only send email if user is offline - online users get real-time WebSocket notification
+      const recipientOnline = isUserOnline(recipientId);
+
+      if (recipientOnline) {
+        // User is online - they'll see the message in real-time via WebSocket
+        // No need for email notification
+        logger.debug(`Skipping email for message to ${recipientId} - user is online`);
+      } else {
+        // User is offline - send email notification
+        unifiedNotificationService.templates.newMessage(
+          recipientId,
+          message.sender.name || 'Someone',
+          content
+        ).catch(err => {
+          logger.error('Failed to send new message notification:', err);
+        });
+      }
 
       return res.status(201).json({
         message: 'Message sent',
@@ -62,6 +83,10 @@ export class MessageController {
         limit: limit ? parseInt(limit as string) : undefined,
       });
 
+      // Prevent browser/proxy caching - messages must always be fresh
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
       return res.json(result);
     } catch (error) {
       logger.error('Error getting conversation:', error);
@@ -82,6 +107,10 @@ export class MessageController {
 
       const conversations = await messageService.listConversations(userId);
 
+      // Prevent browser/proxy caching - conversations must always be fresh
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
       return res.json({ conversations });
     } catch (error) {
       logger.error('Error listing conversations:', error);
@@ -157,6 +186,10 @@ export class MessageController {
 
       const count = await messageService.getUnreadCount(userId);
 
+      // Prevent browser/proxy caching - unread count must always be fresh
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
       return res.json({ unreadCount: count });
     } catch (error) {
       logger.error('Error getting unread count:', error);

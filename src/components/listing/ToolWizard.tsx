@@ -126,7 +126,7 @@ const CONDITIONS = [
     label: 'Fair', 
     description: 'Visible wear, works well',
     priceMultiplier: 0.65,
-    color: 'text-orange-600 bg-orange-50',
+    color: 'text-brand-600 bg-brand-50',
   },
 ];
 
@@ -297,7 +297,7 @@ function StepProgress({ steps, currentStep, onStepClick }: StepProgressProps) {
                   ${isComplete 
                     ? 'bg-green-500 text-white' 
                     : isCurrent 
-                      ? 'bg-brand-800 text-white ring-4 ring-orange-100' 
+                      ? 'bg-brand-800 text-white ring-4 ring-brand-100' 
                       : 'bg-gray-100 text-gray-400'
                   }
                 `}
@@ -374,7 +374,7 @@ export default function ToolWizard() {
     if (userData?.user?.postcode && !postcode) {
       setPostcode(userData.user.postcode);
     }
-  }, [userData]);
+  }, [userData, postcode]);
 
   // Calculate suggested weekly rate
   const suggestedWeeklyRate = formData.dailyRate 
@@ -410,10 +410,12 @@ export default function ToolWizard() {
       }
       setErrors(prev => ({ ...prev, photos: '' }));
     } catch (error) {
-      console.error('Upload failed:', error);
+      if (import.meta.env.DEV) {
+        console.error('Upload failed:', error);
+      }
       setErrors(prev => ({ ...prev, photos: 'Upload failed. Please try again.' }));
     }
-    
+
     setIsUploading(false);
   };
 
@@ -522,7 +524,7 @@ export default function ToolWizard() {
         <FieldLabel
           label="Tool Name"
           required
-          tooltip="Be specific! Include the brand and type. Good names get 3x more views."
+          tooltip="Include brand and model for best results. Specific names like 'Makita 18V Impact Driver' get 3x more views than generic ones."
         />
         <Input
           placeholder="e.g., Bosch GWS 18V-10 Angle Grinder"
@@ -533,8 +535,8 @@ export default function ToolWizard() {
         {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
         {formData.name.length > 5 && formData.name.length < 20 && (
           <ProTip>
-            <strong>Tip:</strong> Include the brand and model number. Renters search for specific tools
-            like &quot;Snap-on torque wrench&quot; rather than just &quot;torque wrench&quot;.
+            <strong>Tip:</strong> Add the brand and model number. Renters often search for specific tools
+            like &quot;DeWalt 20V Max drill&quot; rather than just &quot;cordless drill&quot;.
           </ProTip>
         )}
       </div>
@@ -583,7 +585,7 @@ export default function ToolWizard() {
               className={`
                 p-4 rounded-xl border-2 text-left transition-all
                 ${formData.category === cat.value
-                  ? 'border-brand-800 bg-orange-50'
+                  ? 'border-brand-800 bg-brand-50'
                   : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }
               `}
@@ -606,7 +608,7 @@ export default function ToolWizard() {
         <FieldLabel
           label="Condition"
           required
-          tooltip="Be honest! Accurate condition descriptions lead to better reviews and fewer disputes."
+          tooltip="Honest descriptions build trust. Renters appreciate transparency about wear and tear, leading to better reviews and fewer disputes."
         />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {CONDITIONS.map((cond) => (
@@ -617,7 +619,7 @@ export default function ToolWizard() {
               className={`
                 p-4 rounded-xl border-2 text-center transition-all
                 ${formData.condition === cond.value
-                  ? 'border-brand-800 bg-orange-50'
+                  ? 'border-brand-800 bg-brand-50'
                   : 'border-gray-200 hover:border-gray-300'
                 }
               `}
@@ -637,7 +639,7 @@ export default function ToolWizard() {
         <FieldLabel
           label="Description"
           required
-          tooltip="Include what's included, what projects it's good for, and any special features. Detailed descriptions get 40% more bookings!"
+          tooltip="Mention what's included (case, batteries, accessories), ideal use cases, and any specifications. Listings with detailed descriptions get 40% more bookings."
         />
         <textarea
           placeholder="Describe your tool in detail. What's included? What's it great for? Any special features or notes?"
@@ -650,10 +652,10 @@ export default function ToolWizard() {
           <div>
             {errors.description && <p className="text-red-500 text-sm">{errors.description}</p>}
             {formData.description.length >= 30 && formData.description.length < 100 && (
-              <FieldSuccess message="Good start! Add more detail for better results." />
+              <FieldSuccess message="Good start! Add more detail about accessories and use cases." />
             )}
             {formData.description.length >= 100 && (
-              <FieldSuccess message="Great description!" />
+              <FieldSuccess message="Excellent description - this will help renters find your tool!" />
             )}
           </div>
           <span className="text-sm text-gray-400">{formData.description.length}/1000</span>
@@ -703,8 +705,8 @@ export default function ToolWizard() {
           <div>
             <h3 className="font-semibold text-blue-900 mb-1">Photo Tips for More Bookings</h3>
             <p className="text-sm text-blue-700">
-              Listings with 3+ quality photos get <strong>5x more enquiries</strong>. 
-              Use good lighting and show the tool from multiple angles.
+              Listings with 3+ clear photos get <strong>5x more enquiries</strong>.
+              Use natural lighting and show the tool from multiple angles including any accessories.
             </p>
           </div>
         </div>
@@ -718,7 +720,7 @@ export default function ToolWizard() {
             <div 
               key={index}
               className={`flex items-start gap-3 p-3 rounded-lg ${
-                tip.required ? 'bg-orange-50 border border-orange-200' : 'bg-gray-50'
+                tip.required ? 'bg-brand-50 border border-brand-200' : 'bg-gray-50'
               }`}
             >
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
@@ -767,8 +769,8 @@ export default function ToolWizard() {
               <label className={`
                 aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all
                 ${isUploading 
-                  ? 'border-brand-800 bg-orange-50' 
-                  : 'border-gray-300 hover:border-brand-800 hover:bg-orange-50'
+                  ? 'border-brand-800 bg-brand-50' 
+                  : 'border-gray-300 hover:border-brand-800 hover:bg-brand-50'
                 }
               `}>
                 {isUploading ? (
@@ -801,7 +803,7 @@ export default function ToolWizard() {
 
           {photos.length >= 2 && photos.length < 4 && (
             <ProTip icon={Star}>
-              You&apos;re doing great! Adding 1-2 more photos can increase your booking rate by 30%.
+              Looking good! Adding 1-2 more photos showing accessories or the tool in use can boost your booking rate by 30%.
             </ProTip>
           )}
         </div>
@@ -830,7 +832,7 @@ export default function ToolWizard() {
         <FieldLabel
           label="Daily Rate"
           required
-          tooltip="The amount you'll earn per day. Consider your tool's value, condition, and local competition."
+          tooltip="Your daily rental earnings. Consider replacement value, condition, and what similar tools rent for locally."
         />
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg font-medium">£</span>
@@ -851,7 +853,7 @@ export default function ToolWizard() {
       <div>
         <FieldLabel
           label="Weekly Rate"
-          tooltip="Offer a discount for longer rentals. Most renters expect ~15-20% off for a full week."
+          tooltip="Offer a discount for longer rentals - most owners charge 5x the daily rate for a week (saving renters 2 days)."
         />
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">£</span>
@@ -930,7 +932,7 @@ export default function ToolWizard() {
         <FieldLabel
           label="Your Location"
           required
-          tooltip="We only show your general area to renters, never your exact address until a booking is confirmed."
+          tooltip="Only your general area is shown publicly. Your exact address is shared only after a booking is confirmed."
         />
         <div className="relative">
           <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -993,7 +995,7 @@ export default function ToolWizard() {
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
         <p className="text-sm text-blue-800">
           <Info className="w-4 h-4 inline mr-1" />
-          These optional extras can help your listing stand out and earn more.
+          Optional add-ons that can help your listing stand out and increase your earnings per booking.
         </p>
       </div>
 
@@ -1070,8 +1072,8 @@ export default function ToolWizard() {
                 />
               </div>
               <ProTip>
-                Offering training is a great way to earn extra and helps less experienced 
-                renters feel confident. It also reduces the chance of damage!
+                Training sessions earn you extra income while helping renters use your tool safely.
+                This builds trust and significantly reduces the risk of damage.
               </ProTip>
             </motion.div>
           )}

@@ -33,6 +33,8 @@ export interface NeedData {
   urgency: string;
   broadcastRadius: number;
   nationwideSearch: boolean;
+  sponsorEnabled: boolean;
+  sponsorCpaPercent: number;
 }
 
 export interface OfferData {
@@ -49,6 +51,8 @@ export interface OfferData {
   features: string[];
   specialties: string[];
   radius: number;
+  sponsorEnabled: boolean;
+  sponsorCpaPercent: number;
 }
 
 export interface FormErrors {
@@ -115,7 +119,9 @@ export const INITIAL_NEED_DATA: NeedData = {
   rateType: "FIXED",
   urgency: "FLEXIBLE",
   broadcastRadius: 25,
-  nationwideSearch: false
+  nationwideSearch: false,
+  sponsorEnabled: false,
+  sponsorCpaPercent: 5
 };
 
 export const INITIAL_OFFER_DATA: OfferData = {
@@ -131,7 +137,9 @@ export const INITIAL_OFFER_DATA: OfferData = {
   toolCategory: "",
   features: [],
   specialties: [],
-  radius: 15
+  radius: 15,
+  sponsorEnabled: false,
+  sponsorCpaPercent: 5
 };
 
 // ============================================
@@ -260,23 +268,44 @@ export const TOOL_CATEGORIES = [
 ];
 
 export const TOOL_CONDITIONS: ToolConditionOption[] = [
-  { value: "NEW", label: "Like New", description: "Barely used" },
-  { value: "EXCELLENT", label: "Excellent", description: "Great condition" },
+  { value: "NEW", label: "New", description: "Brand new, unused" },
+  { value: "LIKE_NEW", label: "Like New", description: "Barely used" },
   { value: "GOOD", label: "Good", description: "Normal wear" },
-  { value: "FAIR", label: "Fair", description: "Works well" }
+  { value: "FAIR", label: "Fair", description: "Works well" },
+  { value: "POOR", label: "Poor", description: "Heavy wear" }
 ];
 
 export const SPACE_FEATURES = [
+  // Lifting & Access
   "2-Post Lift",
   "4-Post Lift",
+  "Scissor Lift",
   "Inspection Pit",
+  "Engine Crane",
+  // Workshop Equipment
+  "Parts Washer",
+  "Bench Vice",
+  "Workbench",
   "Air Compressor",
+  "Welding Bay",
+  "Tyre Changer",
+  "Wheel Balancer",
+  "Brake Lathe",
+  "Oil Drain",
+  "Extraction Fan",
+  "Pressure Washer",
+  // Utilities & Amenities
+  "3-Phase Power",
   "Power Supply",
+  "Good Lighting",
+  "Heating",
   "WiFi",
+  "Water Supply",
+  "Toilet",
   "Parking",
-  "24/7 Access",
   "Tool Storage",
-  "Waiting Area"
+  "Waiting Area",
+  "24/7 Access"
 ];
 
 export const SERVICE_SPECIALTIES = [

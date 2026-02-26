@@ -109,8 +109,8 @@ function ReviewCard({ review, isHighlighted = false }: { review: Review; isHighl
       
       <div className="flex items-start gap-4">
         <Avatar className="w-10 h-10">
-          <AvatarImage src={review.reviewerAvatar || review.reviewer?.avatar} />
-          <AvatarFallback className="bg-gradient-to-br from-orange-100 to-amber-100 text-brand-800">
+          <AvatarImage src={review.reviewerAvatar ?? review.reviewer?.avatar ?? undefined} />
+          <AvatarFallback className="bg-gradient-to-br from-brand-100 to-amber-100 text-brand-800">
             {reviewerInitial}
           </AvatarFallback>
         </Avatar>

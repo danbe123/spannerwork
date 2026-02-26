@@ -42,10 +42,10 @@ export default function ProviderGuide(): JSX.Element {
         "Use a plain, uncluttered background - a white wall or workbench works well. Avoid busy backgrounds that distract from your item."
       ],
       tips: [
-        "Smartphone cameras are fine - just ensure the lens is clean",
-        "Show scale by including a common object nearby",
-        "Photograph accessories and included items separately",
-        "Update photos seasonally to keep listings fresh"
+        "Modern smartphone cameras work great - just clean the lens first",
+        "Show scale by placing a coin or ruler next to the item",
+        "Photograph each accessory and case separately for completeness",
+        "Refresh your photos every few months to keep listings looking current"
       ]
     },
     {
@@ -59,10 +59,10 @@ export default function ProviderGuide(): JSX.Element {
         "Describe typical use cases to help renters understand if the item suits their needs."
       ],
       tips: [
-        "Use bullet points for specifications - easy to scan",
-        "Include the original purchase price for context",
-        "Mention any maintenance you've done recently",
-        "Add keywords renters might search for"
+        "Use bullet points for specs - renters scan quickly",
+        "Mention original purchase price to show value",
+        "Note recent maintenance or servicing performed",
+        "Include brand names and model numbers renters search for"
       ]
     },
     {
@@ -76,10 +76,10 @@ export default function ProviderGuide(): JSX.Element {
         "New listings benefit from slightly lower introductory rates to build reviews quickly."
       ],
       tips: [
-        "Offer a 10% discount for first-time renters",
-        "Bundle complementary items at a reduced rate",
-        "Review and adjust pricing quarterly",
-        "Premium brands can command 20-30% higher rates"
+        "Offer 10-15% off for first-time renters to build reviews",
+        "Bundle related tools together at a discounted package rate",
+        "Review your rates quarterly based on demand and competition",
+        "Quality brands like Snap-on, DeWalt, Makita justify 20-30% premiums"
       ]
     },
     {
@@ -93,10 +93,10 @@ export default function ProviderGuide(): JSX.Element {
         "Consider requiring proof of experience for specialist equipment like welding gear or diagnostic tools."
       ],
       tips: [
-        "Create a simple handover checklist",
-        "Keep serial numbers documented",
-        "Check your home insurance covers rentals",
-        "Start with lower-value items to vet new renters"
+        "Create a simple checklist to verify condition at handover",
+        "Keep a record of serial numbers and receipts for all items",
+        "Confirm your home insurance covers peer-to-peer rental",
+        "Test new renters with mid-value items before lending premium gear"
       ]
     },
     {
@@ -110,10 +110,10 @@ export default function ProviderGuide(): JSX.Element {
         "After return, inspect the item promptly and process the deposit return quickly to maintain good ratings."
       ],
       tips: [
-        "Set realistic pickup/return windows",
-        "Have a backup contact method for emergencies",
-        "Block out maintenance days in your calendar",
-        "Thank renters personally - it encourages reviews"
+        "Offer flexible pickup windows - evenings and weekends work best",
+        "Share your mobile number for urgent booking communications",
+        "Block calendar dates when items need servicing or maintenance",
+        "Send a personal thank you message - it dramatically boosts reviews"
       ]
     },
     {
@@ -127,10 +127,10 @@ export default function ProviderGuide(): JSX.Element {
         "Build relationships with repeat customers. Loyalty discounts keep your equipment in regular use."
       ],
       tips: [
-        "A handwritten thank-you note makes an impression",
-        "Share your expertise - renters appreciate tips",
-        "Cross-promote complementary items you list",
-        "Join local maker/DIY communities for referrals"
+        "A quick thank-you message after return leaves a lasting impression",
+        "Share usage tips and safety advice - renters really appreciate this",
+        "Mention your other listings when items complement each other",
+        "Connect with local maker spaces and car clubs for word-of-mouth referrals"
       ]
     }
   ];
@@ -162,7 +162,7 @@ export default function ProviderGuide(): JSX.Element {
             </div>
             <div>
               <h1 className="text-4xl md:text-5xl font-bold">Provider's Guide</h1>
-              <p className="text-xl text-orange-100 mt-2">Everything you need to succeed as a SpannerWork provider</p>
+              <p className="text-xl text-brand-100 mt-2">Expert tips and strategies to maximise your earnings on SpannerWork</p>
             </div>
           </div>
         </div>
@@ -183,17 +183,17 @@ export default function ProviderGuide(): JSX.Element {
 
           <div className="min-w-0 flex-1">
             {/* Introduction */}
-        <Card className="mb-12 border-none shadow-lg bg-gradient-to-br from-orange-50 to-amber-50">
+        <Card className="mb-12 border-none shadow-lg bg-gradient-to-br from-brand-50 to-brand-100">
           <CardContent className="p-8">
             <div className="flex items-start gap-4">
               <Lightbulb className="w-8 h-8 text-brand-800 flex-shrink-0" />
               <div>
                 <h2 className="text-xl font-bold mb-2">Why Become a Provider?</h2>
                 <p className="text-gray-700">
-                  Your tools spend most of their time sitting idle. SpannerWork lets you turn that 
-                  downtime into income while helping fellow mechanics and DIY enthusiasts complete 
-                  their projects. Whether you have specialist diagnostic equipment, rarely-used 
-                  power tools, or professional-grade kit, there's demand in your area.
+                  Your tools and equipment sit idle most of the time. SpannerWork helps you turn that
+                  downtime into a reliable income stream while connecting with fellow mechanics, tradespeople,
+                  and DIY enthusiasts. Whether you have specialist diagnostic equipment, professional-grade
+                  power tools, or a well-equipped workshop space, there's strong demand in your local area.
                 </p>
               </div>
             </div>
@@ -251,14 +251,14 @@ export default function ProviderGuide(): JSX.Element {
           <CardContent className="p-12 text-center">
             <TrendingUp className="w-16 h-16 mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-4">Ready to Start Earning?</h2>
-            <p className="text-xl text-orange-100 mb-8">
-              List your first item in under 5 minutes
+            <p className="text-xl text-brand-100 mb-8">
+              Create your first listing in under 5 minutes and start earning from day one
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => navigate("/create?intent=offer")}
                 size="lg"
-                className="bg-white text-brand-800 hover:bg-orange-50 text-lg px-8 py-6 font-bold"
+                className="bg-white text-brand-800 hover:bg-brand-50 text-lg px-8 py-6 font-bold"
               >
                 Create Your First Listing
               </Button>

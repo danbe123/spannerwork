@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, type Mock } from 'vitest'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -8,6 +8,7 @@ vi.mock('@/api/services/auth', () => ({
   authService: { getCurrentUser: vi.fn() },
 }))
 const { authService } = await import('@/api/services/auth')
+const getCurrentUserMock = authService.getCurrentUser as Mock
 
 function LocationDebugger() {
   const loc = useLocation()
@@ -19,7 +20,7 @@ function LocationDebugger() {
 }
 
 describe('RequireAuth', () => {
-  function renderWithClient(children, initial = '/CreateRequest') {
+  function renderWithClient(children: React.ReactNode, initial = '/CreateRequest') {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(
       <QueryClientProvider client={qc}>
@@ -34,7 +35,7 @@ describe('RequireAuth', () => {
   }
 
   it('redirects to /profile with encoded redirect param when not authenticated', async () => {
-    authService.getCurrentUser.mockRejectedValueOnce({ status: 401 })
+    getCurrentUserMock.mockRejectedValueOnce({ status: 401 })
 
     renderWithClient(
       <RequireAuth>
@@ -52,7 +53,7 @@ describe('RequireAuth', () => {
   })
 
   it('renders children when authenticated', async () => {
-    authService.getCurrentUser.mockResolvedValueOnce({ user: { id: 'u1' } })
+    getCurrentUserMock.mockResolvedValueOnce({ user: { id: 'u1' } })
 
     renderWithClient(
       <RequireAuth>

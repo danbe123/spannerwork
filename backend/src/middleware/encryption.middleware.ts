@@ -39,9 +39,13 @@ const RANDOM_ENCRYPTED_FIELDS: Record<string, string[]> = {
 };
 
 // Fields to encrypt with deterministic encryption (searchable)
+// Deterministic encryption allows the same plaintext to always produce the same ciphertext,
+// enabling lookups (e.g., login by email) while still protecting data at rest.
 const DETERMINISTIC_ENCRYPTED_FIELDS: Record<string, string[]> = {
-  // Email needs deterministic encryption for login lookups
-  // Note: Consider using email hash for lookups instead for better security
+  // Email uses deterministic encryption for login lookups
+  // This protects email addresses at rest while allowing authentication to work
+  User: ['email'],
+  Referral: ['email'],
 };
 
 /**

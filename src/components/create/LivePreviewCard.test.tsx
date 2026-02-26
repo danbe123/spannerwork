@@ -22,6 +22,8 @@ describe('LivePreviewCard', () => {
     urgency: 'ASAP',
     broadcastRadius: 10,
     nationwideSearch: false,
+    sponsorEnabled: false,
+    sponsorCpaPercent: 0,
   };
 
   const defaultOfferData: OfferData = {
@@ -38,6 +40,8 @@ describe('LivePreviewCard', () => {
     features: ['Feature 1', 'Feature 2'],
     specialties: [],
     radius: 20,
+    sponsorEnabled: false,
+    sponsorCpaPercent: 0,
   };
 
   describe('Need intent rendering', () => {

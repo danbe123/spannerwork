@@ -1,0 +1,165 @@
+{
+  "suite": "Fee Calculation Validator",
+  "timestamp": "2026-01-02T10:05:58.636Z",
+  "totalTests": 22,
+  "passed": 22,
+  "failed": 0,
+  "score": 100,
+  "duration": 2,
+  "results": [
+    {
+      "name": "VAT extraction: £120 gross → £100 net + £20 VAT",
+      "category": "VAT Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "£120 gross → £100 net + £20 VAT"
+    },
+    {
+      "name": "VAT extraction: £1 gross (small amount)",
+      "category": "VAT Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "£1 gross → 83p net + 17p VAT"
+    },
+    {
+      "name": "VAT extraction: sum equals original",
+      "category": "VAT Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "All VAT extractions sum correctly"
+    },
+    {
+      "name": "VAT addition: £100 net → £120 gross",
+      "category": "VAT Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "£100 net → £120 gross (£20 VAT)"
+    },
+    {
+      "name": "VAT roundtrip: gross → net → gross",
+      "category": "VAT Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "VAT roundtrip accurate within 1p"
+    },
+    {
+      "name": "Daily rate: 3 days at £20/day",
+      "category": "Rental Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "3 days × £20 = £60"
+    },
+    {
+      "name": "Weekly rate: 2 weeks at £100/week",
+      "category": "Rental Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "2 weeks × £100 = £200"
+    },
+    {
+      "name": "Hourly rate with callout fee",
+      "category": "Rental Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "3hrs × £50 + £25 callout = £175"
+    },
+    {
+      "name": "Smart fee: 6 days uses daily rate",
+      "category": "Rental Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "6 days should use daily rate"
+    },
+    {
+      "name": "Smart fee: 7 days uses weekly rate",
+      "category": "Rental Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "7 days should use 1 week rate"
+    },
+    {
+      "name": "Smart fee: 10 days uses 2 weeks",
+      "category": "Rental Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "10 days = ceil(10/7) = 2 weeks"
+    },
+    {
+      "name": "Smart fee: no weekly rate falls back to daily",
+      "category": "Rental Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "14 days × £20 = £280 (no weekly rate)"
+    },
+    {
+      "name": "Sponsor CPA: 10% of £100 rental",
+      "category": "Sponsor CPA",
+      "passed": true,
+      "score": 100,
+      "details": "10% of £100 = £10"
+    },
+    {
+      "name": "Sponsor CPA: 0% means no fee",
+      "category": "Sponsor CPA",
+      "passed": true,
+      "score": 100,
+      "details": "0% CPA = £0 fee"
+    },
+    {
+      "name": "Sponsor CPA: rounding on fractional amounts",
+      "category": "Sponsor CPA",
+      "passed": true,
+      "score": 100,
+      "details": "10% of 3333p = 333p"
+    },
+    {
+      "name": "Sponsor CPA: never negative",
+      "category": "Sponsor CPA",
+      "passed": true,
+      "score": 100,
+      "details": "All CPA fees non-negative"
+    },
+    {
+      "name": "Sponsor CPA: never exceeds rental",
+      "category": "Sponsor CPA",
+      "passed": true,
+      "score": 100,
+      "details": "100% CPA (10000p) should not exceed rental (10000p)"
+    },
+    {
+      "name": "Large amount: No overflow at £1,000,000",
+      "category": "Edge Cases",
+      "passed": true,
+      "score": 100,
+      "details": "Large amounts should calculate correctly"
+    },
+    {
+      "name": "Zero handling: 0 rental fee",
+      "category": "Edge Cases",
+      "passed": true,
+      "score": 100,
+      "details": "Zero rental = zero CPA"
+    },
+    {
+      "name": "Insurance fees: sum of components",
+      "category": "Insurance Fees",
+      "passed": true,
+      "score": 100,
+      "details": "Insurance total = £10"
+    },
+    {
+      "name": "Insurance fees: optional components",
+      "category": "Insurance Fees",
+      "passed": true,
+      "score": 100,
+      "details": "Unselected insurance = £0"
+    },
+    {
+      "name": "Complete transaction: all fees sum correctly",
+      "category": "Complete Validation",
+      "passed": true,
+      "score": 100,
+      "details": "Customer: £115 = Platform: £16.5 + Provider: £98.5"
+    }
+  ]
+}

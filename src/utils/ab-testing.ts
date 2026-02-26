@@ -1,8 +1,12 @@
 /**
  * A/B Testing Utility
  *
- * Simple client-side A/B testing with persistence.
- * Assigns users to cohorts and tracks which variant they see.
+ * Client-side A/B testing framework with localStorage persistence.
+ * Features:
+ * - Consistent user assignment using deterministic hashing
+ * - Persistent variant assignments across sessions
+ * - React hooks and component wrappers for easy integration
+ * - Development-mode console logging for debugging
  */
 
 import type { ReactNode } from 'react';
@@ -11,12 +15,18 @@ const STORAGE_KEY = 'sw_ab_tests';
 
 // Get or generate user ID for consistent assignment
 function getUserId(): string {
-  let userId = localStorage.getItem('sw_user_id');
-  if (!userId) {
-    userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem('sw_user_id', userId);
+  try {
+    let userId = localStorage.getItem('sw_user_id');
+    if (!userId) {
+      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('sw_user_id', userId);
+    }
+    return userId;
+  } catch {
+    // localStorage unavailable (private browsing, storage quota exceeded, etc.)
+    // Return a session-only ID
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
-  return userId;
 }
 
 // Simple hash function for consistent assignment
@@ -111,7 +121,6 @@ export function getVariant(experiment: Experiment): string {
   tests[experiment.id] = variant;
   saveTests(tests);
   
-  // Track assignment (could send to analytics)
   trackExperiment(experiment.id, variant);
   
   return variant;
@@ -137,13 +146,9 @@ export function clearExperiments(): void {
  * Track experiment exposure (for analytics)
  */
 function trackExperiment(experimentId: string, variant: string): void {
-  // Log to console in development
   if (import.meta.env.DEV) {
     console.log(`[A/B Test] ${experimentId}: ${variant}`);
   }
-  
-  // Could send to analytics service
-  // analytics.track('experiment_exposure', { experimentId, variant });
 }
 
 /**
@@ -157,9 +162,6 @@ export function trackConversion(experimentId: string, action: string): void {
     if (import.meta.env.DEV) {
       console.log(`[A/B Test] Conversion: ${experimentId}/${variant} - ${action}`);
     }
-    
-    // Could send to analytics service
-    // analytics.track('experiment_conversion', { experimentId, variant, action });
   }
 }
 

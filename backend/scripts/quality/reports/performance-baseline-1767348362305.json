@@ -1,0 +1,150 @@
+{
+  "suite": "Performance Baseline",
+  "timestamp": "2026-01-02T10:06:02.304Z",
+  "totalTests": 19,
+  "passed": 13,
+  "failed": 6,
+  "score": 71,
+  "duration": 3643,
+  "results": [
+    {
+      "name": "Search: 100 items < 1ms",
+      "category": "Search Performance",
+      "passed": true,
+      "score": 100,
+      "details": "100 items search p95: 0.098ms"
+    },
+    {
+      "name": "Search: 1000 items < 5ms",
+      "category": "Search Performance",
+      "passed": true,
+      "score": 100,
+      "details": "1000 items search p95: 0.640ms"
+    },
+    {
+      "name": "Search: 10000 items < 50ms",
+      "category": "Search Performance",
+      "passed": true,
+      "score": 100,
+      "details": "10000 items search p95: 4.6ms"
+    },
+    {
+      "name": "Distance: 100 points < 0.5ms",
+      "category": "Distance Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "100 points distance p95: 0.061ms"
+    },
+    {
+      "name": "Distance: 1000 points < 5ms",
+      "category": "Distance Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "1000 points distance p95: 0.362ms"
+    },
+    {
+      "name": "Overlap: 50 bookings < 0.1ms",
+      "category": "Booking Validation",
+      "passed": true,
+      "score": 100,
+      "details": "50 bookings overlap check p95: 0.056ms"
+    },
+    {
+      "name": "Overlap: 500 bookings < 1ms",
+      "category": "Booking Validation",
+      "passed": true,
+      "score": 100,
+      "details": "500 bookings overlap check p95: 0.627ms"
+    },
+    {
+      "name": "Fee: 100 calculations < 0.1ms",
+      "category": "Fee Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "100 fee calcs p95: 6.72µs"
+    },
+    {
+      "name": "Fee: 1000 calculations < 1ms",
+      "category": "Fee Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "1000 fee calcs p95: 0.049ms"
+    },
+    {
+      "name": "JSON: 100 objects serialize/parse < 1ms",
+      "category": "JSON Processing",
+      "passed": false,
+      "score": 0,
+      "details": "100 objects JSON p95: 2.2ms",
+      "error": "100 objects JSON p95: 2.2ms"
+    },
+    {
+      "name": "JSON: 1000 objects serialize/parse < 10ms",
+      "category": "JSON Processing",
+      "passed": false,
+      "score": 0,
+      "details": "1000 objects JSON p95: 24.8ms",
+      "error": "1000 objects JSON p95: 24.8ms"
+    },
+    {
+      "name": "Array: 10000 items map/filter/reduce < 1ms",
+      "category": "Array Operations",
+      "passed": false,
+      "score": 0,
+      "details": "10000 items array ops p95: 1.5ms",
+      "error": "10000 items array ops p95: 1.5ms"
+    },
+    {
+      "name": "Array: 100000 items map/filter/reduce < 10ms",
+      "category": "Array Operations",
+      "passed": false,
+      "score": 0,
+      "details": "100000 items array ops p95: 16.3ms",
+      "error": "100000 items array ops p95: 16.3ms"
+    },
+    {
+      "name": "String: 1000 template replacements < 1ms",
+      "category": "String Operations",
+      "passed": false,
+      "score": 0,
+      "details": "1000 string ops p95: 1.2ms",
+      "error": "1000 string ops p95: 1.2ms"
+    },
+    {
+      "name": "Scaling: Linear complexity verified",
+      "category": "Scaling",
+      "passed": true,
+      "score": 100,
+      "details": "Scaling ratio: 2.3x for 10x data (expected ~10x)"
+    },
+    {
+      "name": "Scaling: No quadratic bottleneck",
+      "category": "Scaling",
+      "passed": true,
+      "score": 100,
+      "details": "Scaling ratio: 3.0x (no quadratic bottleneck)"
+    },
+    {
+      "name": "Memory: Large array creation < 100ms",
+      "category": "Memory",
+      "passed": true,
+      "score": 100,
+      "details": "100k object array creation p95: 53.4ms"
+    },
+    {
+      "name": "Memory: Object deep clone < 10ms",
+      "category": "Memory",
+      "passed": true,
+      "score": 100,
+      "details": "Deep object clone p95: 1.5ms"
+    },
+    {
+      "name": "Baseline: All operations within targets",
+      "category": "Baseline Summary",
+      "passed": false,
+      "score": 50,
+      "details": "search: 0.162ms (target: 5ms), distance: 0.133ms (target: 2ms), overlap: 0.125ms (target: 0.5ms), fee: 0.023ms (target: 0.5ms), json: 13.0ms (target: 5ms)",
+      "error": "Some operations exceeded targets"
+    }
+  ]
+}

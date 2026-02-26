@@ -135,11 +135,14 @@ describe('TransactionService', () => {
         weeklyRate: null,
       };
 
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
       // Tool lookup now happens INSIDE $transaction
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
-          user: { findUnique: vi.fn().mockResolvedValue(null) },
+          user: { findUnique: vi.fn().mockResolvedValue({ providerPlan: 'STANDARD', defaultPayoutSpeed: 'STANDARD' } as any) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -154,8 +157,6 @@ describe('TransactionService', () => {
         };
         return callback(mockTx);
       });
-
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
 
       await transactionService.create({
         userId: 'user-123',
@@ -174,11 +175,14 @@ describe('TransactionService', () => {
         weeklyRate: 10000, // £100/week (cheaper than 7 * £20 = £140)
       };
 
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
       // Tool lookup now happens INSIDE $transaction
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
-          user: { findUnique: vi.fn().mockResolvedValue(null) },
+          user: { findUnique: vi.fn().mockResolvedValue({ providerPlan: 'STANDARD', defaultPayoutSpeed: 'STANDARD' } as any) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -191,8 +195,6 @@ describe('TransactionService', () => {
         };
         return callback(mockTx);
       });
-
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
 
       await transactionService.create({
         userId: 'user-123',
@@ -209,6 +211,9 @@ describe('TransactionService', () => {
         available: false, // Not available
         dailyRate: 2000,
       };
+
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
 
       // Tool lookup now happens INSIDE $transaction
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
@@ -229,6 +234,9 @@ describe('TransactionService', () => {
     });
 
     it('should throw error for non-existent tool', async () => {
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
       // Tool lookup now happens INSIDE $transaction
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
@@ -262,11 +270,14 @@ describe('TransactionService', () => {
         endDate: new Date('2024-01-03'),
       };
 
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
       // Tool lookup now happens INSIDE $transaction
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
-          user: { findUnique: vi.fn().mockResolvedValue(null) },
+          user: { findUnique: vi.fn().mockResolvedValue({ providerPlan: 'STANDARD', defaultPayoutSpeed: 'STANDARD' } as any) },
           transaction: { findFirst: vi.fn().mockResolvedValue(existingTransaction) },
           booking: { create: vi.fn() },
         };
@@ -715,10 +726,13 @@ describe('TransactionService', () => {
         weeklyRate: 25000, // £250/week
       };
 
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           space: { findUnique: vi.fn().mockResolvedValue(space as any) },
-          user: { findUnique: vi.fn().mockResolvedValue(null) },
+          user: { findUnique: vi.fn().mockResolvedValue({ providerPlan: 'STANDARD', defaultPayoutSpeed: 'STANDARD' } as any) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -733,8 +747,6 @@ describe('TransactionService', () => {
         };
         return callback(mockTx);
       });
-
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
 
       await transactionService.create({
         userId: 'user-123',
@@ -754,10 +766,13 @@ describe('TransactionService', () => {
         weeklyRate: 25000, // Weekly is cheaper than 7 * daily
       };
 
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           space: { findUnique: vi.fn().mockResolvedValue(space as any) },
-          user: { findUnique: vi.fn().mockResolvedValue(null) },
+          user: { findUnique: vi.fn().mockResolvedValue({ providerPlan: 'STANDARD', defaultPayoutSpeed: 'STANDARD' } as any) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -770,8 +785,6 @@ describe('TransactionService', () => {
         };
         return callback(mockTx);
       });
-
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
 
       await transactionService.create({
         userId: 'user-123',
@@ -788,6 +801,9 @@ describe('TransactionService', () => {
         available: false,
         dailyRate: 5000,
       };
+
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
 
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
@@ -818,11 +834,14 @@ describe('TransactionService', () => {
         requiresInsurance: false,
       };
 
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           service: { findUnique: vi.fn().mockResolvedValue(service as any) },
           insuranceDocument: { findFirst: vi.fn().mockResolvedValue(null) },
-          user: { findUnique: vi.fn().mockResolvedValue(null) },
+          user: { findUnique: vi.fn().mockResolvedValue({ providerPlan: 'STANDARD', defaultPayoutSpeed: 'STANDARD' } as any) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -837,8 +856,6 @@ describe('TransactionService', () => {
         };
         return callback(mockTx);
       });
-
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
 
       await transactionService.create({
         userId: 'user-123',
@@ -858,11 +875,14 @@ describe('TransactionService', () => {
         requiresInsurance: false,
       };
 
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
           service: { findUnique: vi.fn().mockResolvedValue(service as any) },
           insuranceDocument: { findFirst: vi.fn().mockResolvedValue(null) },
-          user: { findUnique: vi.fn().mockResolvedValue(null) },
+          user: { findUnique: vi.fn().mockResolvedValue({ providerPlan: 'STANDARD', defaultPayoutSpeed: 'STANDARD' } as any) },
           transaction: {
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockImplementation((args) => {
@@ -875,8 +895,6 @@ describe('TransactionService', () => {
         };
         return callback(mockTx);
       });
-
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
 
       await transactionService.create({
         userId: 'user-123',
@@ -894,6 +912,9 @@ describe('TransactionService', () => {
         hourlyRate: 5000,
         requiresInsurance: false,
       };
+
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
 
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
@@ -922,6 +943,9 @@ describe('TransactionService', () => {
         calloutFee: 0,
         requiresInsurance: true,
       };
+
+      // Must mock user.findUnique first since it's called before $transaction
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
 
       vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
         const mockTx = {
@@ -962,6 +986,572 @@ describe('TransactionService', () => {
           where: { userId: 'user-123' }, // No status filter
         })
       );
+    });
+  });
+
+  describe('platform fee tiers', () => {
+    it('should apply 2% fee for BUSINESS plan providers', async () => {
+      const tool = {
+        id: 'tool-123',
+        ownerId: 'owner-123',
+        available: true,
+        dailyRate: 10000, // £100/day
+        weeklyRate: null,
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            providerPlan: 'BUSINESS',
+            defaultPayoutSpeed: 'STANDARD',
+            accountStatus: 'ACTIVE',
+            stripeConnectId: 'acct_123',
+          } as any) },
+          transaction: {
+            findFirst: vi.fn().mockResolvedValue(null),
+            create: vi.fn().mockImplementation((args) => {
+              // BUSINESS plan = 2% fee
+              expect(args.data.platformFeePercent).toBe(2);
+              expect(args.data.platformFee).toBe(200); // 2% of £100
+              return Promise.resolve({ id: 'txn-123', ...args.data });
+            }),
+          },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      await transactionService.create({
+        userId: 'user-123',
+        toolId: 'tool-123',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2024-01-02'), // 1 day
+      });
+    });
+
+    it('should apply 3% fee for PRO plan providers', async () => {
+      const tool = {
+        id: 'tool-123',
+        ownerId: 'owner-123',
+        available: true,
+        dailyRate: 10000, // £100/day
+        weeklyRate: null,
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            providerPlan: 'PRO',
+            defaultPayoutSpeed: 'STANDARD',
+            accountStatus: 'ACTIVE',
+            stripeConnectId: 'acct_123',
+          } as any) },
+          transaction: {
+            findFirst: vi.fn().mockResolvedValue(null),
+            create: vi.fn().mockImplementation((args) => {
+              // PRO plan = 3% fee
+              expect(args.data.platformFeePercent).toBe(3);
+              expect(args.data.platformFee).toBe(300); // 3% of £100
+              return Promise.resolve({ id: 'txn-123', ...args.data });
+            }),
+          },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      await transactionService.create({
+        userId: 'user-123',
+        toolId: 'tool-123',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2024-01-02'),
+      });
+    });
+
+    it('should apply 5% fee for FREE plan providers', async () => {
+      const tool = {
+        id: 'tool-123',
+        ownerId: 'owner-123',
+        available: true,
+        dailyRate: 10000, // £100/day
+        weeklyRate: null,
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            providerPlan: 'FREE',
+            defaultPayoutSpeed: 'STANDARD',
+            accountStatus: 'ACTIVE',
+            stripeConnectId: 'acct_123',
+          } as any) },
+          transaction: {
+            findFirst: vi.fn().mockResolvedValue(null),
+            create: vi.fn().mockImplementation((args) => {
+              // FREE plan = 5% fee
+              expect(args.data.platformFeePercent).toBe(5);
+              expect(args.data.platformFee).toBe(500); // 5% of £100
+              return Promise.resolve({ id: 'txn-123', ...args.data });
+            }),
+          },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      await transactionService.create({
+        userId: 'user-123',
+        toolId: 'tool-123',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2024-01-02'),
+      });
+    });
+  });
+
+  describe('self-booking prevention', () => {
+    it('should prevent user from booking their own listing', async () => {
+      const tool = {
+        id: 'tool-123',
+        ownerId: 'user-123', // Same as booking user
+        available: true,
+        dailyRate: 2000,
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            providerPlan: 'FREE',
+            stripeConnectId: 'acct_123',
+          } as any) },
+          transaction: { findFirst: vi.fn().mockResolvedValue(null) },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      await expect(
+        transactionService.create({
+          userId: 'user-123', // Trying to book own listing
+          toolId: 'tool-123',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-02'),
+        })
+      ).rejects.toThrow('cannot book your own listing');
+    });
+  });
+
+  describe('suspended account handling', () => {
+    it('should block booking creation for suspended customers', async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({
+        accountStatus: 'SUSPENDED'
+      } as any);
+
+      await expect(
+        transactionService.create({
+          userId: 'suspended-user',
+          toolId: 'tool-123',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-02'),
+        })
+      ).rejects.toThrow('account is suspended');
+    });
+
+    it('should block booking when provider is suspended', async () => {
+      const tool = {
+        id: 'tool-123',
+        ownerId: 'owner-123',
+        available: true,
+        dailyRate: 2000,
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            accountStatus: 'SUSPENDED', // Provider is suspended
+            providerPlan: 'FREE',
+          } as any) },
+          transaction: { findFirst: vi.fn().mockResolvedValue(null) },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      await expect(
+        transactionService.create({
+          userId: 'user-123',
+          toolId: 'tool-123',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-02'),
+        })
+      ).rejects.toThrow('provider is currently unavailable');
+    });
+  });
+
+  describe('provider payment setup validation', () => {
+    it('should block booking when provider has no Stripe Connect ID', async () => {
+      const tool = {
+        id: 'tool-123',
+        ownerId: 'owner-123',
+        available: true,
+        dailyRate: 2000,
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            accountStatus: 'ACTIVE',
+            providerPlan: 'FREE',
+            stripeConnectId: null, // No payment setup
+          } as any) },
+          transaction: { findFirst: vi.fn().mockResolvedValue(null) },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      await expect(
+        transactionService.create({
+          userId: 'user-123',
+          toolId: 'tool-123',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-02'),
+        })
+      ).rejects.toThrow('not set up their payment account');
+    });
+  });
+
+  describe('price snapshot validation', () => {
+    it('should reject transaction when quoted price does not match calculated price', async () => {
+      const tool = {
+        id: 'tool-123',
+        ownerId: 'owner-123',
+        available: true,
+        dailyRate: 5000, // £50/day
+        weeklyRate: null,
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            providerPlan: 'FREE',
+            stripeConnectId: 'acct_123',
+            accountStatus: 'ACTIVE',
+          } as any) },
+          transaction: { findFirst: vi.fn().mockResolvedValue(null) },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      // Customer was quoted £30 but actual price is £50
+      await expect(
+        transactionService.create({
+          userId: 'user-123',
+          toolId: 'tool-123',
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-02'),
+          quotedRentalFee: 3000, // Wrong price
+        })
+      ).rejects.toThrow('price has changed');
+    });
+
+    it('should accept transaction when quoted price matches calculated price', async () => {
+      const tool = {
+        id: 'tool-123',
+        ownerId: 'owner-123',
+        available: true,
+        dailyRate: 5000, // £50/day
+        weeklyRate: null,
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            providerPlan: 'FREE',
+            stripeConnectId: 'acct_123',
+            accountStatus: 'ACTIVE',
+          } as any) },
+          transaction: {
+            findFirst: vi.fn().mockResolvedValue(null),
+            create: vi.fn().mockResolvedValue({ id: 'txn-123' }),
+          },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      // Correct quoted price
+      await transactionService.create({
+        userId: 'user-123',
+        toolId: 'tool-123',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2024-01-02'),
+        quotedRentalFee: 5000, // Matches calculated price
+      });
+    });
+  });
+
+  describe('weekly rate calculation (hybrid pricing)', () => {
+    it('should use cheaper option for 8-day rental (hybrid vs rounded weeks)', async () => {
+      const tool = {
+        id: 'tool-123',
+        ownerId: 'owner-123',
+        available: true,
+        dailyRate: 2000, // £20/day
+        weeklyRate: 10000, // £100/week
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            providerPlan: 'FREE',
+            stripeConnectId: 'acct_123',
+            accountStatus: 'ACTIVE',
+          } as any) },
+          transaction: {
+            findFirst: vi.fn().mockResolvedValue(null),
+            create: vi.fn().mockImplementation((args) => {
+              // 8 days:
+              // Option 1: 2 weeks rounded = £200
+              // Option 2: 1 week + 1 day = £100 + £20 = £120
+              // Should pick cheaper option = £120
+              expect(args.data.rentalFee).toBe(12000);
+              return Promise.resolve({ id: 'txn-123' });
+            }),
+          },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      await transactionService.create({
+        userId: 'user-123',
+        toolId: 'tool-123',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2024-01-09'), // 8 days
+      });
+    });
+  });
+
+  describe('updateStatus state transitions', () => {
+    it('should reject invalid state transition from PENDING to COMPLETED', async () => {
+      const transaction = {
+        userId: 'customer-123',
+        providerId: 'provider-123',
+        status: 'PENDING',
+      };
+
+      vi.mocked(prisma.transaction.findUnique).mockResolvedValue(transaction as any);
+
+      await expect(
+        transactionService.updateStatus('txn-123', 'customer-123', 'COMPLETED')
+      ).rejects.toThrow('Invalid status transition');
+    });
+
+    it('should reject cancellation of IN_PROGRESS transaction via updateStatus', async () => {
+      const transaction = {
+        userId: 'customer-123',
+        providerId: 'provider-123',
+        status: 'IN_PROGRESS',
+      };
+
+      vi.mocked(prisma.transaction.findUnique).mockResolvedValue(transaction as any);
+
+      await expect(
+        transactionService.updateStatus('txn-123', 'customer-123', 'CANCELLED')
+      ).rejects.toThrow('Invalid status transition');
+    });
+
+    it('should reject status change from final states', async () => {
+      const transaction = {
+        userId: 'customer-123',
+        providerId: 'provider-123',
+        status: 'COMPLETED',
+      };
+
+      vi.mocked(prisma.transaction.findUnique).mockResolvedValue(transaction as any);
+
+      await expect(
+        transactionService.updateStatus('txn-123', 'provider-123', 'CANCELLED')
+      ).rejects.toThrow('Invalid status transition');
+    });
+  });
+
+  describe('payment requirement for completion', () => {
+    it('should require payment before marking transaction as completed', async () => {
+      const transaction = {
+        userId: 'customer-123',
+        providerId: 'provider-123',
+        status: 'IN_PROGRESS',
+      };
+
+      vi.mocked(prisma.transaction.findUnique)
+        .mockResolvedValueOnce(transaction as any) // First call for auth check
+        .mockResolvedValueOnce({ paymentStatus: 'PENDING' } as any); // Payment status check
+
+      await expect(
+        transactionService.updateStatus('txn-123', 'customer-123', 'COMPLETED')
+      ).rejects.toThrow('Payment must be captured before marking transaction as completed');
+    });
+  });
+
+  describe('instant payout fee calculation', () => {
+    it('should apply 1.5% instant payout fee when selected', async () => {
+      const tool = {
+        id: 'tool-123',
+        ownerId: 'owner-123',
+        available: true,
+        dailyRate: 10000, // £100/day
+        weeklyRate: null,
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            providerPlan: 'FREE',
+            defaultPayoutSpeed: 'INSTANT',
+            accountStatus: 'ACTIVE',
+            stripeConnectId: 'acct_123',
+          } as any) },
+          transaction: {
+            findFirst: vi.fn().mockResolvedValue(null),
+            create: vi.fn().mockImplementation((args) => {
+              expect(args.data.instantPayoutSelected).toBe(true);
+              expect(args.data.instantPayoutFee).toBe(150); // 1.5% of £100
+              return Promise.resolve({ id: 'txn-123', ...args.data });
+            }),
+          },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      await transactionService.create({
+        userId: 'user-123',
+        toolId: 'tool-123',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2024-01-02'),
+      });
+    });
+  });
+
+  describe('CPA fee snapshots', () => {
+    it('should snapshot provider sponsor CPA percent from listing', async () => {
+      const tool = {
+        id: 'tool-123',
+        ownerId: 'owner-123',
+        available: true,
+        dailyRate: 10000,
+        weeklyRate: null,
+        sponsorCpaPercent: 5, // 5% CPA
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          tool: { findUnique: vi.fn().mockResolvedValue(tool as any) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            providerPlan: 'FREE',
+            defaultPayoutSpeed: 'STANDARD',
+            accountStatus: 'ACTIVE',
+            stripeConnectId: 'acct_123',
+          } as any) },
+          transaction: {
+            findFirst: vi.fn().mockResolvedValue(null),
+            create: vi.fn().mockImplementation((args) => {
+              expect(args.data.providerSponsorCpaPercent).toBe(5);
+              expect(args.data.providerSponsorCpaFee).toBe(0); // Calculated on completion
+              return Promise.resolve({ id: 'txn-123', ...args.data });
+            }),
+          },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      await transactionService.create({
+        userId: 'user-123',
+        toolId: 'tool-123',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2024-01-02'),
+      });
+    });
+  });
+
+  describe('waiver acceptance', () => {
+    it('should record waiver acceptance timestamp', async () => {
+      const service = {
+        id: 'service-123',
+        providerId: 'provider-123',
+        available: true,
+        hourlyRate: 3000,
+        calloutFee: 0,
+        requiresInsurance: false,
+      };
+
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ accountStatus: 'ACTIVE' } as any);
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => {
+        const mockTx = {
+          service: { findUnique: vi.fn().mockResolvedValue(service as any) },
+          insuranceDocument: { findFirst: vi.fn().mockResolvedValue(null) },
+          user: { findUnique: vi.fn().mockResolvedValue({
+            providerPlan: 'FREE',
+            defaultPayoutSpeed: 'STANDARD',
+            accountStatus: 'ACTIVE',
+            stripeConnectId: 'acct_123',
+          } as any) },
+          transaction: {
+            findFirst: vi.fn().mockResolvedValue(null),
+            create: vi.fn().mockImplementation((args) => {
+              expect(args.data.customerWaiverAcceptedAt).toBeDefined();
+              expect(args.data.waiverVersion).toBe('1.0');
+              return Promise.resolve({ id: 'txn-123', ...args.data });
+            }),
+          },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        };
+        return callback(mockTx);
+      });
+
+      await transactionService.create({
+        userId: 'user-123',
+        serviceId: 'service-123',
+        startDate: new Date('2024-01-01T10:00:00'),
+        endDate: new Date('2024-01-01T12:00:00'),
+        waiverAccepted: true,
+      });
     });
   });
 });

@@ -123,12 +123,13 @@ export function useSocket(): UseSocketReturn {
       error: toast.error,
     }[notification.type] || toast.info;
 
+    const link = notification.link;
     toastFn(notification.title, {
       description: notification.message,
-      action: notification.link ? {
+      action: link ? {
         label: 'View',
         onClick: () => {
-          window.location.href = notification.link!;
+          window.location.href = link;
         },
       } : undefined,
     });
@@ -167,7 +168,9 @@ export function useSocket(): UseSocketReturn {
     });
 
     socket.on('connect_error', (error: Error) => {
-      console.error('WebSocket connection error:', error.message);
+      if (import.meta.env.DEV) {
+        console.error('WebSocket connection error:', error.message);
+      }
       setIsConnected(false);
     });
 
@@ -183,7 +186,7 @@ export function useSocket(): UseSocketReturn {
       socketRef.current = null;
       setIsConnected(false);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, handleNewMessage, handleBookingUpdate, handleTransactionUpdate, handleNotification]);
 
   return {
     isConnected,

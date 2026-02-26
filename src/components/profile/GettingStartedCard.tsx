@@ -103,16 +103,9 @@ export default function GettingStartedCard({
       label: 'Create First Listing',
       description: 'List a tool or service',
       completed: tools.length > 0,
-      action: () => navigate('/CreateOffer'),
+      action: () => navigate('/create'),
       actionLabel: 'Create',
       icon: Wrench,
-    },
-    {
-      id: 'sale',
-      label: 'Complete First Transaction',
-      description: 'Get your first sale or rental',
-      completed: hasFirstSale,
-      icon: Rocket,
     },
   ];
 
@@ -140,7 +133,7 @@ export default function GettingStartedCard({
             </div>
             <div>
               <h3 className="text-white font-semibold">Get Started</h3>
-              <p className="text-orange-100 text-sm">Complete your profile to build trust</p>
+              <p className="text-brand-100 text-sm">Complete your profile to build trust</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -188,7 +181,7 @@ export default function GettingStartedCard({
                 <Button 
                   size="sm" 
                   className="mt-3 bg-blue-600 hover:bg-blue-700"
-                  onClick={() => navigate('/Browse')}
+                  onClick={() => navigate('/feed')}
                 >
                   Explore Marketplace
                   <ArrowRight className="w-4 h-4 ml-2" />

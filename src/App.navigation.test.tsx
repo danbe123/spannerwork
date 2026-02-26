@@ -45,8 +45,8 @@ describe('App navigation', () => {
 
     renderWithProviders()
 
-    // The Home page "Sign Up Free" CTA should be visible by default
-    const cta = await screen.findByText(/sign up free/i)
+    // The Home page "Sign Up or Login" CTA should be visible by default
+    const cta = await screen.findByText(/sign up or login/i)
     expect(cta).toBeInTheDocument()
   })
 })

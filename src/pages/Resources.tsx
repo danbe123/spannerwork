@@ -105,7 +105,7 @@ export default function Resources(): JSX.Element {
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Resource Centre
             </h1>
-            <p className="text-xl text-orange-100 max-w-2xl mx-auto">
+            <p className="text-xl text-brand-100 max-w-2xl mx-auto">
               Everything you need to succeed on SpannerWork. Guides, tips, and answers to common questions.
             </p>
           </div>
@@ -183,7 +183,7 @@ export default function Resources(): JSX.Element {
 
         {/* Contact CTA */}
         <div className="max-w-4xl mx-auto px-4 py-16">
-          <Card className="bg-gradient-to-r from-brand-50 to-orange-50 border-brand-100">
+          <Card className="bg-gradient-to-r from-brand-50 to-brand-50 border-brand-100">
             <CardContent className="p-8 text-center">
               <HelpCircle className="w-12 h-12 text-brand-800 mx-auto mb-4" />
               <h3 className="text-xl font-bold mb-2">Can't Find What You're Looking For?</h3>

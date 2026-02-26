@@ -95,7 +95,7 @@ export default function StartTransaction() {
 
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Start Transaction</h1>
-          <p className="text-gray-600 mt-2">Set the terms for your service</p>
+          <p className="text-gray-600 mt-2">Define pricing, duration, and service terms</p>
         </div>
 
         {request && (
@@ -186,7 +186,7 @@ export default function StartTransaction() {
                   className="mt-2"
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  Optional security deposit, refunded upon completion
+                  Fully refundable upon successful service completion
                 </p>
               </div>
 
@@ -216,7 +216,7 @@ export default function StartTransaction() {
                   id="notes"
                   value={helperNotes}
                   onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setHelperNotes(e.target.value)}
-                  placeholder="Any special instructions, meeting location, terms..."
+                  placeholder="Meeting location, specific requirements, pickup/return times, or any terms the client should know..."
                   className="mt-2 h-24"
                   maxLength={1000}
                 />
@@ -251,7 +251,7 @@ export default function StartTransaction() {
           <Alert className="mb-6">
             <FileText className="h-4 w-4" />
             <AlertDescription>
-              Once both parties agree, the client will confirm with a photo. Payment will be held until service completion.
+              Payment is held securely in escrow until the service is completed and both parties confirm satisfaction.
             </AlertDescription>
           </Alert>
 

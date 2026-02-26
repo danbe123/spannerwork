@@ -78,6 +78,15 @@ export default function ResetPassword() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Hidden username field for password managers */}
+                <input
+                  type="text"
+                  name="username"
+                  autoComplete="username"
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                />
                 <div className="space-y-2">
                   <Label htmlFor="password">New password</Label>
                   <Input

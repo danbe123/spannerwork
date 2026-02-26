@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FileCheck, 
@@ -44,18 +44,14 @@ export default function AdminInsurance() {
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [activeTab, pagination.page]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       if (activeTab === 'pending') {
-        const response = await adminInsuranceService.getPendingDocuments({ 
-          page: pagination.page, 
-          limit: pagination.limit 
+        const response = await adminInsuranceService.getPendingDocuments({
+          page: pagination.page,
+          limit: pagination.limit
         });
         setPendingDocs(response.data);
         setPagination(prev => ({ ...prev, ...response.pagination }));
@@ -68,7 +64,11 @@ export default function AdminInsurance() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [activeTab, pagination.page, pagination.limit]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   async function handleApprove(doc: InsuranceDocument) {
     setActionLoading(true);

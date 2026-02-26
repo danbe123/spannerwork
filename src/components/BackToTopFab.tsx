@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUp } from "lucide-react";
 
 interface BackToTopFabProps {
@@ -35,21 +34,24 @@ export default function BackToTopFab({
   if (isHiddenPath) return null;
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.button
-          type="button"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          whileTap={{ scale: 0.9 }}
-          className={`fixed right-4 ${bottomClassName} z-40 w-12 h-12 rounded-full shadow-xl flex items-center justify-center border border-orange-200 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition-colors`}
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          aria-label="Back to top"
-        >
-          <ArrowUp className="w-5 h-5 text-white" />
-        </motion.button>
-      )}
-    </AnimatePresence>
+    <button
+      type="button"
+      className={`
+        fixed right-4 ${bottomClassName} z-40 w-12 h-12 rounded-full shadow-xl
+        flex items-center justify-center border border-brand-200
+        bg-gradient-to-br from-brand-500 to-brand-600
+        hover:from-brand-600 hover:to-brand-700
+        transition-all duration-200 ease-out
+        active:scale-90
+        ${visible
+          ? 'opacity-100 scale-100 translate-y-0'
+          : 'opacity-0 scale-90 translate-y-4 pointer-events-none'
+        }
+      `}
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      aria-label="Back to top"
+    >
+      <ArrowUp className="w-5 h-5 text-white" />
+    </button>
   );
 }

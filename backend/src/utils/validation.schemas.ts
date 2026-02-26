@@ -2,6 +2,31 @@ import { z } from 'zod';
 import { sanitizeUserContent } from './sanitize.js';
 
 // ============================================================================
+// CUSTOM VALIDATORS
+// ============================================================================
+
+/**
+ * Photo URL validator - accepts both relative paths (/uploads/...) and full URLs
+ * This is needed because uploads return relative paths, not full URLs
+ */
+const photoUrlSchema = z.string().refine(
+  (val) => {
+    // Accept relative upload paths
+    if (val.startsWith('/uploads/')) {
+      return true;
+    }
+    // Accept full URLs
+    try {
+      new URL(val);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: 'Must be a valid URL or upload path' }
+);
+
+// ============================================================================
 // AUTH SCHEMAS
 // ============================================================================
 
@@ -26,6 +51,11 @@ export const registerSchema = z.object({
     .string()
     .min(1, 'Name is required')
     .max(100, 'Name is too long')
+    .optional(),
+  referralCode: z
+    .string()
+    .min(6, 'Referral code must be at least 6 characters')
+    .max(50, 'Referral code is too long')
     .optional(),
 });
 
@@ -105,6 +135,10 @@ export const updateUserSchema = z.object({
       'Invalid UK postcode'
     )
     .optional(),
+  street: z.string().max(200).optional(),
+  city: z.string().max(100).optional(),
+  county: z.string().max(100).optional(),
+  country: z.string().length(2).default('GB').optional(),
   avatar: z.string().min(1).optional(), // Can be relative path or full URL
   locationAddress: z.string().min(3).max(200).optional(),
   locationLat: z.number().optional(),
@@ -124,7 +158,7 @@ export const createRequestSchema = z.object({
     .transform((val) => sanitizeUserContent(val, 2000)), // Sanitize to prevent XSS
   category: z.enum(['TOOLS', 'EXPERTISE', 'SPACE']),
   urgency: z.enum(['ASAP', 'TODAY', 'THIS_WEEKEND', 'FLEXIBLE']),
-  budget: z.number().positive().max(10000),
+  budget: z.number().positive().max(10000000), // Max £100,000 in pence
   rateType: z.enum(['FIXED', 'HOURLY', 'DAILY']),
   broadcastRadius: z.number().int().min(1).max(999),
   postcode: z
@@ -133,10 +167,33 @@ export const createRequestSchema = z.object({
       /^[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}$/i,
       'Invalid UK postcode'
     ),
-  photos: z.array(z.string().url()).max(10).optional(),
+  photos: z.array(photoUrlSchema).max(10).optional(),
+  sponsorCpaPercent: z.number().int().min(0).max(50).optional()
+    .refine((val) => val === undefined || val === 0 || val >= 5, {
+      message: 'Sponsored listing CPA must be 0 (not sponsored) or at least 5%',
+    }), // 0 = not sponsored, 5-50% = sponsored
 });
 
-export const updateRequestSchema = createRequestSchema.partial();
+// Update schema is more lenient - allows shorter descriptions when editing
+export const updateRequestSchema = z.object({
+  title: z.string().min(3).max(100).optional(),
+  description: z
+    .string()
+    .min(10)
+    .max(2000)
+    .transform((val) => sanitizeUserContent(val, 2000))
+    .optional(),
+  category: z.enum(['TOOLS', 'EXPERTISE', 'SPACE']).optional(),
+  urgency: z.enum(['ASAP', 'TODAY', 'THIS_WEEKEND', 'FLEXIBLE']).optional(),
+  budget: z.number().positive().max(10000000).optional(), // Max £100,000 in pence
+  rateType: z.enum(['FIXED', 'HOURLY', 'DAILY']).optional(),
+  broadcastRadius: z.number().int().min(1).max(999).optional(),
+  photos: z.array(photoUrlSchema).max(10).optional(),
+  sponsorCpaPercent: z.number().int().min(0).max(50).optional()
+    .refine((val) => val === undefined || val === 0 || val >= 5, {
+      message: 'Sponsored listing CPA must be 0 (not sponsored) or at least 5%',
+    }), // 0 = not sponsored, 5-50% = sponsored
+});
 
 // ============================================================================
 // TOOL SCHEMAS
@@ -153,7 +210,7 @@ export const createToolSchema = z.object({
   dailyRate: z.number().int().positive().max(100000),
   weeklyRate: z.number().int().positive().max(500000).optional(),
   deposit: z.number().int().nonnegative().max(1000000),
-  photos: z.array(z.string().url()).min(1).max(10),
+  photos: z.array(photoUrlSchema).min(1).max(10),
   condition: z.string().min(1).max(100),
   postcode: z
     .string()
@@ -161,6 +218,10 @@ export const createToolSchema = z.object({
       /^[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}$/i,
       'Invalid UK postcode'
     ),
+  sponsorCpaPercent: z.number().int().min(0).max(50).optional()
+    .refine((val) => val === undefined || val === 0 || val >= 5, {
+      message: 'Sponsored listing CPA must be 0 (not sponsored) or at least 5%',
+    }), // 0 = not sponsored, 5-50% = sponsored
 });
 
 export const updateToolSchema = createToolSchema.partial();
@@ -176,12 +237,12 @@ export const createSpaceSchema = z.object({
     .min(20)
     .max(2000)
     .transform((val) => sanitizeUserContent(val, 2000)), // Sanitize to prevent XSS
-  hourlyRate: z.number().int().positive().max(50000),
+  hourlyRate: z.number().int().positive().max(50000).optional(),
   dailyRate: z.number().int().positive().max(100000),
   weeklyRate: z.number().int().positive().max(500000).optional(),
   size: z.number().int().positive().optional(),
   features: z.array(z.string()).max(20),
-  photos: z.array(z.string().url()).min(1).max(10),
+  photos: z.array(photoUrlSchema).min(1).max(10),
   postcode: z
     .string()
     .regex(
@@ -189,6 +250,10 @@ export const createSpaceSchema = z.object({
       'Invalid UK postcode'
     ),
   locationAddress: z.string().min(3).max(200),
+  sponsorCpaPercent: z.number().int().min(0).max(50).optional()
+    .refine((val) => val === undefined || val === 0 || val >= 5, {
+      message: 'Sponsored listing CPA must be 0 (not sponsored) or at least 5%',
+    }), // 0 = not sponsored, 5-50% = sponsored
 });
 
 export const updateSpaceSchema = createSpaceSchema.partial();
@@ -208,7 +273,7 @@ export const createServiceSchema = z.object({
   hourlyRate: z.number().int().positive().max(50000),
   calloutFee: z.number().int().nonnegative().max(20000).optional(),
   radius: z.number().int().min(1).max(100),
-  photos: z.array(z.string().url()).max(10).optional(),
+  photos: z.array(photoUrlSchema).max(10).optional(),
   requiresInsurance: z.boolean().optional(),
   postcode: z
     .string()
@@ -216,6 +281,10 @@ export const createServiceSchema = z.object({
       /^[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}$/i,
       'Invalid UK postcode'
     ),
+  sponsorCpaPercent: z.number().int().min(0).max(50).optional()
+    .refine((val) => val === undefined || val === 0 || val >= 5, {
+      message: 'Sponsored listing CPA must be 0 (not sponsored) or at least 5%',
+    }), // 0 = not sponsored, 5-50% = sponsored
 });
 
 export const updateServiceSchema = createServiceSchema.partial();
@@ -231,8 +300,15 @@ export const createTransactionSchema = z.object({
   serviceId: z.string().cuid().optional(),
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
-  // Note: rentalFee is calculated server-side based on listing rates - not accepted from client
-  notes: z.string().max(1000).optional(),
+  // Required: Client must send the quoted price they saw to detect price changes
+  quotedRentalFee: z.number().int().positive({
+    message: 'Quoted rental fee is required to verify price has not changed',
+  }),
+  notes: z
+    .string()
+    .max(1000)
+    .transform((val) => sanitizeUserContent(val, 1000))
+    .optional(),
 });
 
 export const updateTransactionStatusSchema = z.object({
@@ -387,4 +463,117 @@ export const searchQuerySchema = z.object({
     .refine((val) => val === undefined || (val >= 1 && val <= 100), 'Radius must be between 1 and 100 miles'),
   sortBy: z.enum(['distance', 'price', 'rating', 'newest']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional().default('asc'),
+});
+
+/**
+ * Query parameters for listing endpoints (tools, spaces, services, requests)
+ * Validates and transforms all common list query parameters
+ */
+export const listQuerySchema = z.object({
+  // Pagination
+  page: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : 1))
+    .refine((val) => val >= 1, 'Page must be at least 1'),
+  limit: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : 20))
+    .refine((val) => val >= 1 && val <= 100, 'Limit must be between 1 and 100'),
+
+  // Category filter - allow common categories, sanitize input
+  category: z
+    .string()
+    .max(50)
+    .regex(/^[A-Za-z_]+$/, 'Invalid category format')
+    .optional(),
+
+  // Availability filter
+  available: z
+    .string()
+    .optional()
+    .transform((val) => (val === 'true' ? true : val === 'false' ? false : undefined)),
+
+  // Location-based filtering
+  postcode: z
+    .string()
+    .max(10)
+    .regex(/^[A-Za-z0-9\s]+$/, 'Invalid postcode format')
+    .optional(),
+  radius: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : undefined))
+    .refine((val) => val === undefined || (val >= 1 && val <= 100), 'Radius must be between 1 and 100 miles'),
+  lat: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseFloat(val) : undefined))
+    .refine((val) => val === undefined || (val >= -90 && val <= 90), 'Invalid latitude'),
+  lng: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseFloat(val) : undefined))
+    .refine((val) => val === undefined || (val >= -180 && val <= 180), 'Invalid longitude'),
+
+  // Price filtering
+  minPrice: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseFloat(val) : undefined))
+    .refine((val) => val === undefined || val >= 0, 'Min price must be positive'),
+  maxPrice: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseFloat(val) : undefined))
+    .refine((val) => val === undefined || val >= 0, 'Max price must be positive'),
+
+  // Text search (sanitized)
+  search: z
+    .string()
+    .max(100)
+    .optional()
+    .transform((val) => val?.replace(/[<>'"%;()&+]/g, '')), // Strip dangerous chars
+  q: z
+    .string()
+    .max(100)
+    .optional()
+    .transform((val) => val?.replace(/[<>'"%;()&+]/g, '')), // Strip dangerous chars
+
+  // Sorting
+  sortBy: z.enum(['distance', 'price', 'rating', 'newest', 'createdAt']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+
+  // Request-specific filters
+  urgency: z.enum(['ASAP', 'THIS_WEEK', 'THIS_MONTH', 'FLEXIBLE']).optional(),
+  status: z.string().max(20).regex(/^[A-Z_]+$/, 'Invalid status format').optional(),
+});
+
+/**
+ * Query parameters for request listings with additional filters
+ */
+export const requestListQuerySchema = listQuerySchema.extend({
+  urgency: z.enum(['ASAP', 'THIS_WEEK', 'THIS_MONTH', 'FLEXIBLE']).optional(),
+});
+
+// ============================================================================
+// PAYMENT SCHEMAS
+// ============================================================================
+
+export const paymentIntentSchema = z.object({
+  transactionId: z.string().cuid('Invalid transaction ID format'),
+});
+
+export const capturePaymentSchema = z.object({
+  transactionId: z.string().cuid('Invalid transaction ID format'),
+});
+
+export const refundPaymentSchema = z.object({
+  transactionId: z.string().cuid('Invalid transaction ID format'),
+  reason: z
+    .string()
+    .max(500)
+    .transform((val) => sanitizeUserContent(val, 500)) // Sanitize to prevent XSS
+    .optional(),
 });

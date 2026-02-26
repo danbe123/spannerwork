@@ -1,8 +1,6 @@
 import { prisma } from '../config/database.js';
 import { logger } from '../config/logger.js';
 import { notificationService } from './notification.service.js';
-// Email notifications can be added here if needed
-import { geocodingService } from './geocoding.service.js';
 
 /**
  * Quick Accept Service
@@ -37,6 +35,8 @@ class QuickAcceptService {
    * - Category match (tools/services/spaces)
    * - Availability
    * - Rating
+   *
+   * FIX: Uses PostGIS for efficient database-level filtering instead of loading all records
    */
   async findMatchingProviders(requestId: string, limit = 10): Promise<MatchingProvider[]> {
     const request = await prisma.request.findUnique({
@@ -49,157 +49,135 @@ class QuickAcceptService {
     }
 
     const radius = request.broadcastRadius || 10; // miles
+    const radiusMeters = radius * 1609.34;
 
-    // Get providers based on category
+    // Use PostGIS to find providers within radius at the database level
     let providers: Array<{
       id: string;
       name: string | null;
       email: string;
-      lat: number | null;
-      lng: number | null;
       rating: number | null;
-      postcode: string | null;
+      distance_miles: number;
     }> = [];
 
     if (request.category === 'TOOLS') {
-      const tools = await prisma.tool.findMany({
-        where: { available: true },
-        include: {
-          owner: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              rating: true,
-              postcode: true,
-              locationLat: true,
-              locationLng: true,
-            },
-          },
-        },
-      });
-      providers = tools.map(t => ({
-        id: t.owner.id,
-        name: t.owner.name,
-        email: t.owner.email,
-        lat: t.owner.locationLat,
-        lng: t.owner.locationLng,
-        rating: t.owner.rating,
-        postcode: t.owner.postcode,
-      }));
+      providers = await prisma.$queryRaw<typeof providers>`
+        SELECT DISTINCT ON (u.id)
+          u.id,
+          u.name,
+          u.email,
+          u.rating,
+          ST_Distance(
+            ST_SetSRID(ST_MakePoint(u."locationLng", u."locationLat"), 4326)::geography,
+            ST_SetSRID(ST_MakePoint(${request.locationLng}, ${request.locationLat}), 4326)::geography
+          ) / 1609.34 as distance_miles
+        FROM tools t
+        JOIN users u ON t."ownerId" = u.id
+        WHERE t.available = true
+          AND u.id != ${request.seeker.id}
+          AND u."locationLat" IS NOT NULL
+          AND u."locationLng" IS NOT NULL
+          AND ST_DWithin(
+            ST_SetSRID(ST_MakePoint(u."locationLng", u."locationLat"), 4326)::geography,
+            ST_SetSRID(ST_MakePoint(${request.locationLng}, ${request.locationLat}), 4326)::geography,
+            ${radiusMeters}
+          )
+        ORDER BY u.id, distance_miles
+        LIMIT ${limit * 3}
+      `;
     } else if (request.category === 'EXPERTISE') {
-      const services = await prisma.service.findMany({
-        where: { available: true },
-        include: {
-          provider: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              rating: true,
-              postcode: true,
-              locationLat: true,
-              locationLng: true,
-            },
-          },
-        },
-      });
-      providers = services.map(s => ({
-        id: s.provider.id,
-        name: s.provider.name,
-        email: s.provider.email,
-        lat: s.provider.locationLat,
-        lng: s.provider.locationLng,
-        rating: s.provider.rating,
-        postcode: s.provider.postcode,
-      }));
+      // For services, the service provider's location matters
+      providers = await prisma.$queryRaw<typeof providers>`
+        SELECT DISTINCT ON (u.id)
+          u.id,
+          u.name,
+          u.email,
+          u.rating,
+          ST_Distance(
+            ST_SetSRID(ST_MakePoint(s."locationLng", s."locationLat"), 4326)::geography,
+            ST_SetSRID(ST_MakePoint(${request.locationLng}, ${request.locationLat}), 4326)::geography
+          ) / 1609.34 as distance_miles
+        FROM services s
+        JOIN users u ON s."providerId" = u.id
+        WHERE s.available = true
+          AND u.id != ${request.seeker.id}
+          AND s."locationLat" IS NOT NULL
+          AND s."locationLng" IS NOT NULL
+          AND ST_DWithin(
+            ST_SetSRID(ST_MakePoint(s."locationLng", s."locationLat"), 4326)::geography,
+            ST_SetSRID(ST_MakePoint(${request.locationLng}, ${request.locationLat}), 4326)::geography,
+            s.radius * 1609.34
+          )
+        ORDER BY u.id, distance_miles
+        LIMIT ${limit * 3}
+      `;
     } else if (request.category === 'SPACE') {
-      const spaces = await prisma.space.findMany({
-        where: { available: true },
-        include: {
-          owner: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              rating: true,
-              postcode: true,
-              locationLat: true,
-              locationLng: true,
-            },
-          },
-        },
-      });
-      providers = spaces.map(s => ({
-        id: s.owner.id,
-        name: s.owner.name,
-        email: s.owner.email,
-        lat: s.owner.locationLat,
-        lng: s.owner.locationLng,
-        rating: s.owner.rating,
-        postcode: s.owner.postcode,
-      }));
+      providers = await prisma.$queryRaw<typeof providers>`
+        SELECT DISTINCT ON (u.id)
+          u.id,
+          u.name,
+          u.email,
+          u.rating,
+          ST_Distance(
+            ST_SetSRID(ST_MakePoint(sp."locationLng", sp."locationLat"), 4326)::geography,
+            ST_SetSRID(ST_MakePoint(${request.locationLng}, ${request.locationLat}), 4326)::geography
+          ) / 1609.34 as distance_miles
+        FROM spaces sp
+        JOIN users u ON sp."ownerId" = u.id
+        WHERE sp.available = true
+          AND u.id != ${request.seeker.id}
+          AND sp."locationLat" IS NOT NULL
+          AND sp."locationLng" IS NOT NULL
+          AND ST_DWithin(
+            ST_SetSRID(ST_MakePoint(sp."locationLng", sp."locationLat"), 4326)::geography,
+            ST_SetSRID(ST_MakePoint(${request.locationLng}, ${request.locationLat}), 4326)::geography,
+            ${radiusMeters}
+          )
+        ORDER BY u.id, distance_miles
+        LIMIT ${limit * 3}
+      `;
     }
 
-    // Filter out the seeker (can't accept own request)
-    providers = providers.filter(p => p.id !== request.seeker.id);
+    // Calculate match scores and format results
+    const matchingProviders: MatchingProvider[] = providers.map(provider => {
+      const distance = Number(provider.distance_miles);
+      const distanceScore = Math.max(0, 100 - (distance / radius) * 50);
+      const ratingScore = (provider.rating || 3) * 10;
+      const matchScore = Math.round((distanceScore + ratingScore) / 2);
 
-    // Dedupe by user id
-    const uniqueProviders = new Map<string, typeof providers[0]>();
-    for (const p of providers) {
-      if (!uniqueProviders.has(p.id)) {
-        uniqueProviders.set(p.id, p);
-      }
-    }
+      return {
+        id: provider.id,
+        name: provider.name,
+        email: provider.email,
+        distance: Math.round(distance * 10) / 10,
+        rating: provider.rating,
+        matchScore,
+      };
+    });
 
-    // Calculate distances and filter by radius
-    const matchingProviders: MatchingProvider[] = [];
-
-    for (const provider of uniqueProviders.values()) {
-      let distance = 999;
-
-      if (provider.lat && provider.lng) {
-        distance = geocodingService.calculateDistance(
-          request.locationLat,
-          request.locationLng,
-          provider.lat,
-          provider.lng
-        );
-      }
-
-      if (distance <= radius || radius >= 999) {
-        // Calculate match score (0-100)
-        const distanceScore = Math.max(0, 100 - (distance / radius) * 50);
-        const ratingScore = (provider.rating || 3) * 10;
-        const matchScore = Math.round((distanceScore + ratingScore) / 2);
-
-        matchingProviders.push({
-          id: provider.id,
-          name: provider.name,
-          email: provider.email,
-          distance: Math.round(distance * 10) / 10,
-          rating: provider.rating,
-          matchScore,
-        });
-      }
-    }
-
-    // Sort by match score (best first)
+    // Sort by match score (best first) and limit
     matchingProviders.sort((a, b) => b.matchScore - a.matchScore);
-
     return matchingProviders.slice(0, limit);
   }
 
   /**
    * Notify matching providers about a new request
+   * @param requestId - The request to notify about
+   * @param userId - The user triggering the notification (must be the request owner)
    */
-  async notifyMatchingProviders(requestId: string): Promise<number> {
+  async notifyMatchingProviders(requestId: string, userId?: string): Promise<number> {
     const request = await prisma.request.findUnique({
       where: { id: requestId },
-      include: { seeker: { select: { name: true } } },
+      include: { seeker: { select: { id: true, name: true } } },
     });
 
     if (!request) return 0;
+
+    // Verify ownership to prevent spam/abuse
+    if (userId && request.seeker.id !== userId) {
+      logger.warn('Notify attempt by non-owner', { requestId, userId, ownerId: request.seeker.id });
+      throw new Error('Not authorized to notify for this request');
+    }
 
     const providers = await this.findMatchingProviders(requestId);
     
@@ -263,55 +241,73 @@ class QuickAcceptService {
         return { success: false, error: 'Cannot accept your own request' };
       }
 
-      // Check if provider already responded
-      const existingTransaction = await prisma.transaction.findFirst({
-        where: {
-          requestId,
-          providerId,
-        },
+      // Use database transaction to prevent race conditions
+      // (two concurrent quick-accepts from same provider creating duplicates)
+      const result = await prisma.$transaction(async (tx) => {
+        // Check if provider already responded (inside transaction for atomicity)
+        const existingTransaction = await tx.transaction.findFirst({
+          where: {
+            requestId,
+            providerId,
+          },
+        });
+
+        if (existingTransaction) {
+          return { success: false as const, error: 'You have already responded to this request' };
+        }
+
+        // Get provider info including plan for correct fee calculation
+        const provider = await tx.user.findUnique({
+          where: { id: providerId },
+          select: { name: true, email: true, providerPlan: true },
+        });
+
+        // Calculate platform fee based on provider's plan tier
+        // BUSINESS: 2%, PRO: 3%, FREE: 5%
+        const rate = proposedRate || request.budget;
+        const providerPlan = provider?.providerPlan || 'FREE';
+        const platformFeePercent = providerPlan === 'BUSINESS' ? 2 : providerPlan === 'PRO' ? 3 : 5;
+        const platformFee = Math.round(rate * (platformFeePercent / 100));
+
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 1); // Default 1 day
+
+        const transaction = await tx.transaction.create({
+          data: {
+            requestId,
+            userId: request.seekerId,
+            providerId,
+            startDate,
+            endDate,
+            rentalFee: rate,
+            platformFee,
+            totalAmount: rate + platformFee,
+            providerPlanAtBooking: providerPlan,
+            platformFeePercent,
+            applicationFeeAmount: platformFee,
+            status: 'PENDING',
+            paymentStatus: 'PENDING',
+            notes: 'Quick Accept - awaiting seeker confirmation',
+          },
+        });
+
+        // Update request response count
+        await tx.request.update({
+          where: { id: requestId },
+          data: {
+            responseCount: { increment: 1 },
+          },
+        });
+
+        return { success: true as const, transactionId: transaction.id, provider };
       });
 
-      if (existingTransaction) {
-        return { success: false, error: 'You have already responded to this request' };
+      if (!result.success) {
+        return { success: false, error: result.error };
       }
 
-      // Get provider info
-      const provider = await prisma.user.findUnique({
-        where: { id: providerId },
-        select: { name: true, email: true },
-      });
-
-      // Create pending transaction
-      const rate = proposedRate || request.budget;
-      const platformFee = Math.round(rate * 0.1); // 10% platform fee
-
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 1); // Default 1 day
-
-      const transaction = await prisma.transaction.create({
-        data: {
-          requestId,
-          userId: request.seekerId,
-          providerId,
-          startDate,
-          endDate,
-          rentalFee: rate,
-          platformFee,
-          totalAmount: rate + platformFee,
-          status: 'PENDING',
-          paymentStatus: 'PENDING',
-          notes: 'Quick Accept - awaiting seeker confirmation',
-        },
-      });
-
-      // Update request response count
-      await prisma.request.update({
-        where: { id: requestId },
-        data: {
-          responseCount: { increment: 1 },
-        },
-      });
+      const { transactionId, provider } = result;
 
       // Notify the seeker
       await notificationService.sendToUser(request.seekerId, {
@@ -321,7 +317,7 @@ class QuickAcceptService {
         data: {
           type: 'request-accepted',
           requestId,
-          transactionId: transaction.id,
+          transactionId,
           providerId,
         },
         actions: [
@@ -333,12 +329,17 @@ class QuickAcceptService {
       logger.info('Quick accept successful', {
         requestId,
         providerId,
-        transactionId: transaction.id,
+        transactionId,
       });
 
-      return { success: true, transactionId: transaction.id };
+      return { success: true, transactionId };
     } catch (error) {
-      logger.error('Quick accept failed', { requestId, providerId, error });
+      logger.error('Quick accept failed', {
+        requestId,
+        providerId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       return { success: false, error: 'Failed to accept request' };
     }
   }
@@ -365,6 +366,10 @@ class QuickAcceptService {
       where: {
         providerId,
         status: 'PENDING',
+        // Only include transactions where the request still exists
+        request: {
+          isNot: null,
+        },
       },
       include: {
         request: {
@@ -375,6 +380,8 @@ class QuickAcceptService {
             category: true,
             budget: true,
             urgency: true,
+            createdDate: true,
+            locationAddress: true,
           },
         },
         user: {
@@ -390,7 +397,19 @@ class QuickAcceptService {
       take: 20,
     });
 
-    return transactions;
+    // Filter out any null requests (extra safety) and transform response
+    return transactions
+      .filter(t => t.request !== null)
+      .map(t => ({
+        id: t.id,
+        createdDate: t.createdDate,
+        request: {
+          ...t.request,
+          // Include transaction createdDate as fallback if request doesn't have one
+          createdDate: t.request?.createdDate || t.createdDate,
+        },
+        user: t.user,
+      }));
   }
 }
 

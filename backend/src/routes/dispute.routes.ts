@@ -61,4 +61,43 @@ router.patch(
   disputeController.updateStatus.bind(disputeController)
 );
 
+// =============================================================================
+// EVIDENCE ROUTES
+// =============================================================================
+
+/**
+ * @route   POST /api/v1/disputes/:id/evidence
+ * @desc    Add evidence to a dispute
+ * @access  Private (dispute parties only)
+ */
+router.post(
+  '/:id/evidence',
+  requireAuth,
+  verifyCsrfToken,
+  disputeController.addEvidence.bind(disputeController)
+);
+
+/**
+ * @route   GET /api/v1/disputes/:id/evidence
+ * @desc    Get evidence for a dispute
+ * @access  Private (dispute parties and admin)
+ */
+router.get(
+  '/:id/evidence',
+  requireAuth,
+  disputeController.getEvidence.bind(disputeController)
+);
+
+/**
+ * @route   DELETE /api/v1/disputes/:disputeId/evidence/:evidenceId
+ * @desc    Delete evidence from a dispute
+ * @access  Private (uploader only)
+ */
+router.delete(
+  '/:disputeId/evidence/:evidenceId',
+  requireAuth,
+  verifyCsrfToken,
+  disputeController.deleteEvidence.bind(disputeController)
+);
+
 export default router;

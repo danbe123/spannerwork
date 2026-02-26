@@ -36,6 +36,10 @@ export interface User {
   avatar?: string | null;
   bio?: string | null;
   postcode?: string | null;
+  street?: string | null;
+  city?: string | null;
+  county?: string | null;
+  country?: string | null;
   locationAddress?: string | null;
   locationLat?: number | null;
   locationLng?: number | null;
@@ -52,6 +56,7 @@ export interface User {
   totalReviews: number;
   providerPlan?: ProviderPlan;
   defaultPayoutSpeed?: PayoutSpeed;
+  lastActiveAt?: string | null;
   createdDate: string;
   updatedDate: string;
 }
@@ -83,6 +88,7 @@ export interface Tool {
   locationLng?: number | null;
   ownerId: string;
   owner?: User;
+  sponsorCpaPercent?: number; // 0 = not sponsored, 5-50% = sponsored
   createdDate: string;
   updatedDate: string;
 }
@@ -113,6 +119,7 @@ export interface Space {
   toolsAvailable?: boolean;
   supervisionRequired?: boolean;
   insuranceRequired?: boolean;
+  sponsorCpaPercent?: number; // 0 = not sponsored, 5-50% = sponsored
   createdDate: string;
   updatedDate: string;
 }
@@ -145,6 +152,7 @@ export interface Service {
   certifications?: string[];
   hasInsurance?: boolean;
   requiresInsurance?: boolean;
+  sponsorCpaPercent?: number; // 0 = not sponsored, 5-50% = sponsored
   createdDate: string;
   updatedDate: string;
 }
@@ -171,9 +179,13 @@ export interface Request {
   responseCount: number;
   seekerId: string;
   seeker?: User;
+  sponsorCpaPercent?: number; // 0 = not sponsored, 5-50% = sponsored
   expiresAt: string;
   createdDate: string;
   updatedDate: string;
+  // Added by backend when fetching single request - indicates if current user already quoted
+  userHasQuoted?: boolean;
+  userTransactionId?: string;
 }
 
 // ============================================================================
@@ -293,6 +305,7 @@ export interface Dispute {
   createdDate: string;
   updatedDate: string;
   resolvedDate?: string | null;
+  deadlineDate?: string | null;
   transaction?: Transaction;
   initiator?: User;
   respondent?: User;
@@ -465,19 +478,28 @@ export interface CreateToolData {
   photos: string[];
   condition: ToolCondition | string;
   postcode: string;
+  sponsorCpaPercent?: number; // 0 = not sponsored, 5-50% = sponsored
 }
 
 export interface CreateSpaceData {
   name: string;
   description: string;
-  hourlyRate: number;
+  spaceType?: string;
+  hourlyRate?: number;
   dailyRate: number;
   weeklyRate?: number;
   size?: number;
+  sizeSqft?: number;
+  vehicleCapacity?: number;
+  maxVehicleHeight?: number;
+  electricityAvailable?: boolean;
+  toolsAvailable?: boolean;
+  deposit?: number;
   features: string[];
   photos: string[];
   postcode: string;
   locationAddress: string;
+  sponsorCpaPercent?: number; // 0 = not sponsored, 5-50% = sponsored
 }
 
 export interface CreateServiceData {
@@ -490,6 +512,7 @@ export interface CreateServiceData {
   photos?: string[];
   requiresInsurance?: boolean;
   postcode: string;
+  sponsorCpaPercent?: number; // 0 = not sponsored, 5-50% = sponsored
 }
 
 export interface CreateRequestData {
@@ -502,6 +525,7 @@ export interface CreateRequestData {
   broadcastRadius: number;
   postcode: string;
   photos?: string[];
+  sponsorCpaPercent?: number; // 0 = not sponsored, 5-50% = sponsored
 }
 
 export interface CreateTransactionData {

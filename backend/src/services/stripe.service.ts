@@ -17,6 +17,7 @@ import Stripe from 'stripe';
 import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
 import { prisma } from '../config/database.js';
+import { redis, isRedisAvailable, prefixKey } from '../config/redis.js';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -152,7 +153,10 @@ export class StripeService {
   constructor() {
     this.secretKey = env.STRIPE_SECRET_KEY || '';
     this.webhookSecret = env.STRIPE_WEBHOOK_SECRET || '';
-    this.platformFeePercent = parseInt(env.PLATFORM_FEE_PERCENTAGE || '10', 10);
+    // FIX: Platform fee default aligned with FREE tier (5%) from transaction.service.ts
+    // Actual fee should always come from transaction.applicationFeeAmount which is calculated
+    // based on provider's plan: BUSINESS=2%, PRO=3%, FREE=5%
+    this.platformFeePercent = parseInt(env.PLATFORM_FEE_PERCENTAGE || '5', 10);
     this.isConfigured = Boolean(this.secretKey && this.webhookSecret);
 
     if (this.isConfigured) {
@@ -426,24 +430,31 @@ export class StripeService {
       throw new Error('Invalid application fee amount');
     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: params.amount,
-      currency: params.currency || 'gbp',
-      customer: params.customerId,
-      application_fee_amount: applicationFeeAmount,
-      // ESCROW: Use manual capture so we can hold funds until job completion
-      capture_method: useEscrow ? 'manual' : 'automatic',
-      transfer_data: {
-        destination: params.providerAccountId,
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: params.amount,
+        currency: params.currency || 'gbp',
+        customer: params.customerId,
+        application_fee_amount: applicationFeeAmount,
+        // ESCROW: Use manual capture so we can hold funds until job completion
+        capture_method: useEscrow ? 'manual' : 'automatic',
+        transfer_data: {
+          destination: params.providerAccountId,
+        },
+        metadata: {
+          transactionId: params.transactionId,
+          useEscrow: useEscrow ? 'true' : 'false',
+          ...params.metadata,
+        },
+        // Payment intent description for customer's bank statement
+        statement_descriptor_suffix: 'SPANNERWORK',
       },
-      metadata: {
-        transactionId: params.transactionId,
-        useEscrow: useEscrow ? 'true' : 'false',
-        ...params.metadata,
-      },
-      // Payment intent description for customer's bank statement
-      statement_descriptor_suffix: 'SPANNERWORK',
-    });
+      {
+        // Idempotency key prevents duplicate charges if request is retried
+        // Using transactionId ensures one payment intent per transaction
+        idempotencyKey: `pi_${params.transactionId}`,
+      }
+    );
 
     logger.info(`Created payment intent ${paymentIntent.id} (capture_method: ${paymentIntent.capture_method})`);
 
@@ -458,13 +469,33 @@ export class StripeService {
   }
 
   /**
+   * FIX #17: Update the application fee on an uncaptured PaymentIntent
+   *
+   * This must be called BEFORE capture to ensure CPA fees are included
+   * in the platform fee. Stripe allows updating application_fee_amount
+   * on uncaptured PaymentIntents.
+   */
+  async updateApplicationFee(paymentIntentId: string, newApplicationFeeAmount: number): Promise<void> {
+    this.ensureConfigured();
+    const stripe = this.getStripe();
+
+    logger.info(`Updating application fee for ${paymentIntentId} to ${newApplicationFeeAmount}`);
+
+    await stripe.paymentIntents.update(paymentIntentId, {
+      application_fee_amount: newApplicationFeeAmount,
+    });
+
+    logger.info(`Application fee updated for ${paymentIntentId}`);
+  }
+
+  /**
    * Capture a payment that was authorized with escrow mode
-   * 
+   *
    * This should be called when:
    * - Customer confirms the job/service is complete
    * - After the agreed service period ends (auto-capture)
    * - Admin resolves a dispute in provider's favor
-   * 
+   *
    * Note: Uncaptured payments expire after 7 days (Stripe limit)
    */
   async capturePayment(params: CapturePaymentParams): Promise<CaptureResult> {
@@ -520,7 +551,10 @@ export class StripeService {
 
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-    // Calculate expiry (uncaptured payments expire after 7 days)
+    // Calculate expiry (uncaptured payments expire after 7 days from authorization)
+    // Note: Stripe doesn't expose the exact authorization timestamp, so we use creation time
+    // as an approximation. The difference is typically seconds/minutes and conservative.
+    // The 7-day limit may also vary slightly by card network.
     let expiresAt: Date | undefined;
     if (paymentIntent.status === 'requires_capture') {
       expiresAt = new Date(paymentIntent.created * 1000 + 7 * 24 * 60 * 60 * 1000);
@@ -668,14 +702,26 @@ export class StripeService {
     return event as unknown as WebhookEvent;
   }
 
+  // NOTE: Old check/mark methods removed in FIX #9 - replaced by atomic tryClaimWebhookEvent
+
   /**
    * Handle a webhook event
    * This should be called after verifying the signature
+   * FIX #9: Uses atomic claim pattern to prevent double processing from race conditions
    */
   async handleWebhookEvent(event: WebhookEvent): Promise<void> {
-    logger.info(`Handling webhook event: ${event.type}`);
+    logger.info(`Handling webhook event: ${event.type} (${event.id})`);
 
-    switch (event.type) {
+    // FIX #9: Atomically try to claim this event BEFORE processing
+    // This prevents race conditions where two webhook deliveries are processed simultaneously
+    const claimed = await this.tryClaimWebhookEvent(event.id, event.type);
+    if (!claimed) {
+      logger.info(`Webhook event ${event.id} already claimed by another process, skipping`);
+      return;
+    }
+
+    try {
+      switch (event.type) {
       case 'payment_intent.succeeded':
         await this.handlePaymentSucceeded(event);
         break;
@@ -719,9 +765,61 @@ export class StripeService {
       case 'charge.dispute.created':
         await this.handleDisputeCreated(event);
         break;
-      
+
       default:
         logger.debug(`Unhandled webhook event type: ${event.type}`);
+        return; // Don't mark unhandled events as processed
+      }
+
+      logger.info(`Webhook event ${event.id} processed successfully`);
+    } catch (error) {
+      // FIX #9: Log error but don't unclaim - let the event stay claimed to prevent retries causing duplicate processing
+      logger.error(`Error processing webhook event ${event.id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * FIX #9: Atomically try to claim a webhook event for processing
+   * Returns true if successfully claimed, false if already claimed
+   *
+   * Uses database as source of truth with Redis as fast-path optimization.
+   * This prevents race conditions when Redis availability changes mid-processing.
+   */
+  private async tryClaimWebhookEvent(eventId: string, eventType: string): Promise<boolean> {
+    // ALWAYS use database as the authoritative source of truth
+    // This prevents race conditions when Redis is intermittently available
+    try {
+      await prisma.webhookEvent.create({
+        data: {
+          eventId,
+          eventType,
+          processedAt: new Date(),
+        },
+      });
+
+      // Successfully claimed in DB - also set in Redis for faster future checks
+      if (isRedisAvailable() && redis) {
+        const key = prefixKey(`webhook:${eventId}`);
+        await redis.setex(key, 7 * 24 * 60 * 60, `processed:${eventType}:${Date.now()}`);
+      }
+
+      return true;
+    } catch (error) {
+      // Check if it's a unique constraint violation (already claimed)
+      const isUniqueViolation = error instanceof Error &&
+        (error.message.includes('Unique constraint') ||
+         error.message.includes('unique constraint') ||
+         error.message.includes('P2002')); // Prisma unique constraint error code
+
+      if (isUniqueViolation) {
+        logger.debug(`Webhook event ${eventId} already claimed, skipping`);
+        return false;
+      }
+
+      // For other errors, log and re-throw
+      logger.error('Failed to claim webhook event', { eventId, eventType, error });
+      throw error;
     }
   }
 
@@ -1017,11 +1115,16 @@ export class StripeService {
     });
   }
 
+  /**
+   * FIX: Updated to track subscription period end for proper plan expiry handling
+   */
   private async handleCustomerSubscriptionUpdated(event: WebhookEvent): Promise<void> {
     const subscription = event.data.object as {
       id: string;
       customer: string;
       status: string;
+      current_period_end?: number;
+      cancel_at_period_end?: boolean;
       items?: { data?: Array<{ price?: { id?: string } }> };
     };
 
@@ -1036,27 +1139,89 @@ export class StripeService {
       }
     }
 
+    // FIX: Track subscription period end to honor paid plans until expiry
+    const subscriptionPeriodEnd = subscription.current_period_end
+      ? new Date(subscription.current_period_end * 1000)
+      : null;
+
     await prisma.user.updateMany({
       where: { stripeCustomerId: subscription.customer },
       data: {
         providerPlan,
         stripeSubscriptionId: subscription.id,
         stripeSubscriptionStatus: subscription.status,
+        subscriptionPeriodEnd,
       } as unknown as Record<string, unknown>,
+    });
+
+    logger.info('Subscription updated', {
+      customerId: subscription.customer,
+      subscriptionId: subscription.id,
+      status: subscription.status,
+      plan: providerPlan,
+      periodEnd: subscriptionPeriodEnd,
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
     });
   }
 
+  /**
+   * FIX: When subscription is deleted, keep the current plan until period end
+   * This ensures users get what they paid for
+   */
   private async handleCustomerSubscriptionDeleted(event: WebhookEvent): Promise<void> {
-    const subscription = event.data.object as { id: string; customer: string; status: string };
+    const subscription = event.data.object as {
+      id: string;
+      customer: string;
+      status: string;
+      current_period_end?: number;
+      canceled_at?: number;
+    };
 
-    await prisma.user.updateMany({
-      where: { stripeCustomerId: subscription.customer },
-      data: {
-        providerPlan: 'FREE',
-        stripeSubscriptionId: null,
-        stripeSubscriptionStatus: subscription.status,
-      } as unknown as Record<string, unknown>,
-    });
+    // FIX: Check if the subscription ended at period end (user got full value)
+    // or was cancelled mid-period (should still honor remaining time)
+    const periodEnd = subscription.current_period_end
+      ? new Date(subscription.current_period_end * 1000)
+      : new Date();
+
+    const now = new Date();
+    const hasRemainingTime = periodEnd > now;
+
+    if (hasRemainingTime) {
+      // FIX: Keep the current plan active until the period ends
+      // The user paid for this period, so honor it
+      logger.info('Subscription cancelled with remaining time - keeping plan until period end', {
+        customerId: subscription.customer,
+        subscriptionId: subscription.id,
+        periodEnd,
+      });
+
+      await prisma.user.updateMany({
+        where: { stripeCustomerId: subscription.customer },
+        data: {
+          stripeSubscriptionId: null,
+          stripeSubscriptionStatus: 'canceled',
+          subscriptionPeriodEnd: periodEnd,
+          // Note: providerPlan is NOT changed here - it stays at the current level
+          // The fee calculation logic should check subscriptionPeriodEnd
+        } as unknown as Record<string, unknown>,
+      });
+    } else {
+      // Period already ended, safe to downgrade immediately
+      await prisma.user.updateMany({
+        where: { stripeCustomerId: subscription.customer },
+        data: {
+          providerPlan: 'FREE',
+          stripeSubscriptionId: null,
+          stripeSubscriptionStatus: subscription.status,
+          subscriptionPeriodEnd: null,
+        } as unknown as Record<string, unknown>,
+      });
+
+      logger.info('Subscription deleted - downgraded to FREE plan', {
+        customerId: subscription.customer,
+        subscriptionId: subscription.id,
+      });
+    }
   }
 
   private async handleChargeRefunded(event: WebhookEvent): Promise<void> {
@@ -1085,6 +1250,12 @@ export class StripeService {
 
     if (!transaction) {
       logger.warn(`No transaction found for payment intent: ${charge.payment_intent}`);
+      return;
+    }
+
+    // FIX: Idempotency check - skip if already refunded to prevent double-processing
+    if (transaction.paymentStatus === 'REFUNDED') {
+      logger.info(`Transaction ${transaction.id} already refunded, skipping duplicate webhook`);
       return;
     }
 
@@ -1122,14 +1293,27 @@ export class StripeService {
       logger.error('Failed to send refund notification emails', emailError);
     }
 
-    // Update provider's earnings (subtract refunded amount)
+    // FIX #19: Update provider's earnings (subtract refunded amount) with bounds checking
     if (transaction.providerId) {
-      await prisma.userStats.update({
+      // First get current stats to prevent going negative
+      const currentStats = await prisma.userStats.findUnique({
         where: { userId: transaction.providerId },
-        data: {
-          totalEarned: { decrement: charge.amount_refunded },
-        },
+        select: { totalEarned: true },
       });
+
+      if (currentStats) {
+        const currentEarned = Number(currentStats.totalEarned) || 0;
+        const refundAmount = charge.amount_refunded || 0;
+        // FIX #19: Ensure we don't go below 0
+        const newEarned = Math.max(0, currentEarned - refundAmount);
+
+        await prisma.userStats.update({
+          where: { userId: transaction.providerId },
+          data: {
+            totalEarned: newEarned,
+          },
+        });
+      }
     }
   }
 
@@ -1172,6 +1356,19 @@ export class StripeService {
 
     // Create a dispute record in our system
     if (transaction && transaction.providerId) {
+      // FIX: Idempotency check - prevent duplicate disputes for the same Stripe dispute
+      const existingDispute = await prisma.dispute.findFirst({
+        where: {
+          transactionId: transaction.id,
+          description: { contains: stripeDispute.id },
+        },
+      });
+
+      if (existingDispute) {
+        logger.info(`Dispute already exists for Stripe dispute ${stripeDispute.id}, skipping duplicate`);
+        return;
+      }
+
       const dispute = await prisma.dispute.create({
         data: {
           transactionId: transaction.id,

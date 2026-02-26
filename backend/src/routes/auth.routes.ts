@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authController } from '../controllers/auth.controller.js';
 import { validateBody } from '../middleware/validate.middleware.js';
-import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, optionalAuth } from '../middleware/auth.middleware.js';
 import { authLimiter, sensitiveLimiter } from '../middleware/rateLimit.middleware.js';
 import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
 import {
@@ -15,6 +15,21 @@ import {
 } from '../utils/validation.schemas.js';
 
 const router = Router();
+
+/**
+ * POST /api/v1/auth/check-email
+ * Check if email exists (for email-first auth flow)
+ * Rate limited with both authLimiter AND sensitiveLimiter to prevent enumeration attacks
+ * sensitiveLimiter: 5 requests/hour - stops bulk enumeration attempts
+ * authLimiter: standard auth rate limit as backup
+ */
+router.post(
+  '/check-email',
+  sensitiveLimiter,
+  authLimiter,
+  validateBody(forgotPasswordSchema), // Reuses email validation
+  authController.checkEmail.bind(authController)
+);
 
 /**
  * POST /api/v1/auth/register
@@ -53,11 +68,11 @@ router.post(
 
 /**
  * GET /api/v1/auth/me
- * Get current authenticated user
+ * Get current authenticated user (returns null user if not authenticated)
  */
 router.get(
   '/me',
-  requireAuth,
+  optionalAuth,
   authController.me.bind(authController)
 );
 
@@ -139,6 +154,31 @@ router.post(
   authLimiter,
   validateBody(resetPasswordSchema),
   authController.resetPassword.bind(authController)
+);
+
+/**
+ * POST /api/v1/auth/send-magic-link
+ * Send magic link email for passwordless login
+ * Rate limited to prevent abuse
+ */
+router.post(
+  '/send-magic-link',
+  sensitiveLimiter,
+  authLimiter,
+  validateBody(forgotPasswordSchema), // Reuses email validation
+  authController.sendMagicLink.bind(authController)
+);
+
+/**
+ * POST /api/v1/auth/verify-magic-link
+ * Verify magic link and login
+ * No CSRF protection - users click this from email clients
+ */
+router.post(
+  '/verify-magic-link',
+  authLimiter,
+  validateBody(verifyEmailSchema), // Reuses token validation
+  authController.verifyMagicLink.bind(authController)
 );
 
 export default router;

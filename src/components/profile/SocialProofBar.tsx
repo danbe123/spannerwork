@@ -100,8 +100,8 @@ export default function SocialProofBar({
       label: 'Repeat Customers',
       value: `${repeatCustomers}`,
       description: 'Customers who came back',
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100',
+      color: 'text-brand-600',
+      bgColor: 'bg-brand-100',
     });
   }
 

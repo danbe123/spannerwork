@@ -80,7 +80,7 @@ export const logger = winston.createLogger({
   ],
 });
 
-// In production, write logs to files
+// Production: write logs to files (error.log and combined.log)
 if (env.NODE_ENV === 'production') {
   logger.add(
     new winston.transports.File({

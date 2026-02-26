@@ -1,30 +1,81 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service.js';
+import { activityFeedService } from '../services/activityFeed.service.js';
 import { logger } from '../config/logger.js';
 import { emailService } from '../services/email.service.js';
 import { smsService } from '../services/sms.service.js';
 import { SESSION_COOKIE_OPTIONS, SESSION_COOKIE_CLEAR_OPTIONS, COOKIE_NAMES } from '../config/cookie.js';
 import { UnauthorizedError, ConflictError, BadRequestError } from '../utils/errors.js';
+import prisma from '../config/database.js';
 
 export class AuthController {
+  /**
+   * Check if email exists (for email-first auth flow)
+   * POST /api/v1/auth/check-email
+   *
+   * SECURITY: Returns completely opaque response to prevent email enumeration.
+   * All responses look identical whether user exists or not.
+   */
+  async checkEmail(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = req.body;
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // Check if user exists
+      const user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: {
+          id: true,
+          name: true,
+          avatar: true,
+        },
+      });
+
+      if (user) {
+        // Returning user - provide personalization data
+        const firstName = user.name?.split(' ')[0] || null;
+        return res.json({
+          exists: true,
+          firstName,
+          avatarUrl: user.avatar,
+        });
+      }
+
+      // New user - return generic response
+      // Note: Always returns exists: true to prevent email enumeration
+      return res.json({
+        exists: true,
+        firstName: null,
+        avatarUrl: null,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   /**
    * Register a new user
    * POST /api/v1/auth/register
    */
   async register(req: Request, res: Response, next: NextFunction) {
     try {
-      const { email, password, name } = req.body;
+      const { email, password, name, referralCode } = req.body;
 
       const { user, sessionId } = await authService.register({
         email,
         password,
         name,
+        referralCode, // SECURITY: Referral is now completed internally during registration
       });
 
       // Set session cookie using standardized config
       res.cookie(COOKIE_NAMES.SESSION, sessionId, SESSION_COOKIE_OPTIONS);
 
       logger.info(`User registered: ${user.email}`);
+
+      // Log activity for live feed
+      activityFeedService.recordUserJoined(user.id, user.postcode || undefined)
+        .catch(err => logger.error('Failed to record activity:', err));
 
       // Send email verification link (best-effort, registration still succeeds even if this fails)
       try {
@@ -198,11 +249,13 @@ export class AuthController {
   /**
    * Get current user
    * GET /api/v1/auth/me
+   * Returns { user: null } if not authenticated (no 401 error)
    */
   async me(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.user) {
-        return next(new UnauthorizedError('Not authenticated'));
+        // Return null user for unauthenticated requests (avoids console 401 errors)
+        return res.json({ user: null });
       }
 
       // Don't send password hash to client
@@ -295,6 +348,68 @@ export class AuthController {
     } catch (error) {
       if (error instanceof Error && error.message.includes('Invalid or expired')) {
         return next(new BadRequestError(error.message));
+      }
+      return next(error);
+    }
+  }
+
+  /**
+   * Send magic link email for passwordless login
+   * POST /api/v1/auth/send-magic-link
+   */
+  async sendMagicLink(req: Request, res: Response, _next: NextFunction) {
+    try {
+      const { email } = req.body;
+      const normalizedEmail = email.toLowerCase().trim();
+
+      const token = await authService.generateMagicLinkToken(normalizedEmail);
+
+      // Only send email if user exists (token is not null)
+      // We still return success either way to prevent email enumeration
+      if (token) {
+        await emailService.sendMagicLinkEmail(normalizedEmail, token);
+        logger.info(`Magic link sent to: ${normalizedEmail}`);
+      }
+
+      // Always return success to prevent email enumeration
+      return res.json({
+        message: 'If the email exists, a login link has been sent',
+      });
+    } catch (error) {
+      // Don't reveal if email exists
+      return res.json({
+        message: 'If the email exists, a login link has been sent',
+      });
+    }
+  }
+
+  /**
+   * Verify magic link and login
+   * POST /api/v1/auth/verify-magic-link
+   */
+  async verifyMagicLink(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { token } = req.body;
+
+      const { user, sessionId } = await authService.verifyMagicLink(token);
+
+      // Set session cookie
+      res.cookie(COOKIE_NAMES.SESSION, sessionId, SESSION_COOKIE_OPTIONS);
+
+      logger.info(`User logged in via magic link: ${user.email}`);
+
+      // Don't send password hash to client
+      const { passwordHash: _passwordHash, ...userWithoutPassword } = user;
+
+      return res.json({
+        message: 'Login successful',
+        user: userWithoutPassword,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('Invalid or expired') || error.message.includes('suspended')) {
+          return next(new BadRequestError(error.message));
+        }
       }
       return next(error);
     }

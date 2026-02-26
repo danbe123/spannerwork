@@ -14,23 +14,26 @@ const hasWebPushConfig =
   !!env.VAPID_PUBLIC_KEY && !!env.VAPID_PRIVATE_KEY && !!env.VAPID_SUBJECT;
 
 // Lazy load web-push to avoid errors if not configured
-let webpush: typeof import('web-push') | null = null;
+let webpushModule: typeof import('web-push') | null = null;
 
-async function getWebPush() {
+async function getWebPush(): Promise<typeof import('web-push') | null> {
   if (!hasWebPushConfig) {
     return null;
   }
-  
-  if (!webpush) {
-    webpush = await import('web-push');
-    webpush.setVapidDetails(
+
+  if (!webpushModule) {
+    const imported = await import('web-push');
+    // Handle both ESM default export and CommonJS module.exports
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    webpushModule = (imported as any).default || imported;
+    webpushModule!.setVapidDetails(
       env.VAPID_SUBJECT!,
       env.VAPID_PUBLIC_KEY!,
       env.VAPID_PRIVATE_KEY!
     );
   }
-  
-  return webpush;
+
+  return webpushModule;
 }
 
 export type PushSubscriptionData = {

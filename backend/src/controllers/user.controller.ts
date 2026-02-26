@@ -6,12 +6,19 @@ export class UserController {
   /**
    * Get user profile by ID
    * GET /api/v1/users/:id
+   * Returns PUBLIC profile for other users, PRIVATE profile for own profile
    */
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
+      const currentUserId = req.user?.id;
 
-      const user = await userService.getById(id, true);
+      // If user is viewing their own profile, return full private data
+      const isOwnProfile = currentUserId === id;
+
+      const user = isOwnProfile
+        ? await userService.getByIdPrivate(id)
+        : await userService.getById(id, true);
 
       if (!user) {
         return res.status(404).json({
@@ -123,6 +130,22 @@ export class UserController {
       const services = await userService.getUserServices(id);
 
       return res.json({ services });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  /**
+   * Get user's posted job requests
+   * GET /api/v1/users/:id/requests
+   */
+  async getUserRequests(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+
+      const requests = await userService.getUserRequests(id);
+
+      return res.json({ requests });
     } catch (error) {
       return next(error);
     }

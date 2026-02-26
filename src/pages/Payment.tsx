@@ -1,8 +1,11 @@
 /**
  * Payment Page
  *
- * Handles secure payment collection using Stripe Elements.
- * Supports escrow payments where funds are held until job completion.
+ * Secure payment collection using Stripe Elements:
+ * - Displays transaction details and total amount
+ * - Integrates Stripe Payment Element for card processing
+ * - Supports escrow model where funds are held until job completion
+ * - Handles payment success/failure states with appropriate redirects
  */
 
 import { useState, useEffect } from "react";
@@ -31,7 +34,7 @@ import { Transaction, User } from "@/types";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/queryKeys";
 
-// Cache Stripe promise
+// Singleton Stripe instance - prevents re-initialisation on re-renders
 let stripePromise: ReturnType<typeof loadStripe> | null = null;
 
 async function getStripePromise() {
@@ -42,15 +45,15 @@ async function getStripePromise() {
         stripePromise = loadStripe(config.publishableKey);
       }
     } catch (error) {
-      console.error("Failed to load Stripe:", error);
+      if (import.meta.env.DEV) {
+        console.error("Failed to load Stripe:", error);
+      }
     }
   }
   return stripePromise;
 }
 
-// ============================================================================
-// Payment Form Component (uses Stripe Elements)
-// ============================================================================
+// Stripe Elements payment form - must be rendered inside Elements provider
 
 interface PaymentFormProps {
   transaction: Transaction;
@@ -206,7 +209,7 @@ export default function Payment() {
     setInsuranceDamageProtectionSelected(Boolean(transaction.insuranceDamageProtectionSelected));
     setInsuranceLiabilitySelected(Boolean(transaction.insuranceLiabilitySelected));
     setInsuranceCancellationSelected(Boolean(transaction.insuranceCancellationSelected));
-  }, [transaction?.id, clientSecret]);
+  }, [transaction, clientSecret]);
 
   const providerIdKey = transaction?.providerId ?? "";
 

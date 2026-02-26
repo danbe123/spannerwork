@@ -46,6 +46,21 @@ router.post('/accept', requireAuth, verifyCsrfToken, async (req: Request, res: R
       return;
     }
 
+    // Validate proposed rate if provided
+    if (proposedRate !== undefined) {
+      const rate = Number(proposedRate);
+      if (isNaN(rate) || rate <= 0) {
+        res.status(400).json({ error: 'Proposed rate must be a positive number' });
+        return;
+      }
+      // Maximum rate cap to prevent abuse (£10,000/hour or day)
+      const MAX_RATE = 1000000; // 10000.00 in pence
+      if (rate > MAX_RATE) {
+        res.status(400).json({ error: `Proposed rate cannot exceed £${(MAX_RATE / 100).toFixed(2)}` });
+        return;
+      }
+    }
+
     const result = await quickAcceptService.quickAccept(requestId, providerId, proposedRate);
 
     if (!result.success) {
@@ -125,8 +140,10 @@ router.get('/pending', requireAuth, async (req: Request, res: Response, next: Ne
 router.post('/notify/:requestId', requireAuth, verifyCsrfToken, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { requestId } = req.params;
+    const userId = req.user!.id;
 
-    const notifiedCount = await quickAcceptService.notifyMatchingProviders(requestId);
+    // Verify user owns this request to prevent spam/abuse
+    const notifiedCount = await quickAcceptService.notifyMatchingProviders(requestId, userId);
 
     res.json({
       success: true,

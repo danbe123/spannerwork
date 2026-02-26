@@ -1,5 +1,5 @@
 import apiClient from '../client';
-import type { User, UserProfile, Review, Tool, Space, Service, PaginatedResponse } from '@/types';
+import type { User, UserProfile, Review, Tool, Space, Service, Request, PaginatedResponse } from '@/types';
 
 // ============================================================================
 // Types
@@ -54,6 +54,11 @@ export const usersService = {
 
   async getListings(id: string): Promise<UserListings> {
     const response = await apiClient.get<UserListings>(`/users/${id}/listings`);
+    return response.data;
+  },
+
+  async getRequests(id: string): Promise<{ requests: Request[] }> {
+    const response = await apiClient.get<{ requests: Request[] }>(`/users/${id}/requests`);
     return response.data;
   },
 };

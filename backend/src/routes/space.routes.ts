@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { spaceController } from '../controllers/space.controller.js';
 import { requireAuth, requireEmailVerified, optionalAuth } from '../middleware/auth.middleware.js';
-import { validateBody } from '../middleware/validate.middleware.js';
+import { validateBody, validateQuery } from '../middleware/validate.middleware.js';
 import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
 import {
   createSpaceSchema,
   updateSpaceSchema,
+  listQuerySchema,
 } from '../utils/validation.schemas.js';
 
 const router = Router();
@@ -13,8 +14,9 @@ const router = Router();
 /**
  * GET /api/v1/spaces
  * List all spaces with optional filters
+ * Query parameters validated to prevent injection attacks
  */
-router.get('/', optionalAuth, spaceController.list.bind(spaceController));
+router.get('/', optionalAuth, validateQuery(listQuerySchema), spaceController.list.bind(spaceController));
 
 /**
  * POST /api/v1/spaces

@@ -200,7 +200,7 @@ export default function PricingGuide(): JSX.Element {
             </div>
             <div>
               <h1 className="text-4xl md:text-5xl font-bold">Pricing Guide</h1>
-              <p className="text-xl text-orange-100 mt-2">Simple tips to help you price your listings with confidence</p>
+              <p className="text-xl text-brand-100 mt-2">Simple tips to help you price your listings with confidence</p>
             </div>
           </div>
         </div>
@@ -259,7 +259,7 @@ export default function PricingGuide(): JSX.Element {
 
           <div className="min-w-0 flex-1">
             {/* Quick Pricing Tip */}
-        <Card className="mb-12 border-none shadow-lg bg-gradient-to-br from-orange-50 to-amber-50">
+        <Card className="mb-12 border-none shadow-lg bg-gradient-to-br from-brand-50 to-brand-100">
           <CardContent className="p-8">
             <div className="flex items-start gap-4">
               <Lightbulb className="w-8 h-8 text-brand-800 flex-shrink-0" />
@@ -349,14 +349,14 @@ export default function PricingGuide(): JSX.Element {
           <CardContent className="p-12 text-center">
             <Package className="w-16 h-16 mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-4">Ready to Give It a Go?</h2>
-            <p className="text-xl text-orange-100 mb-8">
+            <p className="text-xl text-brand-100 mb-8">
               You've got this! Start with what feels right and adjust from there.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => navigate("/create?intent=offer")}
                 size="lg"
-                className="bg-white text-brand-800 hover:bg-orange-50 text-lg px-8 py-6 font-bold"
+                className="bg-white text-brand-800 hover:bg-brand-50 text-lg px-8 py-6 font-bold"
               >
                 Create a Listing
               </Button>

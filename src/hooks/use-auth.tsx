@@ -86,9 +86,10 @@ export function useAuth(): UseAuthReturn {
     if (currentUser && !postLoginGracePeriod.current) {
       // Set 5-second grace period where 401s won't clear auth
       postLoginGracePeriod.current = Date.now();
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         postLoginGracePeriod.current = null;
       }, 5000);
+      return () => clearTimeout(timer);
     }
   }, [data, queryClient]);
 

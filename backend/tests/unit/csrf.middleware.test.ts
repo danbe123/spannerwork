@@ -30,13 +30,11 @@ vi.mock('../../src/config/cookie.js', () => ({
 // Mock csrf-csrf module - use vi.hoisted to avoid hoisting issues
 const mockDoubleCsrfGenerateToken = vi.hoisted(() => vi.fn().mockReturnValue('mock-csrf-token'));
 const mockDoubleCsrfProtection = vi.hoisted(() => vi.fn((req: any, res: any, next: any) => next()));
-const mockValidateRequest = vi.hoisted(() => vi.fn().mockReturnValue(true));
 
 vi.mock('csrf-csrf', () => ({
   doubleCsrf: () => ({
     doubleCsrfProtection: mockDoubleCsrfProtection,
     generateToken: mockDoubleCsrfGenerateToken,
-    validateRequest: mockValidateRequest,
   }),
 }));
 
@@ -44,7 +42,6 @@ import {
   generateCsrfToken,
   getCsrfToken,
   verifyCsrfToken,
-  optionalCsrfToken,
 } from '../../src/middleware/csrf.middleware.js';
 
 // Helper to create mock request - use any to avoid Express type complexity in tests
@@ -80,7 +77,6 @@ describe('CSRF Middleware', () => {
     // Re-configure mocks after clearAllMocks
     mockDoubleCsrfGenerateToken.mockReturnValue('mock-csrf-token');
     mockDoubleCsrfProtection.mockImplementation((req: any, res: any, next: any) => next());
-    mockValidateRequest.mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -163,75 +159,6 @@ describe('CSRF Middleware', () => {
       await verifyCsrfToken(req as Request, res as Response, mockNext);
 
       expect(mockDoubleCsrfProtection).toHaveBeenCalledWith(req, res, mockNext);
-    });
-  });
-
-  describe('optionalCsrfToken', () => {
-    it('skips validation for GET requests', async () => {
-      const req = createMockRequest({ method: 'GET' });
-      const res = createMockResponse();
-
-      await optionalCsrfToken(req as Request, res as Response, mockNext);
-
-      expect(mockNext).toHaveBeenCalled();
-      expect(mockValidateRequest).not.toHaveBeenCalled();
-    });
-
-    it('skips validation for HEAD requests', async () => {
-      const req = createMockRequest({ method: 'HEAD' });
-      const res = createMockResponse();
-
-      await optionalCsrfToken(req as Request, res as Response, mockNext);
-
-      expect(mockNext).toHaveBeenCalled();
-      expect(mockValidateRequest).not.toHaveBeenCalled();
-    });
-
-    it('skips validation for OPTIONS requests', async () => {
-      const req = createMockRequest({ method: 'OPTIONS' });
-      const res = createMockResponse();
-
-      await optionalCsrfToken(req as Request, res as Response, mockNext);
-
-      expect(mockNext).toHaveBeenCalled();
-      expect(mockValidateRequest).not.toHaveBeenCalled();
-    });
-
-    it('validates token for POST requests but continues on invalid', async () => {
-      const req = createMockRequest({ method: 'POST' });
-      const res = createMockResponse();
-
-      mockValidateRequest.mockReturnValueOnce(false);
-
-      await optionalCsrfToken(req as Request, res as Response, mockNext);
-
-      expect(mockValidateRequest).toHaveBeenCalledWith(req);
-      expect(mockNext).toHaveBeenCalled(); // Should still call next
-    });
-
-    it('validates token for PUT requests', async () => {
-      const req = createMockRequest({ method: 'PUT' });
-      const res = createMockResponse();
-
-      mockValidateRequest.mockReturnValueOnce(true);
-
-      await optionalCsrfToken(req as Request, res as Response, mockNext);
-
-      expect(mockValidateRequest).toHaveBeenCalledWith(req);
-      expect(mockNext).toHaveBeenCalled();
-    });
-
-    it('continues on validation error', async () => {
-      const req = createMockRequest({ method: 'POST' });
-      const res = createMockResponse();
-
-      mockValidateRequest.mockImplementationOnce(() => {
-        throw new Error('Validation error');
-      });
-
-      await optionalCsrfToken(req as Request, res as Response, mockNext);
-
-      expect(mockNext).toHaveBeenCalled();
     });
   });
 });

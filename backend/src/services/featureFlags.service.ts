@@ -33,18 +33,17 @@ export interface FeatureFlag {
 
 // Default feature flags - can be overridden via Redis
 const DEFAULT_FLAGS: Record<string, FeatureFlag> = {
-  // Example flags - add your own as needed
   new_booking_flow: {
     name: 'new_booking_flow',
-    enabled: false,
+    enabled: true,
     description: 'New booking UI with improved UX',
-    percentage: 0,
+    percentage: 100,
   },
   enhanced_search: {
     name: 'enhanced_search',
-    enabled: false,
+    enabled: true,
     description: 'Enhanced search with fuzzy matching',
-    percentage: 0,
+    percentage: 100,
   },
   real_time_messaging: {
     name: 'real_time_messaging',

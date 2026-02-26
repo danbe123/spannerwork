@@ -1,13 +1,13 @@
 /**
  * Messages - Completely Redesigned
- * 
+ *
  * Modern messaging interface with:
  * - Split-view on desktop (conversations + chat)
- * - Dark theme with glassmorphism
  * - Real-time typing indicators
  * - Online status
  * - Smooth animations
  * - Mobile-first responsive
+ * - Call request system (request → accept/decline → phone number shared)
  */
 
 import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
@@ -20,6 +20,8 @@ import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
 import {
   MessageSquare,
   Search,
@@ -30,13 +32,17 @@ import {
   Check,
   CheckCheck,
   Phone,
-  Video,
   Info,
   Smile,
   Inbox,
   Sparkles,
   Zap,
-  Shield
+  Shield,
+  X,
+  PhoneCall,
+  Star,
+  MapPin,
+  Calendar
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import { User, Conversation, Message, Request } from "@/types";
@@ -52,6 +58,74 @@ const messageVariants = {
   hidden: { opacity: 0, y: 10, scale: 0.95 },
   visible: { opacity: 1, y: 0, scale: 1 },
 };
+
+// ============================================================================
+// Call Request System Types (Voice only - no video)
+// ============================================================================
+
+interface CallRequest {
+  type: 'CALL_REQUEST';
+  status: 'pending' | 'accepted' | 'declined';
+  requestId: string;
+  phone?: string; // Phone number shared when accepted
+}
+
+// Helper to check if a message is a call request
+function isCallRequestMessage(content: string): CallRequest | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed.type === 'CALL_REQUEST' && parsed.status) {
+      return parsed as CallRequest;
+    }
+  } catch {
+    // Not JSON, not a call request
+  }
+  return null;
+}
+
+// Helper to create a call request message
+function createCallRequestContent(status: 'pending' | 'accepted' | 'declined', requestId: string, phone?: string): string {
+  return JSON.stringify({
+    type: 'CALL_REQUEST',
+    status,
+    requestId,
+    ...(phone && { phone })
+  });
+}
+
+// ============================================================================
+// Address Share System Types
+// ============================================================================
+
+interface AddressShare {
+  type: 'ADDRESS_SHARE';
+  street: string;
+  city: string;
+  county: string;
+  postcode: string;
+  country: string;
+}
+
+// Helper to check if a message is an address share
+function isAddressShareMessage(content: string): AddressShare | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed.type === 'ADDRESS_SHARE' && parsed.street) {
+      return parsed as AddressShare;
+    }
+  } catch {
+    // Not JSON, not an address share
+  }
+  return null;
+}
+
+// Helper to create an address share message
+function createAddressShareContent(address: Omit<AddressShare, 'type'>): string {
+  return JSON.stringify({
+    type: 'ADDRESS_SHARE',
+    ...address
+  });
+}
 
 interface MessageReactionsProps {
   reactions?: string[];
@@ -148,22 +222,361 @@ interface ExtendedConversation extends Conversation {
   request?: Request;
 }
 
+// ============================================================================
+// Call Request Card Component
+// ============================================================================
+
+interface CallRequestCardProps {
+  callRequest: CallRequest;
+  isOwnMessage: boolean;
+  currentUserId: string;
+  senderId: string;
+  onAccept?: (requestId: string) => void;
+  onDecline?: (requestId: string) => void;
+  createdDate: string;
+  isMobile: boolean;
+}
+
+function CallRequestCard({
+  callRequest,
+  isOwnMessage,
+  onAccept,
+  onDecline,
+  createdDate,
+  isMobile
+}: CallRequestCardProps) {
+  return (
+    <motion.div
+      variants={messageVariants}
+      initial="hidden"
+      animate="visible"
+      className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-4`}
+    >
+      <div className={`max-w-[85%] rounded-2xl overflow-hidden ${
+        isOwnMessage
+          ? 'bg-gradient-to-br from-brand-800 to-brand-900'
+          : 'bg-white border border-gray-200'
+      }`}>
+        <div className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              isOwnMessage ? 'bg-white/20' : 'bg-brand-100'
+            }`}>
+              <PhoneCall className={`w-5 h-5 ${isOwnMessage ? 'text-white' : 'text-brand-800'}`} />
+            </div>
+            <div>
+              <p className={`font-semibold ${isOwnMessage ? 'text-white' : 'text-gray-900'}`}>
+                Call Request
+              </p>
+              <p className={`text-xs ${isOwnMessage ? 'text-white/70' : 'text-gray-500'}`}>
+                {callRequest.status === 'pending' && (isOwnMessage ? 'Waiting for response...' : 'Tap to respond')}
+                {callRequest.status === 'accepted' && 'Request accepted'}
+                {callRequest.status === 'declined' && 'Request declined'}
+              </p>
+            </div>
+          </div>
+
+          {/* Action buttons for pending requests (only for recipient) */}
+          {callRequest.status === 'pending' && !isOwnMessage && (
+            <div className="flex gap-2 mt-3">
+              <Button
+                size="sm"
+                onClick={() => onAccept?.(callRequest.requestId)}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Check className="w-4 h-4 mr-1" />
+                Accept
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onDecline?.(callRequest.requestId)}
+                className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Decline
+              </Button>
+            </div>
+          )}
+
+          {/* Phone number display when accepted */}
+          {callRequest.status === 'accepted' && callRequest.phone && (
+            <div className={`mt-3 p-3 rounded-lg ${
+              isOwnMessage ? 'bg-white/10' : 'bg-green-50'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Check className={`w-4 h-4 ${isOwnMessage ? 'text-green-300' : 'text-green-600'}`} />
+                <span className={`text-sm font-medium ${isOwnMessage ? 'text-green-200' : 'text-green-700'}`}>
+                  Call request accepted
+                </span>
+              </div>
+              {isMobile ? (
+                <a
+                  href={`tel:${callRequest.phone}`}
+                  className={`flex items-center gap-2 p-2 rounded-lg ${
+                    isOwnMessage
+                      ? 'bg-white/20 text-white hover:bg-white/30'
+                      : 'bg-green-100 text-green-800 hover:bg-green-200'
+                  } transition-colors`}
+                >
+                  <Phone className="w-5 h-5" />
+                  <span className="font-semibold">{callRequest.phone}</span>
+                  <span className="text-xs opacity-70 ml-auto">Tap to call</span>
+                </a>
+              ) : (
+                <div className={`flex items-center gap-2 p-2 rounded-lg ${
+                  isOwnMessage ? 'bg-white/20' : 'bg-green-100'
+                }`}>
+                  <Phone className={`w-5 h-5 ${isOwnMessage ? 'text-white' : 'text-green-700'}`} />
+                  <span className={`font-semibold ${isOwnMessage ? 'text-white' : 'text-green-800'}`}>
+                    {callRequest.phone}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Accepted but no phone (shouldn't happen normally) */}
+          {callRequest.status === 'accepted' && !callRequest.phone && (
+            <div className={`flex items-center gap-2 mt-3 p-2 rounded-lg ${
+              isOwnMessage ? 'bg-white/10' : 'bg-green-50'
+            }`}>
+              <Check className={`w-4 h-4 ${isOwnMessage ? 'text-green-300' : 'text-green-600'}`} />
+              <span className={`text-sm ${isOwnMessage ? 'text-green-200' : 'text-green-700'}`}>
+                Call request accepted
+              </span>
+            </div>
+          )}
+
+          {callRequest.status === 'declined' && (
+            <div className={`flex items-center gap-2 mt-3 p-2 rounded-lg ${
+              isOwnMessage ? 'bg-white/10' : 'bg-red-50'
+            }`}>
+              <X className={`w-4 h-4 ${isOwnMessage ? 'text-red-300' : 'text-red-600'}`} />
+              <span className={`text-sm ${isOwnMessage ? 'text-red-200' : 'text-red-700'}`}>
+                Request was declined
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Timestamp */}
+        <div className={`px-4 pb-2 text-xs ${isOwnMessage ? 'text-white/50' : 'text-gray-400'}`}>
+          {formatDistanceToNow(new Date(createdDate), { addSuffix: true })}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ============================================================================
+// Address Share Card Component
+// ============================================================================
+
+interface AddressShareCardProps {
+  address: AddressShare;
+  isOwnMessage: boolean;
+  createdDate: string;
+}
+
+function AddressShareCard({
+  address,
+  isOwnMessage,
+  createdDate,
+}: AddressShareCardProps) {
+  return (
+    <motion.div
+      variants={messageVariants}
+      initial="hidden"
+      animate="visible"
+      className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-4`}
+    >
+      <div className={`max-w-[85%] rounded-2xl overflow-hidden ${
+        isOwnMessage
+          ? 'bg-gradient-to-br from-brand-800 to-brand-900'
+          : 'bg-white border border-gray-200'
+      }`}>
+        <div className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              isOwnMessage ? 'bg-white/20' : 'bg-brand-100'
+            }`}>
+              <MapPin className={`w-5 h-5 ${isOwnMessage ? 'text-white' : 'text-brand-800'}`} />
+            </div>
+            <div>
+              <p className={`font-semibold ${isOwnMessage ? 'text-white' : 'text-gray-900'}`}>
+                Address Shared
+              </p>
+              <p className={`text-xs ${isOwnMessage ? 'text-white/70' : 'text-gray-500'}`}>
+                {isOwnMessage ? 'You shared your address' : 'Shared their address with you'}
+              </p>
+            </div>
+          </div>
+
+          {/* Address display */}
+          <div className={`p-3 rounded-lg ${
+            isOwnMessage ? 'bg-white/10' : 'bg-gray-50'
+          }`}>
+            <p className={`text-sm font-medium ${isOwnMessage ? 'text-white' : 'text-gray-900'}`}>
+              {address.street}
+            </p>
+            <p className={`text-sm ${isOwnMessage ? 'text-white/80' : 'text-gray-600'}`}>
+              {address.city}{address.county ? `, ${address.county}` : ''}
+            </p>
+            <p className={`text-sm font-semibold ${isOwnMessage ? 'text-white' : 'text-gray-900'}`}>
+              {address.postcode}
+            </p>
+          </div>
+        </div>
+
+        {/* Timestamp */}
+        <div className={`px-4 pb-2 text-xs ${isOwnMessage ? 'text-white/50' : 'text-gray-400'}`}>
+          {formatDistanceToNow(new Date(createdDate), { addSuffix: true })}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ============================================================================
+// User Info Panel Component
+// ============================================================================
+
+interface UserInfoPanelProps {
+  user: ExtendedUser;
+  onClose: () => void;
+}
+
+function UserInfoPanel({ user, onClose }: UserInfoPanelProps) {
+  const navigate = useNavigate();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 300 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 300 }}
+      className="fixed inset-y-0 right-0 w-full md:w-96 bg-white shadow-2xl z-50 overflow-y-auto"
+    >
+      <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+        <h3 className="font-semibold text-gray-900">User Info</h3>
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <X className="w-5 h-5" />
+        </Button>
+      </div>
+
+      <div className="p-6">
+        {/* Profile Header */}
+        <div className="text-center mb-6">
+          <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-white shadow-lg">
+            <AvatarImage src={user.avatar || undefined} />
+            <AvatarFallback className="bg-gradient-to-br from-brand-100 to-brand-200 text-brand-800 text-2xl">
+              {user.name?.[0]?.toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
+          <h2 className="text-xl font-bold text-gray-900">{user.name || 'User'}</h2>
+          {user.bio && (
+            <p className="text-sm text-gray-600 mt-2">{user.bio}</p>
+          )}
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-gray-50 rounded-xl p-4 text-center">
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <Star className="w-4 h-4 text-yellow-500" />
+              <span className="font-bold text-gray-900">{user.rating?.toFixed(1) || '—'}</span>
+            </div>
+            <p className="text-xs text-gray-500">Rating</p>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-4 text-center">
+            <span className="font-bold text-gray-900">{user.totalTransactions || 0}</span>
+            <p className="text-xs text-gray-500">Transactions</p>
+          </div>
+        </div>
+
+        {/* Info List */}
+        <div className="space-y-4">
+          {user.locationAddress && (
+            <div className="flex items-start gap-3">
+              <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Location</p>
+                <p className="text-sm text-gray-500">{user.locationAddress}</p>
+              </div>
+            </div>
+          )}
+          <div className="flex items-start gap-3">
+            <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-gray-900">Member since</p>
+              <p className="text-sm text-gray-500">
+                {new Date(user.createdDate).toLocaleDateString('en-GB', {
+                  month: 'long',
+                  year: 'numeric'
+                })}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Verification Badges */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Verifications</h4>
+          <div className="flex flex-wrap gap-2">
+            {user.emailVerified && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs">
+                <Check className="w-3 h-3" />
+                Email verified
+              </span>
+            )}
+            {user.phoneVerified && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs">
+                <Check className="w-3 h-3" />
+                Phone verified
+              </span>
+            )}
+            {user.idVerified && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs">
+                <Check className="w-3 h-3" />
+                ID verified
+              </span>
+            )}
+            {!user.emailVerified && !user.phoneVerified && !user.idVerified && (
+              <span className="text-sm text-gray-500">No verifications yet</span>
+            )}
+          </div>
+        </div>
+
+        {/* View Profile Button */}
+        <Button
+          onClick={() => navigate(`/user/${user.id}`)}
+          className="w-full mt-6 bg-brand-800 hover:bg-brand-900"
+        >
+          View Full Profile
+        </Button>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Messages() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  
+  const isMobile = useIsMobile();
+
   // Get active chat from URL
   const activeUserId = searchParams.get('userId');
   const activeRequestId = searchParams.get('requestId');
 
   const activeUserIdKey = activeUserId ?? '';
   const activeRequestIdKey = activeRequestId ?? '';
-  
+
   // State
   const [searchQuery, setSearchQuery] = useState("");
   const [messageText, setMessageText] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showUserInfo, setShowUserInfo] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Get current user
@@ -180,19 +593,31 @@ export default function Messages() {
     queryKey: queryKeys.conversations(),
     queryFn: () => messagesService.listConversations(),
     enabled: !!currentUser && !requiresVerification,
-    refetchInterval: 10000, // Refresh every 10s
+    // Always fetch fresh data - no caching
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    // Poll for updates
+    refetchInterval: 30000,
   });
-  const conversations = (conversationsData?.conversations || []) as ExtendedConversation[];
+  const conversations = useMemo(() => (conversationsData?.conversations || []) as ExtendedConversation[], [conversationsData?.conversations]);
 
   // Get active conversation messages
   const { data: conversationData, isLoading: loadingMessages } = useQuery({
     queryKey: queryKeys.conversation(activeUserIdKey),
     queryFn: () => activeUserId ? messagesService.getConversation(activeUserId) : Promise.resolve({ messages: [], otherUser: {} as User }),
     enabled: !!currentUser && !!activeUserId && !requiresVerification,
-    refetchInterval: 3000, // Refresh every 3s when chat is open
+    // Always fetch fresh data - no caching
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    // Poll for updates
+    refetchInterval: 15000,
   });
   
-  const messages: Message[] = conversationData?.messages || [];
+  const messages: Message[] = useMemo(() => conversationData?.messages || [], [conversationData?.messages]);
   const otherUser = conversationData?.otherUser as ExtendedUser | undefined;
 
   // Get request info if available
@@ -224,13 +649,25 @@ export default function Messages() {
         .then(() => {
           queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
         })
-        .catch(console.error);
+        .catch((error: Error) => {
+          // Silently handle mark-as-read failures - not critical to user experience
+          if (import.meta.env.DEV) {
+            console.error('Failed to mark conversation as read:', error.message);
+          }
+        });
     }
-  }, [activeUserId, currentUser, queryClient]);
+  }, [activeUserId, currentUser, queryClient, requiresVerification]);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom only when new messages are added (not on initial load)
+  const prevMessageCount = useRef(0);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Only scroll if we have more messages than before (new message added)
+    // or if this is initial load with messages and content overflows
+    if (messages.length > prevMessageCount.current && prevMessageCount.current > 0) {
+      // New message added - scroll to bottom
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    prevMessageCount.current = messages.length;
   }, [messages]);
 
   // Show mobile chat when user selected
@@ -245,13 +682,12 @@ export default function Messages() {
       return messagesService.send({
         recipientId: activeUserId,
         content,
-        // @ts-expect-error - types need alignment
         requestId: activeRequestId || undefined,
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversation(activeUserIdKey) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversation(activeUserIdKey), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations(), refetchType: 'all' });
       setMessageText("");
     },
   });
@@ -259,6 +695,106 @@ export default function Messages() {
   const handleSendMessage = () => {
     if (!messageText.trim() || !activeUserId) return;
     sendMutation.mutate(messageText);
+  };
+
+  // ============================================================================
+  // Call Request Handlers (Voice only)
+  // ============================================================================
+
+  // Check if there's a pending call request from the current user
+  const pendingCallRequest = useMemo(() => {
+    for (const message of messages) {
+      if (message.senderId === currentUser?.id) {
+        const callRequest = isCallRequestMessage(message.content);
+        if (callRequest && callRequest.status === 'pending') {
+          return callRequest;
+        }
+      }
+    }
+    return null;
+  }, [messages, currentUser?.id]);
+
+  // Send a call request
+  const handleCallRequest = () => {
+    if (!activeUserId || !currentUser) return;
+
+    // Check if there's already a pending request from this user
+    if (pendingCallRequest) {
+      toast.info('You already have a pending call request. Please wait for a response.');
+      return;
+    }
+
+    // Check if user has a phone number to share
+    if (!currentUser.phone) {
+      toast.error('Please add a phone number to your profile before requesting a call.');
+      return;
+    }
+
+    const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const content = createCallRequestContent('pending', requestId);
+
+    sendMutation.mutate(content, {
+      onSuccess: () => {
+        toast.success('Call request sent! They will see your number when they accept.');
+      }
+    });
+  };
+
+  // Accept a call request - share your phone number
+  const handleAcceptCallRequest = (requestId: string) => {
+    if (!activeUserId || !currentUser) return;
+
+    // Check if user has a phone number to share
+    if (!currentUser.phone) {
+      toast.error('Please add a phone number to your profile to accept call requests.');
+      return;
+    }
+
+    const content = createCallRequestContent('accepted', requestId, currentUser.phone);
+    sendMutation.mutate(content, {
+      onSuccess: () => {
+        toast.success('Call request accepted! Your phone number has been shared.');
+      }
+    });
+  };
+
+  // Decline a call request
+  const handleDeclineCallRequest = (requestId: string) => {
+    if (!activeUserId) return;
+
+    const content = createCallRequestContent('declined', requestId);
+    sendMutation.mutate(content, {
+      onSuccess: () => {
+        toast.info('Call request declined');
+      }
+    });
+  };
+
+  // Share your address with the other user
+  const handleShareAddress = () => {
+    if (!activeUserId || !currentUser) return;
+
+    // Check if user has an address set - extend User type to include new fields
+    const extendedUser = currentUser as User & { street?: string; city?: string; county?: string; country?: string };
+
+    if (!extendedUser.street || !extendedUser.postcode) {
+      toast.error('Please add your address in your profile first.');
+      return;
+    }
+
+    const content = createAddressShareContent({
+      street: extendedUser.street,
+      city: extendedUser.city || '',
+      county: extendedUser.county || '',
+      postcode: extendedUser.postcode || '',
+      country: extendedUser.country || 'GB',
+    });
+
+    sendMutation.mutate(content, {
+      onSuccess: () => {
+        toast.success('Address shared successfully!');
+      }
+    });
   };
 
   const handlePhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -271,13 +807,14 @@ export default function Messages() {
       await messagesService.send({
         recipientId: activeUserId,
         content: result.data.fileUrl,
-        // @ts-expect-error - types need alignment
         requestId: activeRequestId || undefined,
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversation(activeUserIdKey) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversation(activeUserIdKey), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations(), refetchType: 'all' });
     } catch (error) {
-      console.error('Upload failed:', error);
+      if (import.meta.env.DEV) {
+        console.error('Upload failed:', error);
+      }
     }
     setUploadingPhoto(false);
     e.target.value = '';
@@ -301,18 +838,24 @@ export default function Messages() {
     }
   };
 
-  // Check if message is an image
+  // Check if message is an image (relative paths or full URLs)
   const isImageMessage = (content: string) => {
-    return typeof content === 'string' && 
-           /^https?:\/\/.*\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(content);
+    if (typeof content !== 'string') return false;
+    // Match relative paths starting with /uploads/
+    if (/^\/uploads\/.*\.(png|jpe?g|gif|webp|bmp|svg)($|\?)/i.test(content)) return true;
+    // Match full URLs with image extensions
+    if (/^https?:\/\/.*\.(png|jpe?g|gif|webp|bmp|svg)($|\?)/i.test(content)) return true;
+    // Match CDN/storage patterns
+    if (/^https?:\/\/.*(images|uploads|storage).*\.(png|jpe?g|gif|webp|bmp|svg)/i.test(content)) return true;
+    return false;
   };
 
   return requiresVerification ? (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <SEO title="Verification Required - SpannerWork" description="Verify your account to use messaging" />
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-        <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-6">
-          <Shield className="w-8 h-8 text-amber-600" />
+        <div className="w-16 h-16 rounded-full bg-brand-100 flex items-center justify-center mx-auto mb-6">
+          <Shield className="w-8 h-8 text-brand-600" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-3">Verification Required</h1>
         <p className="text-gray-600 mb-6">
@@ -331,15 +874,15 @@ export default function Messages() {
       </div>
     </div>
   ) : (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <div className="messages-container bg-gray-50 flex flex-col overflow-hidden">
       <SEO title="Messages - SpannerWork" description="Your conversations on SpannerWork" />
 
       {/* Desktop: Split view | Mobile: List or Chat */}
       <div className="flex-1 flex overflow-hidden">
         {/* Conversations List */}
         <div className={`
-          ${activeUserId ? 'hidden md:flex' : 'flex'} 
-          flex-col w-full md:w-96 border-r border-gray-200 bg-white
+          ${activeUserId ? 'hidden md:flex' : 'flex'}
+          flex-col w-full md:w-96 border-r border-gray-200 bg-white z-30 relative
         `}>
           {/* Search */}
           <div className="p-4 border-b border-gray-200">
@@ -377,8 +920,8 @@ export default function Messages() {
             ) : (
               <AnimatePresence>
                 {filteredConversations.map((conv, index) => {
-                  // @ts-expect-error - userId exists on conversation in practice
-                  const userId = conv.userId || conv.participant?.id || conv.user?.id;
+                  // userId may be at different nesting levels depending on API response
+                  const userId = (conv as { userId?: string }).userId || conv.participant?.id || conv.user?.id;
                   const isActive = userId === activeUserId;
                   const isFromMe = conv.lastMessage?.senderId === currentUser?.id;
                   
@@ -393,14 +936,14 @@ export default function Messages() {
                       onClick={() => userId && selectConversation(userId, conv.request?.id)}
                       className={`w-full p-4 flex items-center gap-3 transition-all border-b border-gray-100 ${
                         isActive 
-                          ? 'bg-orange-50 border-l-2 border-l-brand-800' 
+                          ? 'bg-brand-50 border-l-2 border-l-brand-800' 
                           : 'hover:bg-gray-50'
                       }`}
                     >
                       <div className="relative">
                         <Avatar className="w-12 h-12 border-2 border-white/10">
                           <AvatarImage src={conv.user?.avatar || undefined} />
-                          <AvatarFallback className="bg-gradient-to-br from-orange-100 to-orange-200 text-brand-800">
+                          <AvatarFallback className="bg-gradient-to-br from-brand-100 to-brand-200 text-brand-800">
                             {conv.user?.name?.[0]?.toUpperCase() || 'U'}
                           </AvatarFallback>
                         </Avatar>
@@ -472,7 +1015,7 @@ export default function Messages() {
 
                   <Avatar className="w-10 h-10">
                     <AvatarImage src={otherUser.avatar || undefined} />
-                    <AvatarFallback className="bg-gradient-to-br from-orange-100 to-orange-200 text-brand-800">
+                    <AvatarFallback className="bg-gradient-to-br from-brand-100 to-brand-200 text-brand-800">
                       {otherUser.name?.[0]?.toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
@@ -486,13 +1029,34 @@ export default function Messages() {
                   </div>
 
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="text-gray-500 hover:text-gray-900 hover:bg-gray-100">
+                    {/* Request Call button */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleCallRequest}
+                      className={`text-gray-500 hover:text-gray-900 hover:bg-gray-100 ${
+                        pendingCallRequest ? 'animate-pulse text-amber-500' : ''
+                      }`}
+                      title={pendingCallRequest ? 'Call request pending...' : 'Request a call'}
+                    >
                       <Phone className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-gray-500 hover:text-gray-900 hover:bg-gray-100">
-                      <Video className="w-4 h-4" />
+                    {/* Share Address button */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleShareAddress}
+                      className="text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                      title="Share your address"
+                    >
+                      <MapPin className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-gray-500 hover:text-gray-900 hover:bg-gray-100">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setShowUserInfo(true)}
+                      className="text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                    >
                       <Info className="w-4 h-4" />
                     </Button>
                   </div>
@@ -522,7 +1086,7 @@ export default function Messages() {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-6 h-6 text-brand-800 animate-spin" />
@@ -540,8 +1104,39 @@ export default function Messages() {
                     {messages.map((message, index) => {
                       const isOwn = message.senderId === currentUser?.id;
                       const isImage = isImageMessage(message.content);
+                      const callRequest = isCallRequestMessage(message.content);
+                      const addressShare = isAddressShareMessage(message.content);
                       const showAvatar = index === 0 || messages[index - 1]?.senderId !== message.senderId;
-                      
+
+                      // Render call request messages with special card
+                      if (callRequest) {
+                        return (
+                          <CallRequestCard
+                            key={message.id}
+                            callRequest={callRequest}
+                            isOwnMessage={isOwn}
+                            currentUserId={currentUser?.id || ''}
+                            senderId={message.senderId}
+                            onAccept={handleAcceptCallRequest}
+                            onDecline={handleDeclineCallRequest}
+                            createdDate={message.createdDate}
+                            isMobile={isMobile}
+                          />
+                        );
+                      }
+
+                      // Render address share messages with special card
+                      if (addressShare) {
+                        return (
+                          <AddressShareCard
+                            key={message.id}
+                            address={addressShare}
+                            isOwnMessage={isOwn}
+                            createdDate={message.createdDate}
+                          />
+                        );
+                      }
+
                       return (
                         <motion.div
                           key={message.id}
@@ -565,10 +1160,10 @@ export default function Messages() {
                           <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[70%]`}>
                             <div className="flex items-center gap-2">
                               {isOwn && <MessageReactions reactions={message.reactions} isOwn={isOwn} />}
-                              <motion.div 
+                              <motion.div
                                 className={`rounded-2xl px-4 py-2.5 relative ${
-                                  isOwn 
-                                    ? 'bg-gradient-to-br from-brand-800 to-brand-900 text-white rounded-br-sm shadow-lg shadow-orange-500/20' 
+                                  isOwn
+                                    ? 'bg-gradient-to-br from-brand-800 to-brand-900 text-white rounded-br-sm shadow-lg shadow-brand-500/20'
                                     : 'bg-white border border-gray-200 text-gray-900 rounded-bl-sm shadow-sm'
                                 }`}
                                 whileHover={{ scale: 1.01 }}
@@ -613,7 +1208,7 @@ export default function Messages() {
               </div>
 
               {/* Message Input */}
-              <div className="p-4 border-t border-gray-200 bg-white">
+              <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
                 <div className="flex items-center gap-2">
                   <input
                     type="file"
@@ -683,6 +1278,24 @@ export default function Messages() {
           )}
         </div>
       </div>
+
+      {/* User Info Panel Overlay */}
+      <AnimatePresence>
+        {showUserInfo && otherUser && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowUserInfo(false)}
+              className="fixed inset-0 bg-black/50 z-40"
+            />
+            {/* Panel */}
+            <UserInfoPanel user={otherUser} onClose={() => setShowUserInfo(false)} />
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

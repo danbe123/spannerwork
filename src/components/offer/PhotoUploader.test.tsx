@@ -94,7 +94,14 @@ describe('PhotoUploader', () => {
 
   it('handles photo upload successfully', async () => {
     vi.mocked(uploadService.uploadFile).mockResolvedValue({
-      data: { fileUrl: 'http://example.com/uploaded.jpg' },
+      success: true,
+      data: {
+        fileUrl: 'http://example.com/uploaded.jpg',
+        filename: 'uploaded.jpg',
+        originalName: 'test.jpg',
+        size: 1024,
+        mimetype: 'image/jpeg',
+      },
     });
 
     render(

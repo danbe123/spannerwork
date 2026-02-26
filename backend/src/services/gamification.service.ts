@@ -321,6 +321,125 @@ class GamificationService {
   }
 
   /**
+   * FIX: Revoke badges that are no longer deserved
+   * This prevents users from gaming the system by achieving a badge and then
+   * degrading their behavior knowing the badge is permanent
+   */
+  async checkAndRevokeBadges(userId: string): Promise<BadgeType[]> {
+    const revoked: BadgeType[] = [];
+
+    const stats = await prisma.userStats.findUnique({ where: { userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        rating: true,
+        totalReviews: true,
+        badges: { select: { badge: true } },
+      },
+    });
+
+    if (!user || !stats) return revoked;
+
+    const existingBadges = new Set(user.badges.map(b => b.badge));
+
+    // FIX: Revoke RELIABLE badge if cancellation rate is no longer 0%
+    // Uses rolling window - badge stays if they maintain reliability
+    if (existingBadges.has('RELIABLE') && stats.cancellationRate > 0) {
+      const reason = `Your cancellation rate increased to ${(stats.cancellationRate * 100).toFixed(1)}%`;
+      if (await this.revokeBadge(userId, 'RELIABLE', reason)) {
+        revoked.push('RELIABLE');
+        logger.info(`RELIABLE badge revoked from user ${userId} due to cancellations`);
+      }
+    }
+
+    // FIX: Revoke TOP_RATED badge if rating drops below 4.8 or reviews drop below 10
+    if (existingBadges.has('TOP_RATED')) {
+      if (!user.rating || user.rating < 4.8 || user.totalReviews < 10) {
+        const reason = user.rating && user.rating < 4.8
+          ? `Your rating dropped to ${user.rating.toFixed(1)} stars (minimum: 4.8)`
+          : `You need at least 10 reviews (currently: ${user.totalReviews})`;
+        if (await this.revokeBadge(userId, 'TOP_RATED', reason)) {
+          revoked.push('TOP_RATED');
+          logger.info(`TOP_RATED badge revoked from user ${userId} - rating: ${user.rating}, reviews: ${user.totalReviews}`);
+        }
+      }
+    }
+
+    // FIX: Revoke QUICK_RESPONDER badge if response time degrades
+    if (existingBadges.has('QUICK_RESPONDER')) {
+      // Allow some buffer - only revoke if response time exceeds 90 minutes (vs 60 to earn)
+      if (stats.averageResponseMinutes && stats.averageResponseMinutes > 90) {
+        const reason = `Your average response time increased to ${Math.round(stats.averageResponseMinutes)} minutes`;
+        if (await this.revokeBadge(userId, 'QUICK_RESPONDER', reason)) {
+          revoked.push('QUICK_RESPONDER');
+          logger.info(`QUICK_RESPONDER badge revoked from user ${userId} - avg response: ${stats.averageResponseMinutes} mins`);
+        }
+      }
+    }
+
+    return revoked;
+  }
+
+  /**
+   * FIX: Revoke a specific badge from a user
+   * FIX #10: Now sends notification to user about badge revocation
+   */
+  async revokeBadge(userId: string, badge: BadgeType, reason?: string): Promise<boolean> {
+    try {
+      const existing = await prisma.userBadge.findUnique({
+        where: { userId_badge: { userId, badge } },
+      });
+
+      if (!existing) return false;
+
+      await prisma.userBadge.delete({
+        where: { userId_badge: { userId, badge } },
+      });
+
+      const badgeDef = BADGE_DEFINITIONS[badge];
+      const revocationReason = reason || 'No longer meets criteria';
+
+      // Log activity
+      await prisma.activityEvent.create({
+        data: {
+          type: 'BADGE_EARNED', // Reusing type, metadata indicates revocation
+          actorId: userId,
+          targetType: 'badge',
+          targetId: badge,
+          metadata: {
+            badgeName: badgeDef.name,
+            action: 'revoked',
+            reason: revocationReason,
+          },
+          isPublic: false, // Don't show revocations publicly
+        },
+      });
+
+      // FIX #10: Send notification to user about badge revocation
+      // This ensures users understand why their badge was removed
+      try {
+        const { unifiedNotificationService } = await import('./unifiedNotification.service.js');
+        await unifiedNotificationService.send({
+          userId,
+          type: 'system_important',
+          title: `${badgeDef.icon} Badge Update`,
+          body: `Your "${badgeDef.name}" badge has been removed. Reason: ${revocationReason}. ` +
+            `To earn it back: ${badgeDef.requirement}`,
+        });
+      } catch (notifyError) {
+        logger.warn(`Failed to send badge revocation notification to user ${userId}:`, notifyError);
+        // Don't fail the revocation just because notification failed
+      }
+
+      logger.info(`Badge revoked: ${badge} from user ${userId}`);
+      return true;
+    } catch (error) {
+      logger.error('Error revoking badge:', error);
+      return false;
+    }
+  }
+
+  /**
    * Get user's badges with definitions
    */
   async getUserBadges(userId: string) {

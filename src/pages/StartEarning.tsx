@@ -96,7 +96,7 @@ export default function StartEarning(): JSX.Element {
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Start Earning Today
             </h1>
-            <p className="text-xl text-orange-100 max-w-2xl mx-auto mb-8">
+            <p className="text-xl text-brand-100 max-w-2xl mx-auto mb-8">
               You have tools, space, or skills that others need. Turn them into a steady income stream.
             </p>
             <Link to="/create?intent=offer">
@@ -133,7 +133,7 @@ export default function StartEarning(): JSX.Element {
             {earningCategories.map((category, idx) => (
               <Card key={idx} className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
-                  <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center mb-4">
                     <category.icon className="w-6 h-6 text-brand-800" />
                   </div>
                   <CardTitle className="text-xl">{category.title}</CardTitle>
@@ -193,7 +193,7 @@ export default function StartEarning(): JSX.Element {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {benefits.map((benefit, idx) => (
               <div key={idx} className="text-center p-6 bg-white rounded-xl shadow-md">
-                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <benefit.icon className="w-6 h-6 text-brand-800" />
                 </div>
                 <h3 className="font-semibold mb-2">{benefit.title}</h3>
@@ -208,7 +208,7 @@ export default function StartEarning(): JSX.Element {
           <div className="max-w-3xl mx-auto px-4 text-center text-white">
             <Star className="w-12 h-12 mx-auto mb-4 opacity-80" />
             <h2 className="text-3xl font-bold mb-4">Ready to Start Earning?</h2>
-            <p className="text-orange-100 mb-8">
+            <p className="text-brand-100 mb-8">
               Join thousands of providers already earning on SpannerWork. 
               It takes less than 5 minutes to create your first listing.
             </p>

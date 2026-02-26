@@ -9,15 +9,18 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AnimatedInput } from "@/components/ui/animated-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Slider } from "@/components/ui/slider";
 import { Loader2, Upload, X } from "lucide-react";
 import { User } from "@/types";
 import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "sonner";
 
 const AVAILABLE_FEATURES = [
   "Vehicle Ramp",
@@ -34,7 +37,13 @@ const AVAILABLE_FEATURES = [
   "24/7 Access",
   "Security System",
   "Lighting",
-  "Water Access"
+  "Water Access",
+  "Ventilation/Exhaust Fans",
+  "Toilets",
+  "Basic Tools",
+  "Fire Extinguisher",
+  "First Aid Kit",
+  "3 Phase Electric"
 ];
 
 interface AddSpaceDialogProps {
@@ -83,9 +92,10 @@ export default function AddSpaceDialog({ onClose, currentUser }: AddSpaceDialogP
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [sponsorEnabled, setSponsorEnabled] = useState(false);
+  const [sponsorCpaPercent, setSponsorCpaPercent] = useState(5); // 5% minimum
 
   const createSpaceMutation = useMutation({
-    // @ts-expect-error - API accepts additional fields
     mutationFn: (data: SpaceFormData) => spacesService.create({
       name: data.name,
       description: data.description,
@@ -99,18 +109,22 @@ export default function AddSpaceDialog({ onClose, currentUser }: AddSpaceDialogP
       electricityAvailable: data.electricity_available,
       toolsAvailable: data.tools_available,
       deposit: data.deposit_amount || undefined,
-      ownerId: currentUser.id,
       features: selectedFeatures,
       photos: photos,
-      available: true,
       postcode: currentUser.postcode || '',
       locationAddress: currentUser.locationAddress || '',
-      locationLat: currentUser.locationLat || undefined,
-      locationLng: currentUser.locationLng || undefined,
+      sponsorCpaPercent: sponsorEnabled ? sponsorCpaPercent : 0,
     }),
     onSuccess: () => {
+      // Invalidate both the user's listings and general spaces queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.myListingsByUser(currentUser.id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.mySpaces() });
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      toast.success('Space listed successfully!');
       onClose();
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to create space listing');
     },
   });
 
@@ -123,7 +137,9 @@ export default function AddSpaceDialog({ onClose, currentUser }: AddSpaceDialogP
       const result = await uploadService.uploadFile(file);
       setPhotos([...photos, result.data.fileUrl]);
     } catch (error) {
-      console.error("Error uploading photo:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error uploading photo:", error);
+      }
     }
     setUploadingPhoto(false);
   };
@@ -157,7 +173,7 @@ export default function AddSpaceDialog({ onClose, currentUser }: AddSpaceDialogP
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Garage with Vehicle Lift"
+                placeholder="e.g., Double Garage with 2-Post Lift, Home Workshop with Air Tools"
                 required
                 maxLength={100}
               />
@@ -187,7 +203,7 @@ export default function AddSpaceDialog({ onClose, currentUser }: AddSpaceDialogP
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe your space, what makes it special, any restrictions..."
+                placeholder="Describe the space layout, equipment included, access hours, and any restrictions (e.g., no painting, quiet hours). Mention what makes your space stand out..."
                 className="h-24"
                 required
                 maxLength={1000}
@@ -327,7 +343,7 @@ export default function AddSpaceDialog({ onClose, currentUser }: AddSpaceDialogP
           {/* Features */}
           <div>
             <Label>Features & Amenities</Label>
-            <p className="text-sm text-gray-500 mb-3">Select all that apply</p>
+            <p className="text-sm text-gray-500 mb-3">Highlight everything your space offers - more features means more bookings</p>
             <div className="flex flex-wrap gap-2">
               {AVAILABLE_FEATURES.map((feature) => (
                 <Badge
@@ -353,71 +369,105 @@ export default function AddSpaceDialog({ onClose, currentUser }: AddSpaceDialogP
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="hourly_rate">Hourly Rate (£)</Label>
-                <Input
+                <AnimatedInput
                   id="hourly_rate"
                   type="number"
                   min="0"
                   value={formData.hourly_rate}
                   onChange={(e) => setFormData({ ...formData, hourly_rate: Math.max(0, parseFloat(e.target.value) || 0) })}
-                  placeholder="e.g., 15"
+                  placeholders={["10", "15", "20", "12"]}
                 />
               </div>
 
               <div>
                 <Label htmlFor="daily_rate">Daily Rate (£) *</Label>
-                <Input
+                <AnimatedInput
                   id="daily_rate"
                   type="number"
                   min="1"
                   value={formData.daily_rate}
                   onChange={(e) => setFormData({ ...formData, daily_rate: Math.max(1, parseFloat(e.target.value) || 0) })}
-                  placeholder="e.g., 80"
+                  placeholders={["50", "80", "100", "65"]}
                   required
                 />
               </div>
 
               <div>
                 <Label htmlFor="weekly_rate">Weekly Rate (£)</Label>
-                <Input
+                <AnimatedInput
                   id="weekly_rate"
                   type="number"
                   min="0"
                   value={formData.weekly_rate}
                   onChange={(e) => setFormData({ ...formData, weekly_rate: Math.max(0, parseFloat(e.target.value) || 0) })}
-                  placeholder="e.g., 400"
+                  placeholders={["300", "450", "500", "350"]}
                 />
               </div>
 
               <div>
                 <Label htmlFor="monthly_rate">Monthly Rate (£)</Label>
-                <Input
+                <AnimatedInput
                   id="monthly_rate"
                   type="number"
                   min="0"
                   value={formData.monthly_rate}
                   onChange={(e) => setFormData({ ...formData, monthly_rate: Math.max(0, parseFloat(e.target.value) || 0) })}
-                  placeholder="e.g., 1200"
+                  placeholders={["800", "1200", "1500", "1000"]}
                 />
               </div>
             </div>
 
             <div>
               <Label htmlFor="deposit">Security Deposit (£)</Label>
-              <Input
+              <AnimatedInput
                 id="deposit"
                 type="number"
                 min="0"
                 value={formData.deposit_amount}
                 onChange={(e) => setFormData({ ...formData, deposit_amount: Math.max(0, parseFloat(e.target.value) || 0) })}
-                placeholder="e.g., 100"
+                placeholders={["50", "100", "150", "75"]}
               />
             </div>
 
             <Alert>
               <AlertDescription className="text-sm">
-                💡 Average rates: Garage £50-100/day, Workshop £80-150/day, Industrial space £100-200/day
+                Suggested rates based on market data: Basic garage £50-80/day, Equipped workshop £80-150/day, Industrial space with lifts £100-200/day
               </AlertDescription>
             </Alert>
+          </div>
+
+          {/* Sponsor Section */}
+          <div className="space-y-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-yellow-800 font-semibold">Boost this listing</Label>
+                <p className="text-sm text-yellow-700">Appear higher in search results and get more booking requests</p>
+              </div>
+              <Switch
+                checked={sponsorEnabled}
+                onCheckedChange={setSponsorEnabled}
+              />
+            </div>
+
+            {sponsorEnabled && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-yellow-800">CPA Rate:</Label>
+                  <span className="font-semibold text-yellow-900">{sponsorCpaPercent}%</span>
+                </div>
+                <Slider
+                  value={[sponsorCpaPercent]}
+                  onValueChange={([value]) => setSponsorCpaPercent(value)}
+                  min={5}
+                  max={50}
+                  step={1}
+                  className="w-full"
+                />
+                <p className="text-xs text-yellow-700">
+                  Pay {sponsorCpaPercent}% only when you receive a booking. Higher rates mean more visibility in search results.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Submit */}

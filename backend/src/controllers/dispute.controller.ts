@@ -169,6 +169,119 @@ export class DisputeController {
       });
     }
   }
+
+  /**
+   * Add evidence to a dispute
+   * POST /api/v1/disputes/:id/evidence
+   */
+  async addEvidence(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const uploaderId = req.user!.id;
+      const { fileUrl, fileName, fileType, fileSize, description } = req.body;
+
+      if (!fileUrl || !fileName || !fileType || !fileSize) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'fileUrl, fileName, fileType, and fileSize are required',
+        });
+      }
+
+      const evidence = await disputeService.addEvidence({
+        disputeId: id,
+        uploaderId,
+        fileUrl,
+        fileName,
+        fileType,
+        fileSize: parseInt(fileSize, 10),
+        description,
+      });
+
+      return res.status(201).json({
+        message: 'Evidence added successfully',
+        evidence,
+      });
+    } catch (error) {
+      logger.error('Error adding evidence:', error);
+      if (error instanceof Error) {
+        if (error.message === 'Dispute not found') {
+          return res.status(404).json({ error: 'Not Found', message: error.message });
+        }
+        if (error.message.includes('Not authorized')) {
+          return res.status(403).json({ error: 'Forbidden', message: error.message });
+        }
+        if (error.message.includes('Cannot add evidence')) {
+          return res.status(400).json({ error: 'Bad Request', message: error.message });
+        }
+      }
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Failed to add evidence',
+      });
+    }
+  }
+
+  /**
+   * Get evidence for a dispute
+   * GET /api/v1/disputes/:id/evidence
+   */
+  async getEvidence(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      const isAdmin = req.user!.role === 'ADMIN';
+
+      const evidence = await disputeService.getEvidence(id, isAdmin ? undefined : userId);
+
+      return res.json({ evidence });
+    } catch (error) {
+      logger.error('Error getting evidence:', error);
+      if (error instanceof Error) {
+        if (error.message === 'Dispute not found') {
+          return res.status(404).json({ error: 'Not Found', message: error.message });
+        }
+        if (error.message.includes('Not authorized')) {
+          return res.status(403).json({ error: 'Forbidden', message: error.message });
+        }
+      }
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Failed to get evidence',
+      });
+    }
+  }
+
+  /**
+   * Delete evidence from a dispute
+   * DELETE /api/v1/disputes/:disputeId/evidence/:evidenceId
+   */
+  async deleteEvidence(req: Request, res: Response) {
+    try {
+      const { evidenceId } = req.params;
+      const userId = req.user!.id;
+
+      await disputeService.deleteEvidence(evidenceId, userId);
+
+      return res.json({ message: 'Evidence deleted successfully' });
+    } catch (error) {
+      logger.error('Error deleting evidence:', error);
+      if (error instanceof Error) {
+        if (error.message === 'Evidence not found') {
+          return res.status(404).json({ error: 'Not Found', message: error.message });
+        }
+        if (error.message.includes('Not authorized')) {
+          return res.status(403).json({ error: 'Forbidden', message: error.message });
+        }
+        if (error.message.includes('Cannot delete')) {
+          return res.status(400).json({ error: 'Bad Request', message: error.message });
+        }
+      }
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Failed to delete evidence',
+      });
+    }
+  }
 }
 
 export const disputeController = new DisputeController();

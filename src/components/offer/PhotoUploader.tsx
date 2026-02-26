@@ -25,13 +25,18 @@ export default function PhotoUploader({
   const handlePhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setUploadingPhoto(true);
     try {
       const result = await uploadService.uploadFile(file);
       setPhotos([...photos, result.data.fileUrl]);
     } catch (error) {
-      console.error("Error uploading photo:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error uploading photo:", error);
+      }
+      // Show user-friendly error message
+      const errorMessage = (error as { message?: string })?.message || 'Upload failed. Please try again.';
+      alert(errorMessage);
     }
     setUploadingPhoto(false);
   };
@@ -41,10 +46,10 @@ export default function PhotoUploader({
   };
 
   return (
-    <div className="space-y-3 p-6 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl border-2 border-orange-200">
+    <div className="space-y-3 p-6 bg-gradient-to-br from-brand-50 to-red-50 rounded-xl border-2 border-brand-200">
       <div className="flex items-center gap-2">
         <Label className="text-lg font-semibold">Photos</Label>
-        <Badge className="bg-orange-600">{required ? 'Required' : 'Recommended'}</Badge>
+        <Badge className="bg-brand-600">{required ? 'Required' : 'Recommended'}</Badge>
       </div>
       <p className="text-sm text-gray-600">Add clear photos to get up to 3x more enquiries</p>
       <div className="flex gap-3">
@@ -53,7 +58,7 @@ export default function PhotoUploader({
           variant="outline"
           onClick={() => document.getElementById(inputId)?.click()}
           disabled={uploadingPhoto}
-          className="border-2 border-orange-300 hover:bg-orange-100"
+          className="border-2 border-brand-300 hover:bg-brand-100"
         >
           {uploadingPhoto ? (
             <>
@@ -82,7 +87,7 @@ export default function PhotoUploader({
               <img
                 src={photo}
                 alt={`Upload ${index + 1}`}
-                className="w-full h-24 object-cover rounded-lg border-2 border-orange-300 shadow-sm"
+                className="w-full h-24 object-cover rounded-lg border-2 border-brand-300 shadow-sm"
               />
               <button
                 type="button"

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { serviceService } from '../services/service.service.js';
 import { insuranceService } from '../services/insurance.service.js';
+import { activityFeedService } from '../services/activityFeed.service.js';
 import { logger } from '../config/logger.js';
 
 export class ServiceController {
@@ -72,6 +73,15 @@ export class ServiceController {
       logger.info(
         `Service listing created: ${service.id} by user ${req.user.id}`
       );
+
+      // Log activity for live feed
+      activityFeedService.recordListingCreated(
+        req.user.id,
+        'service',
+        service.name,
+        service.postcode || undefined,
+        service.id
+      ).catch(err => logger.error('Failed to record activity:', err));
 
       return res.status(201).json({
         message: 'Service listing created successfully',

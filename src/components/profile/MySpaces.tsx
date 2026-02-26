@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { spacesService } from "@/api/services";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { spacesService, authService } from "@/api/services";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import {
 import { Warehouse, Trash2, MapPin, Maximize, Car, Zap } from "lucide-react";
 import { Space } from "@/types";
 import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "sonner";
 
 interface MySpacesProps {
   spaces: Space[];
@@ -26,11 +27,27 @@ export default function MySpaces({ spaces }: MySpacesProps) {
   const queryClient = useQueryClient();
   const [deleteConfirm, setDeleteConfirm] = useState<Space | null>(null);
 
+  const { data: currentUserData } = useQuery({
+    queryKey: queryKeys.currentUser(),
+    queryFn: () => authService.getCurrentUser(),
+  });
+
+  const currentUser = currentUserData?.user;
+
   const deleteSpaceMutation = useMutation({
     mutationFn: (spaceId: string) => spacesService.delete(spaceId),
     onSuccess: () => {
+      // Invalidate all relevant queries
+      if (currentUser?.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.myListingsByUser(currentUser.id) });
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.mySpaces() });
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      toast.success('Space deleted successfully');
       setDeleteConfirm(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to delete space');
     },
   });
 

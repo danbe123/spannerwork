@@ -189,8 +189,10 @@ describe('fileValidation', () => {
 
       const result = await validateFileMagicBytes(unknownFile, 'application/exe');
       expect(result).toBe(false);
+      // Unknown MIME types also get logged as validation failures
       expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('No magic byte signature defined')
+        expect.stringContaining('Magic byte validation failed'),
+        expect.any(Object)
       );
     });
 

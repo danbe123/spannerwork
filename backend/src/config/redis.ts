@@ -1,7 +1,62 @@
-import Redis from 'ioredis';
+import Redis, { RedisOptions } from 'ioredis';
 import { logger } from './logger.js';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+
+/**
+ * Parse Redis URL and extract connection options
+ * Handles URLs with ACL usernames: redis://username:password@host:port
+ */
+function parseRedisUrl(url: string): RedisOptions {
+  try {
+    const parsed = new URL(url);
+    const options: RedisOptions = {
+      host: parsed.hostname || 'localhost',
+      port: parseInt(parsed.port, 10) || 6379,
+    };
+
+    // Handle username:password format for Redis ACL
+    if (parsed.username && parsed.password) {
+      options.username = decodeURIComponent(parsed.username);
+      options.password = decodeURIComponent(parsed.password);
+    } else if (parsed.password) {
+      // Password only (no username) - for non-ACL Redis
+      options.password = decodeURIComponent(parsed.password);
+    }
+
+    // Handle database number from path (e.g., redis://host:port/0)
+    if (parsed.pathname && parsed.pathname.length > 1) {
+      const db = parseInt(parsed.pathname.slice(1), 10);
+      if (!isNaN(db)) {
+        options.db = db;
+      }
+    }
+
+    return options;
+  } catch (error) {
+    logger.warn('Failed to parse Redis URL, using default connection:', error);
+    return { host: 'localhost', port: 6379 };
+  }
+}
+
+const redisOptions = parseRedisUrl(redisUrl);
+
+/**
+ * Redis key prefix for Cloudways Redis ACL compliance.
+ * Cloudways restricts Redis users to only access keys with their username prefix.
+ * All Redis keys MUST start with this prefix.
+ */
+export const REDIS_KEY_PREFIX = redisOptions.username ? `${redisOptions.username}:` : '';
+
+/**
+ * Add the required prefix to a Redis key
+ */
+export function prefixKey(key: string): string {
+  if (!REDIS_KEY_PREFIX || key.startsWith(REDIS_KEY_PREFIX)) {
+    return key;
+  }
+  return `${REDIS_KEY_PREFIX}${key}`;
+}
 
 // Track Redis connection status for fallback behavior
 let isRedisConnected = false;
@@ -126,7 +181,8 @@ export function getCircuitBreakerStatus(): {
 // REDIS CLIENT
 // ============================================================================
 
-export const redis = new Redis(redisUrl, {
+export const redis = new Redis({
+  ...redisOptions,
   maxRetriesPerRequest: 3,
   retryStrategy(times) {
     const delay = Math.min(times * 50, 2000);
@@ -183,18 +239,20 @@ export function isRedisAvailable(): boolean {
 /**
  * Safe Redis get with fallback and circuit breaker
  * Returns null if Redis is unavailable instead of throwing
+ * Automatically adds the required key prefix for Cloudways ACL
  */
 export async function safeGet(key: string): Promise<string | null> {
+  const prefixedKey = prefixKey(key);
   if (!isRedisAvailable()) {
-    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping get for key: ${key}`);
+    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping get for key: ${prefixedKey}`);
     return null;
   }
   try {
-    const result = await redis.get(key);
+    const result = await redis.get(prefixedKey);
     recordSuccess();
     return result;
   } catch (error) {
-    logger.error(`Redis get error for key ${key}:`, error);
+    logger.error(`Redis get error for key ${prefixedKey}:`, error);
     recordFailure();
     return null;
   }
@@ -203,18 +261,20 @@ export async function safeGet(key: string): Promise<string | null> {
 /**
  * Safe Redis setex with fallback and circuit breaker
  * Silently fails if Redis is unavailable
+ * Automatically adds the required key prefix for Cloudways ACL
  */
 export async function safeSetex(key: string, seconds: number, value: string): Promise<boolean> {
+  const prefixedKey = prefixKey(key);
   if (!isRedisAvailable()) {
-    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping setex for key: ${key}`);
+    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping setex for key: ${prefixedKey}`);
     return false;
   }
   try {
-    await redis.setex(key, seconds, value);
+    await redis.setex(prefixedKey, seconds, value);
     recordSuccess();
     return true;
   } catch (error) {
-    logger.error(`Redis setex error for key ${key}:`, error);
+    logger.error(`Redis setex error for key ${prefixedKey}:`, error);
     recordFailure();
     return false;
   }
@@ -223,18 +283,20 @@ export async function safeSetex(key: string, seconds: number, value: string): Pr
 /**
  * Safe Redis del with fallback and circuit breaker
  * Silently fails if Redis is unavailable
+ * Automatically adds the required key prefix for Cloudways ACL
  */
 export async function safeDel(key: string): Promise<boolean> {
+  const prefixedKey = prefixKey(key);
   if (!isRedisAvailable()) {
-    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping del for key: ${key}`);
+    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping del for key: ${prefixedKey}`);
     return false;
   }
   try {
-    await redis.del(key);
+    await redis.del(prefixedKey);
     recordSuccess();
     return true;
   } catch (error) {
-    logger.error(`Redis del error for key ${key}:`, error);
+    logger.error(`Redis del error for key ${prefixedKey}:`, error);
     recordFailure();
     return false;
   }
@@ -244,18 +306,20 @@ export async function safeDel(key: string): Promise<boolean> {
  * Safe Redis hincrby with fallback and circuit breaker
  * Increments a hash field by the given amount
  * Returns the new value or null if unavailable
+ * Automatically adds the required key prefix for Cloudways ACL
  */
 export async function safeHincrby(key: string, field: string, increment: number): Promise<number | null> {
+  const prefixedKey = prefixKey(key);
   if (!isRedisAvailable()) {
-    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping hincrby for key: ${key}`);
+    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping hincrby for key: ${prefixedKey}`);
     return null;
   }
   try {
-    const result = await redis.hincrby(key, field, increment);
+    const result = await redis.hincrby(prefixedKey, field, increment);
     recordSuccess();
     return result;
   } catch (error) {
-    logger.error(`Redis hincrby error for key ${key}:`, error);
+    logger.error(`Redis hincrby error for key ${prefixedKey}:`, error);
     recordFailure();
     return null;
   }
@@ -264,18 +328,20 @@ export async function safeHincrby(key: string, field: string, increment: number)
 /**
  * Safe Redis hset with fallback and circuit breaker
  * Sets hash field(s)
+ * Automatically adds the required key prefix for Cloudways ACL
  */
 export async function safeHset(key: string, field: string, value: string): Promise<boolean> {
+  const prefixedKey = prefixKey(key);
   if (!isRedisAvailable()) {
-    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping hset for key: ${key}`);
+    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping hset for key: ${prefixedKey}`);
     return false;
   }
   try {
-    await redis.hset(key, field, value);
+    await redis.hset(prefixedKey, field, value);
     recordSuccess();
     return true;
   } catch (error) {
-    logger.error(`Redis hset error for key ${key}:`, error);
+    logger.error(`Redis hset error for key ${prefixedKey}:`, error);
     recordFailure();
     return false;
   }
@@ -284,18 +350,20 @@ export async function safeHset(key: string, field: string, value: string): Promi
 /**
  * Safe Redis hgetall with fallback and circuit breaker
  * Returns all fields of a hash or empty object if unavailable
+ * Automatically adds the required key prefix for Cloudways ACL
  */
 export async function safeHgetall(key: string): Promise<Record<string, string>> {
+  const prefixedKey = prefixKey(key);
   if (!isRedisAvailable()) {
-    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping hgetall for key: ${key}`);
+    logger.debug(`Redis unavailable (circuit: ${circuitState}), skipping hgetall for key: ${prefixedKey}`);
     return {};
   }
   try {
-    const result = await redis.hgetall(key);
+    const result = await redis.hgetall(prefixedKey);
     recordSuccess();
     return result;
   } catch (error) {
-    logger.error(`Redis hgetall error for key ${key}:`, error);
+    logger.error(`Redis hgetall error for key ${prefixedKey}:`, error);
     recordFailure();
     return {};
   }

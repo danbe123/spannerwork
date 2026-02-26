@@ -24,7 +24,7 @@ vi.mock('axios', () => {
   }
 })
 
-function renderWithProviders(ui) {
+function renderWithProviders(ui: React.ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {

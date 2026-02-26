@@ -1,3 +1,6 @@
+// MUST be first import to suppress third-party library warnings
+import './config/suppress-warnings.js';
+
 import http from 'http';
 import { app } from './app.js';
 import { env } from './config/env.js';

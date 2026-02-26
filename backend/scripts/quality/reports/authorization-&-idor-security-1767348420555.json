@@ -1,0 +1,193 @@
+{
+  "suite": "Authorization & IDOR Security",
+  "timestamp": "2026-01-02T10:07:00.555Z",
+  "totalTests": 26,
+  "passed": 26,
+  "failed": 0,
+  "score": 100,
+  "duration": 3,
+  "results": [
+    {
+      "name": "RBAC: Guest can only read public listings",
+      "category": "Role-Based Access",
+      "passed": true,
+      "score": 100,
+      "details": "Guest access properly restricted"
+    },
+    {
+      "name": "RBAC: User can create but not delete listings",
+      "category": "Role-Based Access",
+      "passed": true,
+      "score": 100,
+      "details": "User permissions correct"
+    },
+    {
+      "name": "RBAC: Provider has payout access",
+      "category": "Role-Based Access",
+      "passed": true,
+      "score": 100,
+      "details": "Payout permissions correct"
+    },
+    {
+      "name": "RBAC: Admin has full access",
+      "category": "Role-Based Access",
+      "passed": true,
+      "score": 100,
+      "details": "Admin has full access"
+    },
+    {
+      "name": "IDOR: User cannot read other user private profile",
+      "category": "IDOR Protection",
+      "passed": true,
+      "score": 100,
+      "details": "User should not read private profiles of others"
+    },
+    {
+      "name": "IDOR: User can read own profile",
+      "category": "IDOR Protection",
+      "passed": true,
+      "score": 100,
+      "details": "User should read own profile"
+    },
+    {
+      "name": "IDOR: User cannot update other user listing",
+      "category": "IDOR Protection",
+      "passed": true,
+      "score": 100,
+      "details": "User should not update others listings"
+    },
+    {
+      "name": "IDOR: User cannot delete other user listing",
+      "category": "IDOR Protection",
+      "passed": true,
+      "score": 100,
+      "details": "User should not delete others listings"
+    },
+    {
+      "name": "IDOR: User cannot access other user transactions",
+      "category": "IDOR Protection",
+      "passed": true,
+      "score": 100,
+      "details": "User should not read others transactions"
+    },
+    {
+      "name": "IDOR: User cannot access other user messages",
+      "category": "IDOR Protection",
+      "passed": true,
+      "score": 100,
+      "details": "User should not read others messages"
+    },
+    {
+      "name": "IDOR: User cannot access other user payout info",
+      "category": "IDOR Protection",
+      "passed": true,
+      "score": 100,
+      "details": "User should not read others payout info"
+    },
+    {
+      "name": "IDOR: Admin CAN access other user data",
+      "category": "IDOR Protection",
+      "passed": true,
+      "score": 100,
+      "details": "Admin should access any user data"
+    },
+    {
+      "name": "Banned: Cannot read any resource",
+      "category": "Banned User",
+      "passed": true,
+      "score": 100,
+      "details": "Banned user should have no access"
+    },
+    {
+      "name": "Banned: Cannot create transactions",
+      "category": "Banned User",
+      "passed": true,
+      "score": 100,
+      "details": "Banned user correctly blocked"
+    },
+    {
+      "name": "Banned: Even admin role banned is blocked",
+      "category": "Banned User",
+      "passed": true,
+      "score": 100,
+      "details": "Even banned admin should be blocked"
+    },
+    {
+      "name": "Verification: Unverified cannot create listings",
+      "category": "Verification",
+      "passed": true,
+      "score": 100,
+      "details": "Verification requirement enforced"
+    },
+    {
+      "name": "Verification: Unverified cannot access payouts",
+      "category": "Verification",
+      "passed": true,
+      "score": 100,
+      "details": "Unverified provider should not access payouts"
+    },
+    {
+      "name": "Verification: Verified user CAN create listings",
+      "category": "Verification",
+      "passed": true,
+      "score": 100,
+      "details": "Verified user should create listings"
+    },
+    {
+      "name": "Public: Anyone can read public listings",
+      "category": "Public Access",
+      "passed": true,
+      "score": 100,
+      "details": "Public listings should be readable by anyone"
+    },
+    {
+      "name": "Public: Cannot update public listing not owned",
+      "category": "Public Access",
+      "passed": true,
+      "score": 100,
+      "details": "Cannot update public listing not owned"
+    },
+    {
+      "name": "Public: Anyone can read public reviews",
+      "category": "Public Access",
+      "passed": true,
+      "score": 100,
+      "details": "Reviews should be publicly readable"
+    },
+    {
+      "name": "Escalation: Regular user cannot access admin endpoints",
+      "category": "Escalation Prevention",
+      "passed": true,
+      "score": 100,
+      "details": "User cannot perform admin actions"
+    },
+    {
+      "name": "Escalation: Provider cannot delete transactions",
+      "category": "Escalation Prevention",
+      "passed": true,
+      "score": 100,
+      "details": "Provider cannot delete transactions"
+    },
+    {
+      "name": "IDOR Matrix: User ID manipulation blocked",
+      "category": "IDOR Matrix",
+      "passed": true,
+      "score": 100,
+      "details": "All user ID manipulations blocked"
+    },
+    {
+      "name": "IDOR Matrix: Listing ID manipulation blocked",
+      "category": "IDOR Matrix",
+      "passed": true,
+      "score": 100,
+      "details": "All listing ID manipulations blocked"
+    },
+    {
+      "name": "IDOR Matrix: Transaction ID manipulation blocked",
+      "category": "IDOR Matrix",
+      "passed": true,
+      "score": 100,
+      "details": "All transaction ID manipulations blocked"
+    }
+  ]
+}

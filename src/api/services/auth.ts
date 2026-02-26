@@ -1,16 +1,32 @@
-import apiClient, { clearCsrfToken } from '../client';
+import apiClient, { clearCsrfToken, refreshCsrfToken } from '../client';
 import type { User, AuthResponse, LoginCredentials, RegisterData } from '@/types';
 
 export interface CurrentUserResponse {
   user: User;
 }
 
+export interface CheckEmailResponse {
+  exists: boolean;
+  firstName?: string | null;
+  avatarUrl?: string | null;
+}
+
 export const authService = {
+  /**
+   * Check if email exists (for email-first auth flow)
+   */
+  async checkEmail(email: string): Promise<CheckEmailResponse> {
+    const response = await apiClient.post<CheckEmailResponse>('/auth/check-email', { email });
+    return response.data;
+  },
+
   /**
    * Register a new user
    */
   async register(data: RegisterData): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/register', data);
+    clearCsrfToken();
+    void refreshCsrfToken();
     return response.data;
   },
 
@@ -19,6 +35,8 @@ export const authService = {
    */
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
+    clearCsrfToken();
+    void refreshCsrfToken();
     return response.data;
   },
 
@@ -27,7 +45,6 @@ export const authService = {
    */
   async logout(): Promise<{ message: string }> {
     const response = await apiClient.post<{ message: string }>('/auth/logout');
-    // Clear CSRF token on logout for security
     clearCsrfToken();
     return response.data;
   },
@@ -93,6 +110,32 @@ export const authService = {
    */
   async verifyPhone(phone: string, code: string): Promise<{ message: string; user: User }> {
     const response = await apiClient.post<{ message: string; user: User }>('/auth/verify-phone', { phone, code });
+    return response.data;
+  },
+
+  /**
+   * Send magic link email for passwordless login
+   */
+  async sendMagicLink(email: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>('/auth/send-magic-link', { email });
+    return response.data;
+  },
+
+  /**
+   * Verify magic link and login
+   */
+  async verifyMagicLink(token: string): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>('/auth/verify-magic-link', { token });
+    clearCsrfToken();
+    void refreshCsrfToken();
+    return response.data;
+  },
+
+  /**
+   * Get enabled OAuth providers
+   */
+  async getOAuthProviders(): Promise<{ providers: { google: boolean; facebook: boolean; apple: boolean } }> {
+    const response = await apiClient.get<{ providers: { google: boolean; facebook: boolean; apple: boolean } }>('/auth/oauth/providers');
     return response.data;
   },
 };

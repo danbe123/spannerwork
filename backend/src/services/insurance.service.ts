@@ -155,6 +155,30 @@ export class InsuranceService {
       throw new BadRequestError('Rejection reason is required when rejecting a document');
     }
 
+    // Require coverageAmount and expiryDate when approving to prevent bypass
+    if (status === 'APPROVED') {
+      if (document.coverageAmount === null || document.coverageAmount === undefined) {
+        throw new BadRequestError(
+          'Coverage amount must be specified before approving. ' +
+          'Please update the document with the coverage amount from the insurance certificate.'
+        );
+      }
+      if (document.expiryDate === null || document.expiryDate === undefined) {
+        throw new BadRequestError(
+          'Expiry date must be specified before approving. ' +
+          'Please update the document with the expiry date from the insurance certificate.'
+        );
+      }
+      if (document.coverageAmount < MIN_PUBLIC_LIABILITY_COVERAGE) {
+        const minInPounds = MIN_PUBLIC_LIABILITY_COVERAGE / 100;
+        const providedInPounds = document.coverageAmount / 100;
+        throw new BadRequestError(
+          `Insurance coverage of £${providedInPounds.toLocaleString()} is below the minimum requirement of £${minInPounds.toLocaleString()}. ` +
+          'Cannot approve documents with insufficient coverage.'
+        );
+      }
+    }
+
     const updated = await prisma.insuranceDocument.update({
       where: { id: documentId },
       data: {
@@ -200,26 +224,37 @@ export class InsuranceService {
   async hasValidInsurance(userId: string): Promise<boolean> {
     const now = new Date();
 
+    // Require explicit expiry date and coverage amount - no null bypasses
     const validDocument = await prisma.insuranceDocument.findFirst({
       where: {
         userId,
         status: 'APPROVED',
         documentType: 'PUBLIC_LIABILITY',
-        OR: [
-          { expiryDate: null }, // No expiry set (should require it, but handle gracefully)
-          { expiryDate: { gt: now } }, // Not expired
-        ],
+        expiryDate: { gt: now },
+        coverageAmount: { gte: MIN_PUBLIC_LIABILITY_COVERAGE },
       },
     });
 
     if (!validDocument) {
-      return false;
-    }
-
-    // Check if coverage amount meets minimum requirement (£1M)
-    // If coverage amount is not specified, we allow it (legacy documents)
-    if (validDocument.coverageAmount !== null && validDocument.coverageAmount < MIN_PUBLIC_LIABILITY_COVERAGE) {
-      logger.warn(`User ${userId} has insurance but coverage (${validDocument.coverageAmount}) is below minimum (${MIN_PUBLIC_LIABILITY_COVERAGE})`);
+      // Log if user has legacy documents with null values that are no longer valid
+      const legacyDoc = await prisma.insuranceDocument.findFirst({
+        where: {
+          userId,
+          status: 'APPROVED',
+          documentType: 'PUBLIC_LIABILITY',
+          OR: [
+            { expiryDate: null },
+            { coverageAmount: null },
+          ],
+        },
+      });
+      if (legacyDoc) {
+        logger.warn(`User ${userId} has legacy insurance document without required fields`, {
+          documentId: legacyDoc.id,
+          hasExpiry: legacyDoc.expiryDate !== null,
+          hasCoverage: legacyDoc.coverageAmount !== null,
+        });
+      }
       return false;
     }
 

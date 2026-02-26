@@ -1,4 +1,4 @@
-import { redis } from '../config/redis.js';
+import { safeGet, safeSetex, prefixKey, redis } from '../config/redis.js';
 import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
 
@@ -53,9 +53,9 @@ export class GeocodingService {
     // Normalize postcode
     const normalizedPostcode = postcode.trim().toUpperCase();
 
-    // Check cache first
+    // Check cache first (using safe method with key prefix)
     const cacheKey = `geocode:${normalizedPostcode}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await safeGet(cacheKey);
 
     if (cached) {
       logger.debug(`Geocoding cache hit for ${normalizedPostcode}`);
@@ -84,8 +84,8 @@ export class GeocodingService {
       }
 
       if (result) {
-        // Cache for 30 days
-        await redis.setex(cacheKey, 30 * 24 * 60 * 60, JSON.stringify(result));
+        // Cache for 30 days (using safe method with key prefix)
+        await safeSetex(cacheKey, 30 * 24 * 60 * 60, JSON.stringify(result));
         return result;
       }
 
@@ -238,18 +238,26 @@ export class GeocodingService {
 
   /**
    * Rate limit Nominatim requests (1 req/sec max)
+   * Uses safe Redis methods with proper key prefix
    */
   private async rateLimitNominatim(): Promise<void> {
     const key = 'ratelimit:nominatim';
-    const exists = await redis.exists(key);
+    const prefixedKey = prefixKey(key);
 
-    if (exists) {
-      // Wait 1 second if rate limit hit
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const exists = await redis.exists(prefixedKey);
+
+      if (exists) {
+        // Wait 1 second if rate limit hit
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      // Set rate limit marker for 1 second
+      await safeSetex(key, 1, '1');
+    } catch {
+      // If Redis fails, just continue without rate limiting
+      // Better to occasionally hit rate limits than fail completely
     }
-
-    // Set rate limit marker for 1 second
-    await redis.setex(key, 1, '1');
   }
 
   /**

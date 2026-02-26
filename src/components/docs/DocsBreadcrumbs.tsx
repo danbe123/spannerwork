@@ -1,20 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import { ChevronRight, Home } from "lucide-react";
-import { DOCS_LINK_GROUPS, getDocsTitleForPath } from "./docsLinks";
+import { getDocsTitleForPath } from "./docsLinks";
 
 interface Crumb {
   title: string;
   href?: string;
-}
-
-function getGroupTitleForPath(pathname: string): string | null {
-  const normalized = (pathname || '').toLowerCase();
-  for (const group of DOCS_LINK_GROUPS) {
-    for (const link of group.links) {
-      if (link.href.toLowerCase() === normalized) return group.title;
-    }
-  }
-  return null;
 }
 
 export default function DocsBreadcrumbs(): JSX.Element {
@@ -22,17 +12,13 @@ export default function DocsBreadcrumbs(): JSX.Element {
   const path = location.pathname;
 
   const currentTitle = getDocsTitleForPath(path) || 'Help';
-  const groupTitle = getGroupTitleForPath(path);
 
   const crumbs: Crumb[] = [
     { title: 'Home', href: '/' },
     { title: 'Resources', href: '/resources' },
   ];
 
-  if (path.toLowerCase() !== '/resources' && groupTitle && groupTitle !== 'Support') {
-    crumbs.push({ title: groupTitle });
-  }
-
+  // Add current page if not on resources page
   if (path.toLowerCase() !== '/resources') {
     crumbs.push({ title: currentTitle });
   }

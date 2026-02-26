@@ -20,6 +20,7 @@ export class ServiceService {
       photos?: string[];
       requiresInsurance?: boolean;
       postcode: string;
+      sponsorCpaPercent?: number;
     }
   ): Promise<Service> {
     // Geocode the postcode
@@ -37,6 +38,7 @@ export class ServiceService {
         locationLng: location.lng,
         providerId,
         available: true,
+        sponsorCpaPercent: data.sponsorCpaPercent ?? 0,
       },
       include: {
         provider: {
@@ -53,6 +55,7 @@ export class ServiceService {
 
   /**
    * List services with filters
+   * FIX: Uses PostGIS for location filtering BEFORE pagination to ensure accurate results
    */
   async list(params: {
     page?: number;
@@ -63,11 +66,19 @@ export class ServiceService {
     postcode?: string;
     radius?: number;
   }) {
-    const page = params.page || 1;
-    const limit = params.limit || 20;
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(Math.max(1, params.limit || 20), 100);
     const skip = (page - 1) * limit;
 
-    // Build filters
+    // If location filter provided, use PostGIS query for accurate filtering
+    if (params.postcode) {
+      const location = await geocodingService.geocodePostcode(params.postcode);
+      if (location) {
+        return this.listWithPostGIS(params, location, page, limit, skip);
+      }
+    }
+
+    // No location filter - use standard Prisma query
     const where: Prisma.ServiceWhereInput = {
       available: true,
     };
@@ -84,13 +95,15 @@ export class ServiceService {
       if (params.maxHourlyRate) where.hourlyRate.lte = params.maxHourlyRate;
     }
 
-    // Fetch services
     const [services, total] = await Promise.all([
       prisma.service.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { createdDate: 'desc' },
+        orderBy: [
+          { sponsorCpaPercent: 'desc' },
+          { createdDate: 'desc' },
+        ],
         include: {
           provider: {
             select: {
@@ -105,46 +118,116 @@ export class ServiceService {
       prisma.service.count({ where }),
     ]);
 
-    // Apply location-based filtering if provided
-    let filteredServices = services;
-    let locationFilter: { lat: number; lng: number; radius: number } | null =
-      null;
-
-    if (params.postcode && params.radius) {
-      const location = await geocodingService.geocodePostcode(params.postcode);
-      if (location) {
-        locationFilter = {
-          lat: location.lat,
-          lng: location.lng,
-          radius: params.radius,
-        };
-
-        // Filter services where the provider's service area includes the searched location
-        filteredServices = services.filter((service) => {
-          if (!service.locationLat || !service.locationLng) return false;
-
-          const distance = geocodingService.calculateDistance(
-            locationFilter!.lat,
-            locationFilter!.lng,
-            service.locationLat,
-            service.locationLng
-          );
-
-          // Check if the searched location is within the provider's service radius
-          return distance <= service.radius;
-        });
-      }
-    }
-
     return {
-      data: filteredServices,
+      data: services,
       pagination: {
         page,
         limit,
-        total: locationFilter ? filteredServices.length : total,
-        totalPages: Math.ceil(
-          (locationFilter ? filteredServices.length : total) / limit
-        ),
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * List services using PostGIS for accurate location-based filtering
+   * Checks if customer location is within each provider's service radius
+   */
+  private async listWithPostGIS(
+    params: {
+      specialty?: string;
+      minHourlyRate?: number;
+      maxHourlyRate?: number;
+    },
+    location: { lat: number; lng: number },
+    page: number,
+    limit: number,
+    skip: number
+  ) {
+    // Build WHERE conditions
+    const conditions: string[] = ['s.available = true'];
+    const queryParams: (string | number)[] = [location.lng, location.lat];
+    let paramIndex = 3;
+
+    if (params.specialty) {
+      conditions.push(`$${paramIndex} = ANY(s.specialties)`);
+      queryParams.push(params.specialty);
+      paramIndex++;
+    }
+
+    if (params.minHourlyRate) {
+      conditions.push(`s."hourlyRate" >= $${paramIndex}`);
+      queryParams.push(params.minHourlyRate);
+      paramIndex++;
+    }
+
+    if (params.maxHourlyRate) {
+      conditions.push(`s."hourlyRate" <= $${paramIndex}`);
+      queryParams.push(params.maxHourlyRate);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    // Query services where customer location is within provider's service radius
+    // The radius field is in miles, so convert to meters (1609.34)
+    const services = await prisma.$queryRawUnsafe<Array<Service & {
+      provider: { id: string; name: string; avatar: string | null; rating: number | null };
+      distance_miles: number;
+    }>>(
+      `SELECT
+        s.*,
+        json_build_object(
+          'id', u.id,
+          'name', u.name,
+          'avatar', u.avatar,
+          'rating', u.rating
+        ) as provider,
+        ST_Distance(
+          ST_SetSRID(ST_MakePoint(s."locationLng", s."locationLat"), 4326)::geography,
+          ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
+        ) / 1609.34 as distance_miles
+      FROM services s
+      JOIN users u ON s."providerId" = u.id
+      WHERE ${whereClause}
+        AND s."locationLat" IS NOT NULL
+        AND s."locationLng" IS NOT NULL
+        AND ST_DWithin(
+          ST_SetSRID(ST_MakePoint(s."locationLng", s."locationLat"), 4326)::geography,
+          ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+          s.radius * 1609.34
+        )
+      ORDER BY s."sponsorCpaPercent" DESC, distance_miles ASC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      ...queryParams,
+      limit,
+      skip
+    );
+
+    // Count total matching services
+    const countResult = await prisma.$queryRawUnsafe<[{ count: bigint }]>(
+      `SELECT COUNT(*) as count
+      FROM services s
+      WHERE ${whereClause}
+        AND s."locationLat" IS NOT NULL
+        AND s."locationLng" IS NOT NULL
+        AND ST_DWithin(
+          ST_SetSRID(ST_MakePoint(s."locationLng", s."locationLat"), 4326)::geography,
+          ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+          s.radius * 1609.34
+        )`,
+      ...queryParams
+    );
+
+    const total = Number(countResult[0]?.count || 0);
+
+    return {
+      data: services,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
@@ -174,7 +257,8 @@ export class ServiceService {
         },
         transactions: {
           where: {
-            status: { in: ['CONFIRMED', 'PENDING'] },
+            // FIX #2: Include IN_PROGRESS - active bookings block the calendar
+            status: { in: ['CONFIRMED', 'PENDING', 'IN_PROGRESS'] },
           },
           select: {
             startDate: true,
@@ -195,6 +279,7 @@ export class ServiceService {
 
   /**
    * Update service listing
+   * FIX: Prevents price changes when there are active bookings to avoid confusion
    */
   async update(
     serviceId: string,
@@ -210,6 +295,7 @@ export class ServiceService {
       postcode: string;
       available: boolean;
       requiresInsurance: boolean;
+      sponsorCpaPercent: number;
     }>
   ): Promise<Service> {
     // Check ownership
@@ -224,6 +310,40 @@ export class ServiceService {
 
     if (service.providerId !== providerId) {
       throw new ForbiddenError('You can only update your own services');
+    }
+
+    // FIX: Check for active bookings if price-related fields or CPA% are being changed
+    const priceFieldsChanged = data.hourlyRate !== undefined ||
+                                data.calloutFee !== undefined;
+
+    // Need to get current service data to compare CPA
+    const currentService = await prisma.service.findUnique({
+      where: { id: serviceId },
+      select: { sponsorCpaPercent: true },
+    });
+    const cpaChanged = data.sponsorCpaPercent !== undefined &&
+                       data.sponsorCpaPercent !== currentService?.sponsorCpaPercent;
+
+    if (priceFieldsChanged || cpaChanged) {
+      const activeBookings = await prisma.transaction.count({
+        where: {
+          serviceId,
+          status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] },
+        },
+      });
+
+      if (activeBookings > 0) {
+        if (cpaChanged) {
+          throw new ConflictError(
+            'Cannot change sponsor CPA percentage while you have active bookings. ' +
+            'This ensures fairness for customers who booked based on the original terms.'
+          );
+        }
+        throw new ConflictError(
+          `Cannot change pricing while you have ${activeBookings} active booking${activeBookings > 1 ? 's' : ''}. ` +
+          'Please wait until all current bookings are completed or cancelled before updating rates.'
+        );
+      }
     }
 
     // If postcode is being updated, geocode it
@@ -284,10 +404,11 @@ export class ServiceService {
     }
 
     // Check for active transactions
+    // FIX #2: Include IN_PROGRESS - active bookings block deletion
     const activeTransactions = await prisma.transaction.count({
       where: {
         serviceId,
-        status: { in: ['CONFIRMED', 'PENDING'] },
+        status: { in: ['CONFIRMED', 'PENDING', 'IN_PROGRESS'] },
       },
     });
 
@@ -329,40 +450,25 @@ export class ServiceService {
       };
     }
 
-    // Check for conflicting transactions
-    const conflictingTransactions = await prisma.transaction.findMany({
-      where: {
-        serviceId: id,
-        status: { in: ['CONFIRMED', 'PENDING'] },
-        OR: [
-          // Transaction starts during the requested period
-          {
-            AND: [
-              { startDate: { lte: startDate } },
-              { endDate: { gte: startDate } },
-            ],
-          },
-          // Transaction ends during the requested period
-          {
-            AND: [
-              { startDate: { lte: endDate } },
-              { endDate: { gte: endDate } },
-            ],
-          },
-          // Transaction is completely within the requested period
-          {
-            AND: [
-              { startDate: { gte: startDate } },
-              { endDate: { lte: endDate } },
-            ],
-          },
-        ],
-      },
-      select: {
-        startDate: true,
-        endDate: true,
-      },
-    });
+    // FIX #2 & #7: Use raw query with FOR UPDATE to prevent race conditions
+    // and include IN_PROGRESS status (active bookings must block new bookings)
+    interface ConflictResult {
+      startDate: Date;
+      endDate: Date;
+    }
+
+    const conflictingTransactions = await prisma.$queryRaw<ConflictResult[]>`
+      SELECT "startDate", "endDate"
+      FROM transactions
+      WHERE "serviceId" = ${id}
+        AND status IN ('CONFIRMED', 'PENDING', 'IN_PROGRESS')
+        AND (
+          ("startDate" <= ${startDate} AND "endDate" >= ${startDate})
+          OR ("startDate" <= ${endDate} AND "endDate" >= ${endDate})
+          OR ("startDate" >= ${startDate} AND "endDate" <= ${endDate})
+        )
+      FOR UPDATE SKIP LOCKED
+    `;
 
     if (conflictingTransactions.length > 0) {
       return {

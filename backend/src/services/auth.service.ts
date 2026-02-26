@@ -5,10 +5,12 @@ import { safeGet, safeSetex, safeDel } from '../config/redis.js';
 import { User, AccountStatus } from '@prisma/client';
 import { env } from '../config/env.js';
 import { loginAttemptService } from './loginAttempt.service.js';
+import { logger } from '../config/logger.js';
+import { emailService } from './email.service.js';
 
 // Security settings from environment (with defaults)
 const SALT_ROUNDS = parseInt(env.SALT_ROUNDS || '12', 10);
-const SESSION_EXPIRY = parseInt(env.SESSION_EXPIRY_DAYS || '30', 10) * 24 * 60 * 60; // Days to seconds
+const SESSION_EXPIRY = parseInt(env.SESSION_EXPIRY_DAYS || '7', 10) * 24 * 60 * 60; // Days to seconds (default: 7 days for security)
 const PASSWORD_HISTORY_COUNT = 5; // Number of previous passwords to check against
 
 export class AuthService {
@@ -155,6 +157,7 @@ export class AuthService {
     email: string;
     password: string;
     name?: string;
+    referralCode?: string;
   }): Promise<{ user: User; sessionId: string }> {
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -181,7 +184,61 @@ export class AuthService {
     // Create session
     const sessionId = await this.createSession(user.id);
 
+    // SECURITY: Complete referral internally during registration
+    // This prevents the public endpoint from being exploited
+    if (data.referralCode) {
+      try {
+        await this.completeReferralInternal(data.referralCode, user.id);
+      } catch (error) {
+        // Don't fail registration if referral completion fails
+        // The referral code may be invalid or already used
+        logger.warn('Failed to complete referral during registration:', error);
+      }
+    }
+
     return { user, sessionId };
+  }
+
+  /**
+   * Complete a referral internally (called during registration only)
+   * SECURITY: This is an internal method - never expose via public API
+   */
+  private async completeReferralInternal(referralCode: string, referredUserId: string): Promise<void> {
+    const referral = await prisma.referral.findFirst({
+      where: {
+        code: referralCode,
+        status: 'PENDING',
+      },
+    });
+
+    if (!referral) {
+      throw new Error('Referral not found or already completed');
+    }
+
+    // Update referral status
+    await prisma.referral.update({
+      where: { id: referral.id },
+      data: {
+        status: 'COMPLETED',
+        referredId: referredUserId,
+        completedDate: new Date(),
+      },
+    });
+
+    // FIX: Increment referrer's successfulReferrals counter for gamification
+    // This counter is used for the COMMUNITY_BUILDER badge (5 successful referrals)
+    await prisma.userStats.upsert({
+      where: { userId: referral.referrerId },
+      update: {
+        successfulReferrals: { increment: 1 },
+      },
+      create: {
+        userId: referral.referrerId,
+        successfulReferrals: 1,
+      },
+    });
+
+    logger.info(`Referral completed: ${referral.id} for user ${referredUserId}, referrer stats updated`);
   }
 
   /**
@@ -217,9 +274,12 @@ export class AuthService {
       throw new Error('Invalid email or password');
     }
 
-    // Check if account is suspended
+    // Check if account is suspended or deleted
     if (user.accountStatus === AccountStatus.SUSPENDED) {
       throw new Error('Account is suspended');
+    }
+    if (user.accountStatus === AccountStatus.DELETED) {
+      throw new Error('Account no longer exists');
     }
 
     // Verify password
@@ -255,10 +315,13 @@ export class AuthService {
 
   /**
    * Generate email verification token
-   * Stores token in both database (primary) and Redis (cache)
+   * Stores HASHED token in database for security - if DB is compromised,
+   * attackers cannot use the hashes to verify emails
+   * Stores in both database (primary) and Redis (cache)
    */
   async generateEmailVerificationToken(userId: string): Promise<string> {
     const token = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(token); // Hash token before storage
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     const expiresAtSeconds = 24 * 60 * 60; // 24 hours in seconds for Redis
 
@@ -274,18 +337,19 @@ export class AuthService {
       },
     });
 
-    // Store in database (primary storage)
+    // Store HASHED token in database (primary storage)
     await prisma.emailVerificationToken.create({
       data: {
-        token,
+        token: tokenHash, // Store hash, not raw token
         userId,
         expiresAt,
       },
     });
 
-    // Also cache in Redis for faster lookups
-    await safeSetex(`email-verification:${token}`, expiresAtSeconds, userId);
+    // Also cache hash->userId mapping in Redis for faster lookups
+    await safeSetex(`email-verification:${tokenHash}`, expiresAtSeconds, userId);
 
+    // Return raw token to user (only they have it)
     return token;
   }
 
@@ -351,16 +415,20 @@ export class AuthService {
   /**
    * Verify email with token
    * Validates against database as source of truth
+   * Token is hashed before lookup for security
    */
   async verifyEmail(token: string): Promise<User> {
+    // Hash the provided token to look up in database
+    const tokenHash = this.hashToken(token);
+
     // Always validate against database as source of truth
     const dbToken = await prisma.emailVerificationToken.findUnique({
-      where: { token },
+      where: { token: tokenHash },
     });
 
     if (!dbToken || dbToken.usedAt || dbToken.expiresAt < new Date()) {
       // Clean up Redis if token exists there but is invalid in DB
-      await safeDel(`email-verification:${token}`);
+      await safeDel(`email-verification:${tokenHash}`);
       throw new Error('Invalid or expired verification token');
     }
 
@@ -379,7 +447,7 @@ export class AuthService {
 
       // Mark token as used in database
       await tx.emailVerificationToken.update({
-        where: { token },
+        where: { token: tokenHash },
         data: { usedAt: new Date() },
       });
 
@@ -387,7 +455,7 @@ export class AuthService {
     });
 
     // Only delete from Redis after successful DB transaction
-    await safeDel(`email-verification:${token}`);
+    await safeDel(`email-verification:${tokenHash}`);
 
     return user;
   }
@@ -605,6 +673,16 @@ export class AuthService {
     // Delete all sessions for this user (force re-login on all devices)
     await this.deleteAllUserSessions(user.id);
 
+    // Send password changed notification email for security awareness
+    // This alerts the user in case the change wasn't made by them
+    try {
+      await emailService.sendPasswordChangedEmail(user.email, user.name || undefined);
+      logger.info(`Password changed notification sent to user ${user.id}`);
+    } catch (emailError) {
+      // Log but don't fail the password reset if email fails
+      logger.error('Failed to send password changed notification email:', emailError);
+    }
+
     return user;
   }
 
@@ -637,6 +715,179 @@ export class AuthService {
     });
 
     return result.count;
+  }
+
+  /**
+   * Generate magic link token for passwordless login
+   * Returns null if user doesn't exist (prevents enumeration)
+   */
+  async generateMagicLinkToken(email: string): Promise<string | null> {
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(token);
+    const expiresAtSeconds = 15 * 60; // 15 minutes
+
+    // Store in Redis for fast lookup (magic links are short-lived)
+    await safeSetex(`magic-link:${tokenHash}`, expiresAtSeconds, user.id);
+
+    return token;
+  }
+
+  /**
+   * Verify magic link and create session
+   */
+  async verifyMagicLink(token: string): Promise<{ user: User; sessionId: string }> {
+    const tokenHash = this.hashToken(token);
+    const userId = await safeGet(`magic-link:${tokenHash}`);
+
+    if (!userId) {
+      throw new Error('Invalid or expired magic link');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      await safeDel(`magic-link:${tokenHash}`);
+      throw new Error('User not found');
+    }
+
+    // Check if account is suspended or deleted
+    if (user.accountStatus === AccountStatus.SUSPENDED) {
+      await safeDel(`magic-link:${tokenHash}`);
+      throw new Error('Account is suspended');
+    }
+    if (user.accountStatus === AccountStatus.DELETED) {
+      await safeDel(`magic-link:${tokenHash}`);
+      throw new Error('Account no longer exists');
+    }
+
+    // Invalidate the magic link (one-time use)
+    await safeDel(`magic-link:${tokenHash}`);
+
+    // Auto-verify email if not already verified (since they clicked the email link)
+    if (!user.emailVerified) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          emailVerified: true,
+          emailVerifiedAt: new Date(),
+        },
+      });
+      user.emailVerified = true;
+    }
+
+    // Create session
+    const sessionId = await this.createSession(user.id);
+
+    return { user, sessionId };
+  }
+
+  /**
+   * Find or create user from OAuth provider
+   */
+  async findOrCreateOAuthUser(data: {
+    provider: string;
+    providerId: string;
+    email: string;
+    name?: string;
+    avatar?: string;
+  }): Promise<{ user: User; sessionId: string; isNewUser: boolean }> {
+    // Check if we have a linked account for this provider
+    const linkedAccount = await prisma.linkedAccount.findUnique({
+      where: {
+        provider_providerId: {
+          provider: data.provider,
+          providerId: data.providerId,
+        },
+      },
+      include: { user: true },
+    });
+
+    if (linkedAccount) {
+      // Existing linked account - just create a session
+      const sessionId = await this.createSession(linkedAccount.user.id);
+      return { user: linkedAccount.user, sessionId, isNewUser: false };
+    }
+
+    // Check if user exists with this email
+    const existingUser = await prisma.user.findUnique({
+      where: { email: data.email.toLowerCase() },
+    });
+
+    if (existingUser) {
+      // FIX #11: Verify email ownership before linking OAuth account
+      // Only auto-link if:
+      // 1. The existing user has verified their email (proves ownership), OR
+      // 2. The existing user was created via OAuth with a verified email
+      // This prevents attackers from taking over accounts by creating OAuth accounts with victim emails
+
+      const canAutoLink = existingUser.emailVerified === true;
+
+      if (!canAutoLink) {
+        // User exists but hasn't verified email - don't allow OAuth linking
+        // This prevents account takeover via fake OAuth accounts
+        logger.warn('OAuth linking blocked - existing user has not verified email', {
+          email: data.email,
+          provider: data.provider,
+          existingUserId: existingUser.id,
+        });
+        throw new Error(
+          'An account with this email exists but email is not verified. ' +
+          'Please log in with your password and verify your email first, or use a different email for OAuth.'
+        );
+      }
+
+      // Email is verified - safe to link
+      await prisma.linkedAccount.create({
+        data: {
+          userId: existingUser.id,
+          provider: data.provider,
+          providerId: data.providerId,
+          email: data.email.toLowerCase(),
+        },
+      });
+
+      // Update avatar if user doesn't have one
+      if (!existingUser.avatar && data.avatar) {
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { avatar: data.avatar },
+        });
+      }
+
+      const sessionId = await this.createSession(existingUser.id);
+      return { user: existingUser, sessionId, isNewUser: false };
+    }
+
+    // Create new user with linked account
+    const newUser = await prisma.user.create({
+      data: {
+        email: data.email.toLowerCase(),
+        name: data.name,
+        avatar: data.avatar,
+        emailVerified: true, // OAuth emails are pre-verified
+        emailVerifiedAt: new Date(),
+        linkedAccounts: {
+          create: {
+            provider: data.provider,
+            providerId: data.providerId,
+            email: data.email.toLowerCase(),
+          },
+        },
+      },
+    });
+
+    const sessionId = await this.createSession(newUser.id);
+    return { user: newUser, sessionId, isNewUser: true };
   }
 }
 

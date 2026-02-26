@@ -28,7 +28,7 @@ export default function MyReviews({ reviews }: MyReviewsProps) {
           <Card key={review.id} className="p-4">
             <div className="flex items-start gap-4">
               <Avatar>
-                <AvatarFallback className="bg-orange-100 text-brand-800">
+                <AvatarFallback className="bg-brand-100 text-brand-800">
                   {reviewerInitial}
                 </AvatarFallback>
               </Avatar>

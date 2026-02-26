@@ -21,7 +21,7 @@ vi.mock('@/api/services', () => ({
   statsService: { getPublicStats: vi.fn().mockResolvedValue({}) },
 }))
 
-function wrap(ui, path = '/') {
+function wrap(ui: React.ReactNode, path = '/') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>

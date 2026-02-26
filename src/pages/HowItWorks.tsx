@@ -97,7 +97,7 @@ export default function HowItWorks(): JSX.Element {
             Back to Home
           </Button>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">How SpannerWork Works</h1>
-          <p className="text-xl text-orange-100">Simple, secure, and community-driven</p>
+          <p className="text-xl text-brand-100">Simple, secure, and community-driven</p>
         </div>
       </div>
 
@@ -174,11 +174,11 @@ export default function HowItWorks(): JSX.Element {
         <Card className="bg-gradient-to-r from-brand-800 to-brand-900 border-none text-white">
           <CardContent className="p-12 text-center">
             <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
-            <p className="text-xl text-orange-100 mb-8">Join our growing community of DIYers and mechanics</p>
+            <p className="text-xl text-brand-100 mb-8">Join our growing community of DIYers and mechanics</p>
             <Button
               onClick={() => navigate(createPageUrl("Feed"))}
               size="lg"
-              className="bg-white text-brand-800 hover:bg-orange-50 text-lg px-12 py-6 font-bold"
+              className="bg-white text-brand-800 hover:bg-brand-50 text-lg px-12 py-6 font-bold"
             >
               Sign Up Free
             </Button>

@@ -7,13 +7,18 @@ import { fileURLToPath } from 'node:url';
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 const dotenvPath = process.env.DOTENV_PATH;
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 if (dotenvPath) {
   dotenv.config({ path: dotenvPath });
-} else if (nodeEnv !== 'production') {
+} else if (nodeEnv === 'production') {
+  // In production, load from private_html (outside webroot for security)
+  const privateHtmlPath = path.resolve(__dirname, '../../../../private_html/.env.production');
+  dotenv.config({ path: privateHtmlPath });
+} else {
+  // Development/test mode
   dotenv.config();
-
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
   dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 }
 
@@ -38,9 +43,11 @@ const envSchema = z.object({
   // Security
   SESSION_SECRET: z.string().min(32),
   CSRF_SECRET: z.string().min(32),
+  // Note: CSRF protection cannot be disabled - removed DISABLE_CSRF option for security
 
   // CORS
   FRONTEND_URL: z.string().url(),
+  CORS_ALLOWED_ORIGINS: z.string().optional(),
 
   // AWS/S3
   AWS_REGION: z.string().default('eu-west-2'),
@@ -87,8 +94,27 @@ const envSchema = z.object({
   GOOGLE_MAPS_API_KEY: z.string().optional(),
   MAPBOX_ACCESS_TOKEN: z.string().optional(),
 
+  // Address Lookup (GetAddress.io)
+  GETADDRESS_API_KEY: z.string().optional(),
+
   // Google Gemini AI
   GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-3-flash-preview'),
+  GEMINI_VISION_MODEL: z.string().default('gemini-3-flash-preview'),
+
+  // OpenAI Fallback (optional)
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL: z.string().default('gpt-4o-mini'),
+
+  // AI Feature Flags
+  AI_FEEDBACK_ENABLED: z.preprocess(
+    (val) => val === 'true' || val === true,
+    z.boolean().default(true)
+  ),
+  AI_IMAGE_ANALYSIS_ENABLED: z.preprocess(
+    (val) => val === 'true' || val === true,
+    z.boolean().default(true)
+  ),
 
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: z.string().default('900000'),
@@ -119,9 +145,23 @@ const envSchema = z.object({
 
   // Security Settings
   SALT_ROUNDS: z.string().default('12'),
-  SESSION_EXPIRY_DAYS: z.string().default('30'),
+  SESSION_EXPIRY_DAYS: z.string().default('7'),
   PASSWORD_RESET_EXPIRY_HOURS: z.string().default('1'),
   EMAIL_VERIFICATION_EXPIRY_HOURS: z.string().default('24'),
+
+  // OAuth - Google
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+
+  // OAuth - Facebook
+  FACEBOOK_APP_ID: z.string().optional(),
+  FACEBOOK_APP_SECRET: z.string().optional(),
+
+  // OAuth - Apple
+  APPLE_CLIENT_ID: z.string().optional(),
+  APPLE_TEAM_ID: z.string().optional(),
+  APPLE_KEY_ID: z.string().optional(),
+  APPLE_PRIVATE_KEY: z.string().optional(),
 
   // Database Pool Settings
   DB_POOL_SIZE: z.string().default('10'),

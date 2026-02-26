@@ -14,7 +14,8 @@ export class TransactionController {
     try {
       const userId = req.user!.id;
       // Note: rentalFee is calculated server-side based on listing rates
-      const { requestId, toolId, spaceId, serviceId, startDate, endDate, notes, waiverAccepted } =
+      // quotedRentalFee is optional - if provided, validates against current rate to prevent price manipulation
+      const { requestId, toolId, spaceId, serviceId, startDate, endDate, notes, waiverAccepted, quotedRentalFee } =
         req.body;
 
       // Ensure at least one resource is specified
@@ -41,6 +42,8 @@ export class TransactionController {
         endDate: new Date(endDate),
         notes,
         waiverAccepted: waiverAccepted ? true : false,
+        // Pass quoted price for validation (prevents price manipulation attacks)
+        quotedRentalFee: typeof quotedRentalFee === 'number' ? quotedRentalFee : undefined,
       });
 
       return res.status(201).json({

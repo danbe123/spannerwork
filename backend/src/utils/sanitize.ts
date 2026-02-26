@@ -7,7 +7,7 @@
 
 import sanitizeHtml from 'sanitize-html';
 
-function stripControlCharacters(input: string, options?: { allowNewlines?: boolean; allowTabs?: boolean }): string {
+export function stripControlCharacters(input: string, options?: { allowNewlines?: boolean; allowTabs?: boolean }): string {
   const allowNewlines = options?.allowNewlines ?? false;
   const allowTabs = options?.allowTabs ?? false;
 

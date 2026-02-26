@@ -1,11 +1,16 @@
 /** @type {import('tailwindcss').Config} */
 import tailwindcssAnimate from "tailwindcss-animate"
+import typography from "@tailwindcss/typography"
 
 export default {
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
+  		screens: {
+  			'3xl': '1920px',
+  			'4xl': '2560px',
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
@@ -63,8 +68,9 @@ export default {
   				ring: 'hsl(var(--sidebar-ring))'
   			},
   			// SpannerWork brand colors
+  			// Note: brand-800 darkened from #D84315 to #C43B12 for WCAG AA contrast (4.5:1+)
   			brand: {
-  				DEFAULT: '#D84315',
+  				DEFAULT: '#C43B12',
   				50: '#FBE9E7',
   				100: '#FFCCBC',
   				200: '#FFAB91',
@@ -73,8 +79,8 @@ export default {
   				500: '#FF5722',
   				600: '#F4511E',
   				700: '#E64A19',
-  				800: '#D84315',
-  				900: '#BF360C'
+  				800: '#C43B12',
+  				900: '#A52F0C'
   			}
   		},
   		keyframes: {
@@ -93,7 +99,7 @@ export default {
   				to: {
   					height: '0'
   				}
-  			}
+  			},
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
@@ -101,5 +107,5 @@ export default {
   		}
   	}
   },
-  plugins: [tailwindcssAnimate],
+  plugins: [tailwindcssAnimate, typography],
 }

@@ -6,16 +6,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  ArrowLeft, 
+import { useState } from "react";
+import {
+  ArrowLeft,
   Wrench,
   Star,
   Shield,
   Calendar,
   MessageCircle,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Edit
 } from "lucide-react";
+import EditToolDialog from "@/components/EditToolDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import SEO, { generateProductSchema, generateBreadcrumbSchema } from "@/components/SEO";
 import BundleSuggestions from "@/components/listing/BundleSuggestions";
@@ -26,6 +29,7 @@ import { queryKeys } from "@/lib/queryKeys";
 export default function ToolDetail() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const urlParams = new URLSearchParams(location.search);
   const toolIdFromQuery = urlParams.get('id');
   const toolIdFromPath = location.pathname.match(/^\/tool\/([^/]+)\/?$/i)?.[1] ?? null;
@@ -115,7 +119,6 @@ export default function ToolDetail() {
         title={`${tool.name} - ${tool.category} | SpannerWork`}
         description={tool.description || `Rent ${tool.name} from SpannerWork. ${tool.category} available for hire.`}
         keywords={`${tool.category}, tool rental, ${tool.name}, equipment hire`}
-        // @ts-expect-error - Schema types from JSX component
         schema={[
           generateProductSchema(tool),
           generateBreadcrumbSchema([
@@ -170,7 +173,7 @@ export default function ToolDetail() {
           <div className="space-y-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{tool.name}</h1>
-              <Badge className="bg-orange-100 text-orange-800 mb-4">
+              <Badge className="bg-brand-100 text-brand-800 mb-4">
                 <Wrench className="w-3 h-3 mr-1" />
                 {tool.category}
               </Badge>
@@ -210,7 +213,7 @@ export default function ToolDetail() {
                   <div className="flex items-center gap-3 mb-3">
                     <Avatar className="w-12 h-12">
                       <AvatarImage src={owner.avatar || undefined} />
-                      <AvatarFallback className="bg-orange-100 text-brand-800">
+                      <AvatarFallback className="bg-brand-100 text-brand-800">
                         {owner.name?.[0]?.toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
@@ -262,11 +265,28 @@ export default function ToolDetail() {
             )}
 
             {isOwner && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Your Listing:</strong> This is your tool. Manage it from your profile.
-                </p>
+              <div className="space-y-3">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Your Listing:</strong> This is your tool.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setShowEditDialog(true)}
+                  className="w-full bg-brand-800 hover:bg-brand-900"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Listing
+                </Button>
               </div>
+            )}
+
+            {/* Edit Dialog */}
+            {showEditDialog && tool && (
+              <EditToolDialog
+                tool={tool}
+                onClose={() => setShowEditDialog(false)}
+              />
             )}
           </div>
         </div>

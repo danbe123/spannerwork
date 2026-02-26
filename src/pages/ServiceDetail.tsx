@@ -6,17 +6,20 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  ArrowLeft, 
-  Star, 
-  MessageCircle, 
+import { useState } from "react";
+import {
+  ArrowLeft,
+  Star,
+  MessageCircle,
   AlertCircle,
   Clock,
   Shield,
   Award,
   Phone,
-  CheckCircle
+  CheckCircle,
+  Edit
 } from "lucide-react";
+import EditServiceDialog from "@/components/EditServiceDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import SEO, { generateServiceSchema, generateBreadcrumbSchema } from "@/components/SEO";
 import { Service, User } from "@/types";
@@ -25,6 +28,7 @@ import { queryKeys } from "@/lib/queryKeys";
 export default function ServiceDetail() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const { id: serviceIdFromPath } = useParams<{ id: string }>();
   const urlParams = new URLSearchParams(location.search);
   const serviceIdFromQuery = urlParams.get('id');
@@ -114,7 +118,6 @@ export default function ServiceDetail() {
         title={`${service.title} - Professional Service | SpannerWork`}
         description={service.description}
         keywords={`${service.category}, professional service`}
-        // @ts-expect-error - Schema types from JSX component
         schema={[
           generateServiceSchema(service.title, service.description, service.hourlyRate || 0),
           generateBreadcrumbSchema([
@@ -304,13 +307,28 @@ export default function ServiceDetail() {
             )}
 
             {isOwnService && (
-              <div className="border-t pt-6">
+              <div className="border-t pt-6 space-y-3">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <p className="text-sm text-gray-700">
                     <strong>Your Service:</strong> Customers can contact you through the messaging system.
                   </p>
                 </div>
+                <Button
+                  onClick={() => setShowEditDialog(true)}
+                  className="w-full bg-brand-800 hover:bg-brand-900"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Listing
+                </Button>
               </div>
+            )}
+
+            {/* Edit Dialog */}
+            {showEditDialog && service && (
+              <EditServiceDialog
+                service={service}
+                onClose={() => setShowEditDialog(false)}
+              />
             )}
           </CardContent>
         </Card>

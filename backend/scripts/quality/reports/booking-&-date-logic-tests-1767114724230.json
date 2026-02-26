@@ -1,0 +1,221 @@
+{
+  "suite": "Booking & Date Logic Tests",
+  "timestamp": "2025-12-30T17:12:04.230Z",
+  "totalTests": 30,
+  "passed": 30,
+  "failed": 0,
+  "score": 100,
+  "duration": 4,
+  "results": [
+    {
+      "name": "Overlap: Identical ranges",
+      "category": "Date Overlap",
+      "passed": true,
+      "score": 100,
+      "details": "Identical ranges should overlap"
+    },
+    {
+      "name": "Overlap: B entirely within A",
+      "category": "Date Overlap",
+      "passed": true,
+      "score": 100,
+      "details": "Contained range should overlap"
+    },
+    {
+      "name": "Overlap: A entirely within B",
+      "category": "Date Overlap",
+      "passed": true,
+      "score": 100,
+      "details": "Containing range should overlap"
+    },
+    {
+      "name": "Overlap: Partial overlap (A starts before B)",
+      "category": "Date Overlap",
+      "passed": true,
+      "score": 100,
+      "details": "Partial overlap should be detected"
+    },
+    {
+      "name": "No overlap: A before B",
+      "category": "Date Overlap",
+      "passed": true,
+      "score": 100,
+      "details": "Non-overlapping should return false"
+    },
+    {
+      "name": "No overlap: B before A",
+      "category": "Date Overlap",
+      "passed": true,
+      "score": 100,
+      "details": "Non-overlapping should return false"
+    },
+    {
+      "name": "Boundary: Adjacent ranges (A ends when B starts)",
+      "category": "Date Overlap",
+      "passed": true,
+      "score": 100,
+      "details": "Adjacent ranges at boundary should overlap (end date inclusive)"
+    },
+    {
+      "name": "Duration: Same day = 1 day minimum",
+      "category": "Duration",
+      "passed": true,
+      "score": 100,
+      "details": "Same day booking = 1 day"
+    },
+    {
+      "name": "Duration: 3 full days",
+      "category": "Duration",
+      "passed": true,
+      "score": 100,
+      "details": "Jan 15-18 = 3 days"
+    },
+    {
+      "name": "Duration: Partial day rounds up",
+      "category": "Duration",
+      "passed": true,
+      "score": 100,
+      "details": "1.5 days rounds up to 2"
+    },
+    {
+      "name": "Duration: Hours calculation",
+      "category": "Duration",
+      "passed": true,
+      "score": 100,
+      "details": "09:00-17:00 = 8 hours"
+    },
+    {
+      "name": "Duration: Minimum 1 hour",
+      "category": "Duration",
+      "passed": true,
+      "score": 100,
+      "details": "30 min rounds up to 1 hour"
+    },
+    {
+      "name": "Boundary: Feb 28 → Mar 1 (non-leap year)",
+      "category": "Date Boundary",
+      "passed": true,
+      "score": 100,
+      "details": "Feb 27 to Mar 2 (non-leap) = 3 days"
+    },
+    {
+      "name": "Boundary: Feb 28 → Mar 1 (leap year)",
+      "category": "Date Boundary",
+      "passed": true,
+      "score": 100,
+      "details": "Feb 27 to Mar 2 (leap) = 4 days"
+    },
+    {
+      "name": "Boundary: Dec 31 → Jan 1 (year boundary)",
+      "category": "Date Boundary",
+      "passed": true,
+      "score": 100,
+      "details": "Dec 30 to Jan 2 = 3 days"
+    },
+    {
+      "name": "Boundary: Midnight crossing",
+      "category": "Date Boundary",
+      "passed": true,
+      "score": 100,
+      "details": "Midnight crossing = 1 hour"
+    },
+    {
+      "name": "DST: Spring forward (March, lose 1 hour)",
+      "category": "DST",
+      "passed": true,
+      "score": 100,
+      "details": "DST spring: 4 UTC hours = 4 hours"
+    },
+    {
+      "name": "DST: Fall back (October, gain 1 hour)",
+      "category": "DST",
+      "passed": true,
+      "score": 100,
+      "details": "DST fall: 4 UTC hours = 4 hours"
+    },
+    {
+      "name": "Status: PENDING → CONFIRMED (valid)",
+      "category": "Status Transition",
+      "passed": true,
+      "score": 100,
+      "details": "PENDING → CONFIRMED should be valid"
+    },
+    {
+      "name": "Status: PENDING → CANCELLED (valid)",
+      "category": "Status Transition",
+      "passed": true,
+      "score": 100,
+      "details": "PENDING → CANCELLED should be valid"
+    },
+    {
+      "name": "Status: PENDING → COMPLETED (invalid)",
+      "category": "Status Transition",
+      "passed": true,
+      "score": 100,
+      "details": "PENDING → COMPLETED should be invalid (skip payment)"
+    },
+    {
+      "name": "Status: CONFIRMED → IN_PROGRESS (valid)",
+      "category": "Status Transition",
+      "passed": true,
+      "score": 100,
+      "details": "CONFIRMED → IN_PROGRESS should be valid"
+    },
+    {
+      "name": "Status: IN_PROGRESS → COMPLETED (valid)",
+      "category": "Status Transition",
+      "passed": true,
+      "score": 100,
+      "details": "IN_PROGRESS → COMPLETED should be valid"
+    },
+    {
+      "name": "Status: IN_PROGRESS → DISPUTED (valid)",
+      "category": "Status Transition",
+      "passed": true,
+      "score": 100,
+      "details": "IN_PROGRESS → DISPUTED should be valid"
+    },
+    {
+      "name": "Status: COMPLETED → any (invalid)",
+      "category": "Status Transition",
+      "passed": true,
+      "score": 100,
+      "details": "COMPLETED is properly terminal"
+    },
+    {
+      "name": "Status: CANCELLED → any (invalid)",
+      "category": "Status Transition",
+      "passed": true,
+      "score": 100,
+      "details": "CANCELLED is properly terminal"
+    },
+    {
+      "name": "Status: DISPUTED → COMPLETED (valid)",
+      "category": "Status Transition",
+      "passed": true,
+      "score": 100,
+      "details": "DISPUTED → COMPLETED should be valid"
+    },
+    {
+      "name": "Status: DISPUTED → REFUNDED (valid)",
+      "category": "Status Transition",
+      "passed": true,
+      "score": 100,
+      "details": "DISPUTED → REFUNDED should be valid"
+    },
+    {
+      "name": "Conflict: Same tool, overlapping dates",
+      "category": "Conflict Detection",
+      "passed": true,
+      "score": 100,
+      "details": "Overlapping tool bookings should conflict"
+    },
+    {
+      "name": "No Conflict: Same tool, non-overlapping dates",
+      "category": "Conflict Detection",
+      "passed": true,
+      "score": 100,
+      "details": "Non-overlapping bookings should not conflict"
+    }
+  ]
+}

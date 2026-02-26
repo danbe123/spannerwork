@@ -9,6 +9,7 @@ import { Router } from 'express';
 import analyticsController from '../controllers/analytics.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { requireAdmin } from '../middleware/authorize.middleware.js';
+import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
 
 const router = Router();
 
@@ -210,7 +211,7 @@ router.get('/top-performers', analyticsController.getTopPerformers);
  *       200:
  *         description: Cache cleared
  */
-router.post('/cache/clear', analyticsController.clearCache);
+router.post('/cache/clear', verifyCsrfToken, analyticsController.clearCache);
 
 /**
  * @openapi
@@ -224,6 +225,6 @@ router.post('/cache/clear', analyticsController.clearCache);
  *       200:
  *         description: Snapshot created
  */
-router.post('/snapshot', analyticsController.triggerSnapshot);
+router.post('/snapshot', verifyCsrfToken, analyticsController.triggerSnapshot);
 
 export default router;

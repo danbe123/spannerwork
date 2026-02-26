@@ -1,3 +1,6 @@
+// Initialize Trusted Types policy FIRST - before any DOM manipulation
+import '@/lib/trusted-types'
+
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import * as Sentry from '@sentry/react'

@@ -67,7 +67,7 @@ export default function EmptyState({ category = 'all', onReset }: EmptyStateProp
         <div className="grid md:grid-cols-3 gap-4 max-w-2xl mx-auto">
           {suggestions.map((suggestion, index) => (
             <div key={index} className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-              <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center flex-shrink-0">
                 <suggestion.icon className="w-5 h-5 text-brand-800" />
               </div>
               <p className="text-sm text-gray-700 font-medium text-left">{suggestion.text}</p>

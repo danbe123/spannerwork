@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
+import sharp from 'sharp';
 import { logger } from '../config/logger.js';
 import { prisma } from '../config/database.js';
 
@@ -33,22 +34,56 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Allowed image types
+  // Allowed image types (including HEIC/HEIF from iPhones - will be converted to JPEG)
   const allowedMimes = [
     'image/jpeg',
     'image/jpg',
     'image/png',
     'image/gif',
     'image/webp',
+    'image/heic',
+    'image/heif',
     'application/pdf', // For insurance documents
   ];
 
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only JPEG, PNG, GIF, WEBP, and PDF files are allowed.'));
+    cb(new Error('Invalid file type. Only JPEG, PNG, GIF, WEBP, HEIC, and PDF files are allowed.'));
   }
 };
+
+/**
+ * Check if file is HEIC/HEIF format
+ */
+export function isHeicFile(mimetype: string): boolean {
+  return mimetype === 'image/heic' || mimetype === 'image/heif';
+}
+
+/**
+ * Convert HEIC/HEIF file to JPEG using sharp
+ * Returns the new filename with .jpeg extension
+ */
+export async function convertHeicToJpeg(filePath: string, filename: string): Promise<{ newPath: string; newFilename: string }> {
+  const uploadDir = path.join(process.cwd(), 'uploads');
+  const newFilename = filename.replace(/\.(heic|heif)$/i, '.jpeg');
+  const newPath = path.join(uploadDir, newFilename);
+
+  try {
+    await sharp(filePath)
+      .jpeg({ quality: 90 })
+      .toFile(newPath);
+
+    // Delete the original HEIC file
+    await fs.unlink(filePath).catch(() => {});
+
+    logger.info(`Converted HEIC to JPEG: ${filename} -> ${newFilename}`);
+    return { newPath, newFilename };
+  } catch (error) {
+    logger.error(`Failed to convert HEIC file: ${filename}`, error);
+    throw new Error('Failed to process image. Please try uploading a JPEG or PNG instead.');
+  }
+}
 
 // Configure multer
 export const upload = multer({
@@ -68,8 +103,7 @@ class UploadService {
    * Get file URL for a filename
    */
   getFileUrl(filename: string): string {
-    // In production, this would return CDN URL
-    // For now, return relative URL
+    // Returns relative URL - served by Apache from uploads directory
     return `/uploads/${filename}`;
   }
 

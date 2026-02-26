@@ -14,7 +14,7 @@ export class SpaceService {
     data: {
       name: string;
       description: string;
-      hourlyRate: number;
+      hourlyRate?: number;
       dailyRate: number;
       weeklyRate?: number;
       size?: number;
@@ -22,6 +22,7 @@ export class SpaceService {
       photos: string[];
       postcode: string;
       locationAddress: string;
+      sponsorCpaPercent?: number;
     }
   ): Promise<Space> {
     // Geocode the postcode
@@ -34,10 +35,12 @@ export class SpaceService {
     return prisma.space.create({
       data: {
         ...data,
+        hourlyRate: data.hourlyRate ?? 0, // Default to 0 if not provided
         locationLat: location.lat,
         locationLng: location.lng,
         ownerId,
         available: true,
+        sponsorCpaPercent: data.sponsorCpaPercent ?? 0,
       },
       include: {
         owner: {
@@ -138,34 +141,59 @@ export class SpaceService {
             paramIndex++;
           }
           
-          const whereClause = conditions.length > 0 
-            ? `AND ${conditions.join(' AND ')}` 
+          const whereClause = conditions.length > 0
+            ? `AND ${conditions.join(' AND ')}`
             : '';
-          
-          // Query using PostGIS
-          const geoSpaces = await prisma.$queryRawUnsafe<Space[]>(`
-            SELECT s.*, 
+
+          // FIX: Create separate params array for count query (without limit/skip)
+          const countParams = [...queryParams];
+
+          // Add LIMIT and OFFSET as parameterized values to prevent SQL injection
+          const limitParamIndex = paramIndex;
+          const skipParamIndex = paramIndex + 1;
+          queryParams.push(limit, skip);
+
+          // Query using PostGIS with JOIN to get owner details in one query (N+1 fix)
+          interface GeoSpaceWithOwner extends Space {
+            distance_miles: number;
+            owner_id: string;
+            owner_name: string | null;
+            owner_avatar: string | null;
+            owner_rating: number | null;
+          }
+
+          const geoSpaces = await prisma.$queryRawUnsafe<GeoSpaceWithOwner[]>(`
+            SELECT s.*,
                    ST_Distance(
-                     ST_SetSRID(ST_MakePoint("locationLng", "locationLat"), 4326)::geography,
+                     ST_SetSRID(ST_MakePoint(s."locationLng", s."locationLat"), 4326)::geography,
                      ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
-                   ) / 1609.34 as distance_miles
+                   ) / 1609.34 as distance_miles,
+                   u.id as owner_id,
+                   u.name as owner_name,
+                   u.avatar as owner_avatar,
+                   u.rating as owner_rating
             FROM spaces s
-            WHERE "locationLat" IS NOT NULL 
-              AND "locationLng" IS NOT NULL
+            LEFT JOIN users u ON s."ownerId" = u.id
+            WHERE s."locationLat" IS NOT NULL
+              AND s."locationLng" IS NOT NULL
               AND ST_DWithin(
-                ST_SetSRID(ST_MakePoint("locationLng", "locationLat"), 4326)::geography,
+                ST_SetSRID(ST_MakePoint(s."locationLng", s."locationLat"), 4326)::geography,
                 ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
                 $3
               )
               ${whereClause}
-            ORDER BY distance_miles ASC
-            LIMIT ${limit} OFFSET ${skip}
+            ORDER BY
+              CASE WHEN "sponsorCpaPercent" > 0 THEN 0 ELSE 1 END,
+              "sponsorCpaPercent" DESC,
+              distance_miles ASC
+            LIMIT $${limitParamIndex} OFFSET $${skipParamIndex}
           `, ...queryParams);
 
+          // FIX: Use countParams (without limit/skip) for the count query
           const countResult = await prisma.$queryRawUnsafe<[{count: bigint}]>(`
             SELECT COUNT(*) as count
             FROM spaces s
-            WHERE "locationLat" IS NOT NULL 
+            WHERE "locationLat" IS NOT NULL
               AND "locationLng" IS NOT NULL
               AND ST_DWithin(
                 ST_SetSRID(ST_MakePoint("locationLng", "locationLat"), 4326)::geography,
@@ -173,31 +201,20 @@ export class SpaceService {
                 $3
               )
               ${whereClause}
-          `, ...queryParams);
+          `, ...countParams);
 
           const total = Number(countResult[0]?.count || 0);
 
-          // Fetch owner details for the spaces
-          const spaceIds = geoSpaces.map(s => s.id);
-          const spacesWithOwners = spaceIds.length > 0 
-            ? await prisma.space.findMany({
-                where: { id: { in: spaceIds } },
-                include: {
-                  owner: {
-                    select: {
-                      id: true,
-                      name: true,
-                      avatar: true,
-                      rating: true,
-                    },
-                  },
-                },
-              })
-            : [];
-
-          // Merge owner data with geo results (preserve distance ordering)
-          const ownerMap = new Map(spacesWithOwners.map(s => [s.id, s]));
-          const mergedSpaces = geoSpaces.map(s => ownerMap.get(s.id) || s);
+          // Transform raw results to include nested owner object
+          const mergedSpaces = geoSpaces.map(s => ({
+            ...s,
+            owner: {
+              id: s.owner_id,
+              name: s.owner_name,
+              avatar: s.owner_avatar,
+              rating: s.owner_rating,
+            },
+          }));
 
           return {
             data: mergedSpaces,
@@ -221,7 +238,10 @@ export class SpaceService {
         where,
         skip,
         take: limit,
-        orderBy: { createdDate: 'desc' },
+        orderBy: [
+          { sponsorCpaPercent: 'desc' }, // Sponsored first
+          { createdDate: 'desc' },
+        ],
         include: {
           owner: {
             select: {
@@ -271,7 +291,8 @@ export class SpaceService {
         },
         transactions: {
           where: {
-            status: { in: ['CONFIRMED', 'PENDING'] },
+            // FIX #2: Include IN_PROGRESS - active bookings block the calendar
+            status: { in: ['CONFIRMED', 'PENDING', 'IN_PROGRESS'] },
           },
           select: {
             startDate: true,
@@ -292,6 +313,7 @@ export class SpaceService {
 
   /**
    * Update space listing
+   * FIX: Prevents price changes when there are active bookings to avoid confusion
    */
   async update(
     spaceId: string,
@@ -308,6 +330,7 @@ export class SpaceService {
       postcode: string;
       locationAddress: string;
       available: boolean;
+      sponsorCpaPercent: number;
     }>
   ): Promise<Space> {
     // Check ownership
@@ -322,6 +345,41 @@ export class SpaceService {
 
     if (space.ownerId !== ownerId) {
       throw new ForbiddenError('You can only update your own spaces');
+    }
+
+    // FIX: Check for active bookings if price-related fields or CPA% are being changed
+    const priceFieldsChanged = data.hourlyRate !== undefined ||
+                                data.dailyRate !== undefined ||
+                                data.weeklyRate !== undefined;
+
+    // Need to get current space data to compare CPA
+    const currentSpace = await prisma.space.findUnique({
+      where: { id: spaceId },
+      select: { sponsorCpaPercent: true },
+    });
+    const cpaChanged = data.sponsorCpaPercent !== undefined &&
+                       data.sponsorCpaPercent !== currentSpace?.sponsorCpaPercent;
+
+    if (priceFieldsChanged || cpaChanged) {
+      const activeBookings = await prisma.transaction.count({
+        where: {
+          spaceId,
+          status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] },
+        },
+      });
+
+      if (activeBookings > 0) {
+        if (cpaChanged) {
+          throw new ConflictError(
+            'Cannot change sponsor CPA percentage while you have active bookings. ' +
+            'This ensures fairness for customers who booked based on the original terms.'
+          );
+        }
+        throw new ConflictError(
+          `Cannot change pricing while you have ${activeBookings} active booking${activeBookings > 1 ? 's' : ''}. ` +
+          'Please wait until all current bookings are completed or cancelled before updating rates.'
+        );
+      }
     }
 
     // If postcode is being updated, geocode it
@@ -381,10 +439,11 @@ export class SpaceService {
     }
 
     // Check for active transactions
+    // FIX #2: Include IN_PROGRESS - active bookings block deletion
     const activeTransactions = await prisma.transaction.count({
       where: {
         spaceId,
-        status: { in: ['CONFIRMED', 'PENDING'] },
+        status: { in: ['CONFIRMED', 'PENDING', 'IN_PROGRESS'] },
       },
     });
 
@@ -426,40 +485,25 @@ export class SpaceService {
       };
     }
 
-    // Check for conflicting transactions
-    const conflictingTransactions = await prisma.transaction.findMany({
-      where: {
-        spaceId: id,
-        status: { in: ['CONFIRMED', 'PENDING'] },
-        OR: [
-          // Transaction starts during the requested period
-          {
-            AND: [
-              { startDate: { lte: startDate } },
-              { endDate: { gte: startDate } },
-            ],
-          },
-          // Transaction ends during the requested period
-          {
-            AND: [
-              { startDate: { lte: endDate } },
-              { endDate: { gte: endDate } },
-            ],
-          },
-          // Transaction is completely within the requested period
-          {
-            AND: [
-              { startDate: { gte: startDate } },
-              { endDate: { lte: endDate } },
-            ],
-          },
-        ],
-      },
-      select: {
-        startDate: true,
-        endDate: true,
-      },
-    });
+    // FIX #2 & #7: Use raw query with FOR UPDATE to prevent race conditions
+    // and include IN_PROGRESS status (active bookings must block new bookings)
+    interface ConflictResult {
+      startDate: Date;
+      endDate: Date;
+    }
+
+    const conflictingTransactions = await prisma.$queryRaw<ConflictResult[]>`
+      SELECT "startDate", "endDate"
+      FROM transactions
+      WHERE "spaceId" = ${id}
+        AND status IN ('CONFIRMED', 'PENDING', 'IN_PROGRESS')
+        AND (
+          ("startDate" <= ${startDate} AND "endDate" >= ${startDate})
+          OR ("startDate" <= ${endDate} AND "endDate" >= ${endDate})
+          OR ("startDate" >= ${startDate} AND "endDate" <= ${endDate})
+        )
+      FOR UPDATE SKIP LOCKED
+    `;
 
     if (conflictingTransactions.length > 0) {
       return {

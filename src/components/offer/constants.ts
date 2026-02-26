@@ -17,7 +17,13 @@ export const AVAILABLE_FEATURES: string[] = [
   "24/7 Access",
   "Security System",
   "Lighting",
-  "Water Access"
+  "Water Access",
+  "Ventilation/Exhaust Fans",
+  "Toilets",
+  "Basic Tools",
+  "Fire Extinguisher",
+  "First Aid Kit",
+  "3 Phase Electric"
 ];
 
 export const SERVICE_SPECIALTIES: string[] = [

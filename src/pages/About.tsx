@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Users, Heart, Target, Lightbulb, MapPin, Calendar, LucideIcon } from "lucide-react";
 import MarketingFooter from "../components/MarketingFooter";
 import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
+import SEO from "@/components/SEO";
 
 interface ValueItem {
   icon: LucideIcon;
@@ -52,6 +53,23 @@ export default function About() {
 
   return (
     <>
+      <SEO
+        title="About SpannerWork - Our Story & Mission"
+        description="Learn about SpannerWork's mission to connect communities through tool sharing, mechanic services, and workshop spaces. Founded in Herefordshire, UK."
+        keywords="about spannerwork, tool rental platform, community marketplace, sharing economy, UK"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          "mainEntity": {
+            "@type": "Organization",
+            "name": "SpannerWork",
+            "description": "Community marketplace for tool rentals, mechanic services, and workshop space",
+            "url": "https://spannerwork.co.uk",
+            "foundingDate": "2025",
+            "foundingLocation": "Herefordshire, UK"
+          }
+        }}
+      />
       <DocsMobileHeader />
       <div className="min-h-screen bg-white">
         <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
@@ -65,13 +83,13 @@ export default function About() {
               Back to Home
             </Button>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">About SpannerWork</h1>
-            <p className="text-xl text-orange-100">Built by mechanics, for mechanics</p>
+            <p className="text-xl text-brand-100">Built by mechanics, for mechanics</p>
           </div>
         </div>
 
         <div className="max-w-4xl mx-auto px-4 py-16">
         {/* Beta Badge */}
-        <Card className="mb-8 border-2 border-[#FFC107] bg-gradient-to-r from-yellow-50 to-orange-50">
+        <Card className="mb-8 border-2 border-[#FFC107] bg-gradient-to-r from-yellow-50 to-brand-50">
           <CardContent className="p-6">
             <div className="flex items-center gap-3">
               <div className="px-4 py-2 bg-[#FFC107] text-gray-900 rounded-lg font-bold text-sm">
@@ -112,7 +130,7 @@ export default function About() {
           </div>
 
           {/* Founder */}
-          <Card className="mt-8 border-none shadow-lg bg-gradient-to-br from-orange-50 to-red-50">
+          <Card className="mt-8 border-none shadow-lg bg-gradient-to-br from-brand-50 to-red-50">
             <CardContent className="p-8">
               <div className="flex items-start gap-4">
                 <div className="w-16 h-16 bg-gradient-to-br from-brand-800 to-brand-900 rounded-full flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
@@ -192,15 +210,15 @@ export default function About() {
         <Card className="bg-gradient-to-r from-brand-800 to-brand-900 border-none text-white">
           <CardContent className="p-12 text-center">
             <h2 className="text-3xl font-bold mb-4">Join Our Beta Community</h2>
-            <p className="text-xl text-orange-100 mb-8">Be among the first to experience the future of local car maintenance</p>
+            <p className="text-xl text-brand-100 mb-8">Be among the first to experience the future of local car maintenance</p>
             <Button
               onClick={() => navigate(createPageUrl("Feed"))}
               size="lg"
-              className="bg-white text-brand-800 hover:bg-orange-50 text-lg px-12 py-6 font-bold"
+              className="bg-white text-brand-800 hover:bg-brand-50 text-lg px-12 py-6 font-bold"
             >
               Join Beta Today
             </Button>
-            <p className="text-sm text-orange-200 mt-4">✨ Founding members get exclusive benefits and zero fees for 3 months</p>
+            <p className="text-sm text-brand-200 mt-4">✨ Founding members get exclusive benefits and zero fees for 3 months</p>
           </CardContent>
         </Card>
       </div>

@@ -2,6 +2,7 @@ import { prisma } from '../config/database.js';
 import { geocodingService } from './geocoding.service.js';
 import { Prisma, User } from '@prisma/client';
 import { BadRequestError, ConflictError } from '../utils/errors.js';
+import { UserRatingCache, UserCache } from './cache.service.js';
 
 // Maximum pagination limit to prevent excessive queries
 const MAX_LIMIT = 100;
@@ -9,33 +10,29 @@ const MAX_LIMIT = 100;
 export class UserService {
   /**
    * Get user by ID with optional relations
+   * Returns PUBLIC profile data only - no sensitive fields like email, phone, exact location
+   * For private/authenticated access, use getByIdPrivate()
    */
   async getById(id: string, includeRelations = false) {
     return prisma.user.findUnique({
       where: { id },
       select: {
+        // PUBLIC fields only - safe to expose to anyone
         id: true,
-        email: true,
         name: true,
         username: true,
-        phone: true,
         avatar: true,
         bio: true,
-        postcode: true,
+        // Only expose general location (address like "Manchester, UK"), NOT exact coords or postcode
         locationAddress: true,
-        locationLat: true,
-        locationLng: true,
-        role: true,
-        accountStatus: true,
+        // Verification status is a trust signal, safe to expose
         emailVerified: true,
-        providerPlan: true,
-        defaultPayoutSpeed: true,
+        // Public stats
         rating: true,
         totalTransactions: true,
         totalReviews: true,
         createdDate: true,
-        updatedDate: true,
-        // Don't include passwordHash, sessions, etc.
+        // EXCLUDED for privacy: email, phone, postcode, locationLat, locationLng, role, accountStatus, providerPlan, defaultPayoutSpeed, updatedDate
         ...(includeRelations && {
           tools: {
             where: { available: true },
@@ -87,6 +84,46 @@ export class UserService {
   }
 
   /**
+   * Get user by ID with FULL private data (for authenticated user viewing their own profile)
+   * Only use this for the authenticated user's own profile!
+   */
+  async getByIdPrivate(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        username: true,
+        phone: true,
+        avatar: true,
+        bio: true,
+        postcode: true,
+        street: true,
+        city: true,
+        county: true,
+        country: true,
+        locationAddress: true,
+        locationLat: true,
+        locationLng: true,
+        role: true,
+        accountStatus: true,
+        emailVerified: true,
+        phoneVerified: true,
+        idVerified: true,
+        providerPlan: true,
+        defaultPayoutSpeed: true,
+        rating: true,
+        totalTransactions: true,
+        totalReviews: true,
+        createdDate: true,
+        updatedDate: true,
+        // Don't include passwordHash, sessions, etc.
+      },
+    });
+  }
+
+  /**
    * Update user profile
    */
   async update(
@@ -98,6 +135,10 @@ export class UserService {
       defaultPayoutSpeed?: 'STANDARD' | 'INSTANT';
       bio?: string;
       postcode?: string;
+      street?: string;
+      city?: string;
+      county?: string;
+      country?: string;
       avatar?: string;
       locationAddress?: string;
       locationLat?: number;
@@ -143,13 +184,18 @@ export class UserService {
     }
 
     // Update user
-    return prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         ...data,
         ...locationData,
       },
     });
+
+    // Invalidate user profile cache to ensure fresh data
+    await UserCache.invalidateProfile(userId);
+
+    return updatedUser;
   }
 
   /**
@@ -196,6 +242,34 @@ export class UserService {
       where: { providerId: userId },
       orderBy: { createdDate: 'desc' },
       take: safeLimit,
+    });
+  }
+
+  /**
+   * Get user's posted job requests (as seeker)
+   */
+  async getUserRequests(userId: string, limit = 100) {
+    const safeLimit = Math.min(limit, MAX_LIMIT);
+    return prisma.request.findMany({
+      where: { seekerId: userId },
+      orderBy: { createdDate: 'desc' },
+      take: safeLimit,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        category: true,
+        urgency: true,
+        budget: true,
+        rateType: true,
+        status: true,
+        postcode: true,
+        locationAddress: true,
+        broadcastRadius: true,
+        responseCount: true,
+        createdDate: true,
+        expiresAt: true,
+      },
     });
   }
 
@@ -306,6 +380,7 @@ export class UserService {
   /**
    * Update user rating after a new review
    * Uses Prisma aggregate for better performance
+   * Invalidates cache after update
    */
   async updateUserRating(userId: string): Promise<void> {
     // Use aggregate for better performance instead of fetching all reviews
@@ -319,13 +394,51 @@ export class UserService {
       return;
     }
 
+    const rating = Math.round((ratingStats._avg.rating || 0) * 10) / 10;
+    const reviewCount = ratingStats._count.rating;
+
     await prisma.user.update({
       where: { id: userId },
       data: {
-        rating: Math.round((ratingStats._avg.rating || 0) * 10) / 10, // Round to 1 decimal
-        totalReviews: ratingStats._count.rating,
+        rating,
+        totalReviews: reviewCount,
       },
     });
+
+    // Update cache with new rating
+    await UserRatingCache.set(userId, rating, reviewCount);
+    // Invalidate profile cache to ensure fresh data
+    await UserCache.invalidateProfile(userId);
+  }
+
+  /**
+   * Get user rating with cache support
+   * Falls back to database if cache miss
+   */
+  async getUserRating(userId: string): Promise<{ rating: number; reviewCount: number }> {
+    // Try cache first
+    const cached = await UserRatingCache.get(userId);
+    if (cached) {
+      return { rating: cached.rating, reviewCount: cached.reviewCount };
+    }
+
+    // Cache miss - fetch from database
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { rating: true, totalReviews: true },
+    });
+
+    if (!user) {
+      return { rating: 0, reviewCount: 0 };
+    }
+
+    const rating = user.rating ?? 0;
+    const reviewCount = user.totalReviews ?? 0;
+
+    // Populate cache for next time
+    await UserRatingCache.set(userId, rating, reviewCount);
+
+    return { rating, reviewCount };
   }
 }
 

@@ -6,6 +6,10 @@ vi.mock('../../src/config/redis.js', () => ({
   safeSetex: vi.fn(),
   safeDel: vi.fn(),
   isRedisAvailable: vi.fn(() => true),
+  redis: {
+    scan: vi.fn().mockResolvedValue(['0', []]),
+    del: vi.fn().mockResolvedValue(0),
+  },
 }));
 
 vi.mock('../../src/config/logger.js', () => ({
@@ -28,7 +32,7 @@ import {
   CACHE_TTL,
   CACHE_KEYS,
 } from '../../src/services/cache.service.js';
-import { safeGet, safeSetex, safeDel, isRedisAvailable } from '../../src/config/redis.js';
+import { safeGet, safeSetex, safeDel, isRedisAvailable, redis } from '../../src/config/redis.js';
 import { logger } from '../../src/config/logger.js';
 
 describe('Cache Service', () => {
@@ -146,12 +150,15 @@ describe('Cache Service', () => {
   });
 
   describe('cacheDeleteByPrefix', () => {
-    it('logs the invalidation request', async () => {
-      await cacheDeleteByPrefix('tool:');
+    it('scans and deletes keys matching prefix', async () => {
+      // Mock redis.scan to return matching keys
+      vi.mocked(redis.scan).mockResolvedValueOnce(['0', ['tool:1', 'tool:2']]);
+      vi.mocked(redis.del).mockResolvedValue(2);
 
-      expect(logger.debug).toHaveBeenCalledWith(
-        expect.stringContaining('Cache invalidation requested')
-      );
+      const result = await cacheDeleteByPrefix('tool');
+
+      expect(redis.scan).toHaveBeenCalled();
+      expect(result).toBeGreaterThanOrEqual(0);
     });
   });
 

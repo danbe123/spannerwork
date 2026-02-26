@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { serviceController } from '../controllers/service.controller.js';
 import { requireAuth, requireEmailVerified, optionalAuth } from '../middleware/auth.middleware.js';
-import { validateBody } from '../middleware/validate.middleware.js';
+import { validateBody, validateQuery } from '../middleware/validate.middleware.js';
 import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
 import {
   createServiceSchema,
   updateServiceSchema,
+  listQuerySchema,
 } from '../utils/validation.schemas.js';
 
 const router = Router();
@@ -13,8 +14,9 @@ const router = Router();
 /**
  * GET /api/v1/services
  * List all services with optional filters
+ * Query parameters validated to prevent injection attacks
  */
-router.get('/', optionalAuth, serviceController.list.bind(serviceController));
+router.get('/', optionalAuth, validateQuery(listQuerySchema), serviceController.list.bind(serviceController));
 
 /**
  * POST /api/v1/services

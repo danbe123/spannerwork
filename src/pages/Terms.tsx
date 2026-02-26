@@ -7,6 +7,7 @@ import MarketingFooter from "../components/MarketingFooter";
 import DocsSidebar from "@/components/docs/DocsSidebar";
 import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
 import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
+import SEO from "@/components/SEO";
 
 interface Subsection {
   subtitle: string;
@@ -163,6 +164,11 @@ export default function Terms() {
 
   return (
     <>
+      <SEO
+        title="Terms of Service - SpannerWork"
+        description="Read SpannerWork's terms of service. Understand your rights and responsibilities when using our tool rental, mechanic services, and workshop booking platform."
+        keywords="terms of service, terms and conditions, user agreement, spannerwork"
+      />
       <DocsMobileHeader />
       <div className="min-h-screen bg-white">
         <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
@@ -176,7 +182,7 @@ export default function Terms() {
             Back to Home
           </Button>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Terms of Service</h1>
-          <p className="text-orange-100">Last updated: January 2025</p>
+          <p className="text-brand-100">Last updated: January 2025</p>
         </div>
       </div>
 
@@ -193,7 +199,7 @@ export default function Terms() {
           </div>
 
           <div className="min-w-0 flex-1">
-            <Card className="border-none shadow-lg mb-8 bg-orange-50">
+            <Card className="border-none shadow-lg mb-8 bg-brand-50">
           <CardContent className="p-6">
             <p className="text-gray-700">
               <strong>Important:</strong> Please read these terms carefully before using SpannerWork. 

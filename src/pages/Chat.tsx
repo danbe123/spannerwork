@@ -1,20 +1,21 @@
-import { useState, useEffect, useRef, ChangeEvent, KeyboardEvent, Fragment } from "react";
+import { useState, useEffect, useRef, ChangeEvent, KeyboardEvent, Fragment, useMemo } from "react";
 import { authService, messagesService, requestsService, uploadService } from "@/api/services";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  ArrowLeft, 
-  Send, 
-  Image as ImageIcon, 
+import {
+  ArrowLeft,
+  Send,
+  Image as ImageIcon,
   CheckCircle,
   Loader2
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { User, Message, Request } from "@/types";
 import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "sonner";
 
 interface SendMessageData {
   message: string;
@@ -47,10 +48,11 @@ export default function Chat() {
     queryKey: queryKeys.conversation(otherUserIdKey),
     queryFn: () => messagesService.getConversation(otherUserIdKey),
     enabled: !!currentUser && !!otherUserId,
-    refetchInterval: 3000,
+    // Increased from 3s to 15s - WebSocket handles real-time updates
+    refetchInterval: 15000,
   });
 
-  const messages: Message[] = conversationData?.messages || [];
+  const messages: Message[] = useMemo(() => conversationData?.messages || [], [conversationData?.messages]);
   const otherUserInfo: User | null = conversationData?.otherUser || null;
 
   const { data: requestData } = useQuery({
@@ -69,8 +71,14 @@ export default function Chat() {
         queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
         queryClient.invalidateQueries({ queryKey: queryKeys.conversation(otherUserIdKey) });
       })
-      .catch(err => console.error('Failed to mark conversation as read:', err));
-  }, [otherUserId, currentUser, queryClient]);
+      .catch(err => {
+        // Log error but don't show toast - this is a background operation
+        // that doesn't affect user experience if it fails
+        if (import.meta.env.DEV) {
+          console.error('Failed to mark conversation as read:', err);
+        }
+      });
+  }, [otherUserId, currentUser, queryClient, otherUserIdKey]);
 
   const recipientId = otherUserId ?? "";
 
@@ -88,7 +96,10 @@ export default function Chat() {
       setMessageText("");
     },
     onError: (error) => {
-      console.error('Failed to send message:', error);
+      if (import.meta.env.DEV) {
+        console.error('Failed to send message:', error);
+      }
+      toast.error('Failed to send message. Please try again.');
     }
   });
 
@@ -129,7 +140,10 @@ export default function Chat() {
         queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
       }
     } catch (error) {
-      console.error('Error uploading photo(s):', error);
+      if (import.meta.env.DEV) {
+        console.error('Error uploading photo(s):', error);
+      }
+      toast.error('Failed to upload photo. Please try again.');
     } finally {
       setUploadingPhoto(false);
       if (e.target) {
@@ -192,9 +206,21 @@ export default function Chat() {
     );
   }
 
-  // Check if message content is an image URL
+  // Check if message content is an image URL (full URL or relative path)
   const isImageMessage = (content: string): boolean => {
-    return /^https?:\/\/.*\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(content);
+    // Match relative paths starting with /uploads/ containing image extensions
+    if (/^\/uploads\/.*\.(png|jpe?g|gif|webp|bmp|svg)($|\?)/i.test(content)) {
+      return true;
+    }
+    // Match full URLs with image extensions (with or without query params)
+    if (/^https?:\/\/.*\.(png|jpe?g|gif|webp|bmp|svg)($|\?)/i.test(content)) {
+      return true;
+    }
+    // Match CDN/storage patterns
+    if (/^https?:\/\/.*(images|uploads|storage).*\.(png|jpe?g|gif|webp|bmp|svg)/i.test(content)) {
+      return true;
+    }
+    return false;
   };
 
   return (
@@ -214,7 +240,7 @@ export default function Chat() {
               <Fragment>
                 <Avatar className="w-10 h-10">
                   <AvatarImage src={otherUserInfo.avatar || undefined} />
-                  <AvatarFallback className="bg-orange-100 text-brand-800">
+                  <AvatarFallback className="bg-brand-100 text-brand-800">
                     {otherUserInfo.name?.[0]?.toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
@@ -231,7 +257,7 @@ export default function Chat() {
           </div>
 
           {request && (
-            <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+            <div className="mt-3 p-3 bg-brand-50 rounded-lg border border-brand-200">
               <p className="text-sm font-medium text-gray-900">About: {request.title}</p>
               <p className="text-xs text-gray-600 mt-1 line-clamp-1">{request.description}</p>
             </div>
@@ -239,7 +265,7 @@ export default function Chat() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-32">
         <div className="max-w-4xl mx-auto px-4 py-6">
           {isLoading ? (
             <div className="flex justify-center py-8">
@@ -380,60 +406,63 @@ export default function Chat() {
         </div>
       </div>
 
-      {request && request.status === 'ACTIVE' && (
-        <div className="bg-green-50 border-t border-green-200 py-3">
-          <div className="max-w-4xl mx-auto px-4">
-            <Button
-              onClick={handleStartTransaction}
-              className="w-full bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Start Transaction
-            </Button>
+      {/* Fixed bottom section - offset by sidebar width on desktop */}
+      <div className="fixed bottom-0 left-0 right-0 md:left-72 z-20">
+        {request && request.status === 'ACTIVE' && (
+          <div className="bg-green-50 border-t border-green-200 py-3">
+            <div className="max-w-4xl mx-auto px-4">
+              <Button
+                onClick={handleStartTransaction}
+                className="w-full bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Start Transaction
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="bg-white border-t shadow-lg sticky bottom-0">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex gap-3">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handlePhotoUpload}
-              className="hidden"
-              id="photo-upload"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => document.getElementById('photo-upload')?.click()}
-              disabled={uploadingPhoto}
-            >
-              {uploadingPhoto ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <ImageIcon className="w-5 h-5" />
-              )}
-            </Button>
+        <div className="bg-white border-t shadow-lg">
+          <div className="max-w-4xl mx-auto px-4 py-4">
+            <div className="flex gap-3">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoUpload}
+                className="hidden"
+                id="photo-upload"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => document.getElementById('photo-upload')?.click()}
+                disabled={uploadingPhoto}
+              >
+                {uploadingPhoto ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <ImageIcon className="w-5 h-5" />
+                )}
+              </Button>
 
-            <Input
-              value={messageText}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setMessageText(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type a message..."
-              className="flex-1"
-              maxLength={1000}
-            />
+              <Input
+                value={messageText}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setMessageText(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type a message..."
+                className="flex-1"
+                maxLength={1000}
+              />
 
-            <Button
-              onClick={handleSendMessage}
-              disabled={!messageText.trim() || sendMessageMutation.isPending || !currentUser}
-              className="bg-brand-800 hover:bg-brand-900"
-            >
-              <Send className="w-5 h-5" />
-            </Button>
+              <Button
+                onClick={handleSendMessage}
+                disabled={!messageText.trim() || sendMessageMutation.isPending || !currentUser}
+                className="bg-brand-800 hover:bg-brand-900"
+              >
+                <Send className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

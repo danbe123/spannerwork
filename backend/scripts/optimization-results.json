@@ -1,0 +1,357 @@
+[
+  {
+    "iteration": 1,
+    "timestamp": "2025-12-30T16:28:33.502Z",
+    "promptVersion": "v1.0.0",
+    "avgScore": 97,
+    "satisfactionRate": 50,
+    "passCount": 5,
+    "totalTests": 10,
+    "criterionScores": {
+      "title_quality": 95,
+      "description_conciseness": 90,
+      "category_accuracy": 100,
+      "pricing_reasonability": 100,
+      "condition_validity": 100,
+      "features_quality": 98,
+      "json_validity": 100
+    },
+    "failures": [],
+    "details": [
+      {
+        "input": "makita drill good condition 2 batteries",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "snap on scanner reads all codes obd2",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "3 ton trolley jack heavy duty",
+        "score": 95,
+        "issues": []
+      },
+      {
+        "input": "basic socket set half inch drive chrome",
+        "score": 95,
+        "issues": []
+      },
+      {
+        "input": "mig welder 180amp gas/gasless",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "air compressor 50 litre tank good nick",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "engine hoist 2 ton foldable",
+        "score": 95,
+        "issues": []
+      },
+      {
+        "input": "dewalt angle grinder 9 inch",
+        "score": 97,
+        "issues": []
+      },
+      {
+        "input": "torque wrench 1/2 inch drive calibrated",
+        "score": 95,
+        "issues": []
+      },
+      {
+        "input": "brake bleeding kit with catch bottle",
+        "score": 100,
+        "issues": []
+      }
+    ]
+  },
+  {
+    "iteration": 2,
+    "timestamp": "2025-12-30T16:30:03.113Z",
+    "promptVersion": "v1.0.1",
+    "avgScore": 99,
+    "satisfactionRate": 100,
+    "passCount": 10,
+    "totalTests": 10,
+    "criterionScores": {
+      "title_quality": 95,
+      "description_conciseness": 100,
+      "category_accuracy": 100,
+      "pricing_reasonability": 100,
+      "condition_validity": 100,
+      "features_quality": 100,
+      "json_validity": 100
+    },
+    "failures": [],
+    "details": [
+      {
+        "input": "makita drill good condition 2 batteries",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "snap on scanner reads all codes obd2",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "3 ton trolley jack heavy duty",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "basic socket set half inch drive chrome",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "mig welder 180amp gas/gasless",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "air compressor 50 litre tank good nick",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "engine hoist 2 ton foldable",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "dewalt angle grinder 9 inch",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "torque wrench 1/2 inch drive calibrated",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "brake bleeding kit with catch bottle",
+        "score": 100,
+        "issues": []
+      }
+    ]
+  },
+  {
+    "iteration": 3,
+    "timestamp": "2025-12-30T16:31:30.388Z",
+    "promptVersion": "v1.0.2",
+    "avgScore": 99,
+    "satisfactionRate": 100,
+    "passCount": 10,
+    "totalTests": 10,
+    "criterionScores": {
+      "title_quality": 95,
+      "description_conciseness": 100,
+      "category_accuracy": 100,
+      "pricing_reasonability": 100,
+      "condition_validity": 100,
+      "features_quality": 100,
+      "json_validity": 100
+    },
+    "failures": [],
+    "details": [
+      {
+        "input": "makita drill good condition 2 batteries",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "snap on scanner reads all codes obd2",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "3 ton trolley jack heavy duty",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "basic socket set half inch drive chrome",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "mig welder 180amp gas/gasless",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "air compressor 50 litre tank good nick",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "engine hoist 2 ton foldable",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "dewalt angle grinder 9 inch",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "torque wrench 1/2 inch drive calibrated",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "brake bleeding kit with catch bottle",
+        "score": 100,
+        "issues": []
+      }
+    ]
+  },
+  {
+    "iteration": 4,
+    "timestamp": "2025-12-30T16:32:49.705Z",
+    "promptVersion": "v1.0.3",
+    "avgScore": 99,
+    "satisfactionRate": 100,
+    "passCount": 10,
+    "totalTests": 10,
+    "criterionScores": {
+      "title_quality": 95,
+      "description_conciseness": 100,
+      "category_accuracy": 100,
+      "pricing_reasonability": 100,
+      "condition_validity": 100,
+      "features_quality": 100,
+      "json_validity": 100
+    },
+    "failures": [],
+    "details": [
+      {
+        "input": "makita drill good condition 2 batteries",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "snap on scanner reads all codes obd2",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "3 ton trolley jack heavy duty",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "basic socket set half inch drive chrome",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "mig welder 180amp gas/gasless",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "air compressor 50 litre tank good nick",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "engine hoist 2 ton foldable",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "dewalt angle grinder 9 inch",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "torque wrench 1/2 inch drive calibrated",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "brake bleeding kit with catch bottle",
+        "score": 100,
+        "issues": []
+      }
+    ]
+  },
+  {
+    "iteration": 5,
+    "timestamp": "2025-12-30T16:34:03.954Z",
+    "promptVersion": "v1.0.4",
+    "avgScore": 99,
+    "satisfactionRate": 100,
+    "passCount": 10,
+    "totalTests": 10,
+    "criterionScores": {
+      "title_quality": 95,
+      "description_conciseness": 100,
+      "category_accuracy": 100,
+      "pricing_reasonability": 100,
+      "condition_validity": 100,
+      "features_quality": 100,
+      "json_validity": 100
+    },
+    "failures": [],
+    "details": [
+      {
+        "input": "makita drill good condition 2 batteries",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "snap on scanner reads all codes obd2",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "3 ton trolley jack heavy duty",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "basic socket set half inch drive chrome",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "mig welder 180amp gas/gasless",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "air compressor 50 litre tank good nick",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "engine hoist 2 ton foldable",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "dewalt angle grinder 9 inch",
+        "score": 100,
+        "issues": []
+      },
+      {
+        "input": "torque wrench 1/2 inch drive calibrated",
+        "score": 98,
+        "issues": []
+      },
+      {
+        "input": "brake bleeding kit with catch bottle",
+        "score": 100,
+        "issues": []
+      }
+    ]
+  }
+]

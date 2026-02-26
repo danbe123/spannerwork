@@ -105,7 +105,7 @@ export default function QuickAcceptCard({
 
   const urgencyColors: Record<Urgency, string> = {
     ASAP: 'bg-red-100 text-red-700 border-red-200',
-    TODAY: 'bg-orange-100 text-orange-700 border-orange-200',
+    TODAY: 'bg-brand-100 text-brand-700 border-brand-200',
     THIS_WEEKEND: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     FLEXIBLE: 'bg-green-100 text-green-700 border-green-200',
   };
@@ -125,9 +125,9 @@ export default function QuickAcceptCard({
       exit={{ opacity: 0, x: -100, scale: 0.9 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="overflow-hidden border-2 hover:border-orange-300 transition-colors">
+      <Card className="overflow-hidden border-2 hover:border-brand-300 transition-colors">
         {request.urgency === 'ASAP' && (
-          <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs font-medium py-1 px-3 text-center">
+          <div className="bg-gradient-to-r from-red-500 to-brand-500 text-white text-xs font-medium py-1 px-3 text-center">
             <Zap className="w-3 h-3 inline mr-1" />
             Urgent Request - Respond ASAP
           </div>
@@ -135,9 +135,9 @@ export default function QuickAcceptCard({
 
         <CardContent className="p-4">
           <div className="flex items-start gap-3 mb-3">
-            <Avatar className="w-12 h-12 border-2 border-orange-200">
+            <Avatar className="w-12 h-12 border-2 border-brand-200">
               <AvatarImage src={seeker?.avatar || undefined} />
-              <AvatarFallback className="bg-gradient-to-br from-orange-100 to-amber-100 text-orange-700 font-semibold">
+              <AvatarFallback className="bg-gradient-to-br from-brand-100 to-amber-100 text-brand-700 font-semibold">
                 {seeker?.name?.[0] || '?'}
               </AvatarFallback>
             </Avatar>
@@ -177,7 +177,7 @@ export default function QuickAcceptCard({
             {request.description?.length > 100 && (
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="text-xs text-orange-600 hover:text-orange-700 mt-1 flex items-center"
+                className="text-xs text-brand-600 hover:text-brand-700 mt-1 flex items-center"
               >
                 {isExpanded ? (
                   <>Show less <ChevronUp className="w-3 h-3 ml-1" /></>
@@ -253,7 +253,7 @@ export default function QuickAcceptCard({
             {showCounterOffer && !showCounterOfferInput && (
               <Button
                 variant="outline"
-                className="border-orange-200 text-orange-600 hover:bg-orange-50"
+                className="border-brand-200 text-brand-600 hover:bg-brand-50"
                 onClick={() => setShowCounterOfferInput(true)}
                 disabled={isAccepting || isDeclining}
               >

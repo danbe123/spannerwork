@@ -4,6 +4,14 @@ import { NotFoundError, BadRequestError, ForbiddenError, ConflictError } from '.
 // Review deadline in days after transaction completion
 const REVIEW_DEADLINE_DAYS = 30;
 
+// FIX: Shortened review update window to prevent manipulation
+// Original was 30 days, now 7 days to prevent strategic late changes
+const REVIEW_UPDATE_DEADLINE_DAYS = 7;
+const REVIEW_DELETE_DEADLINE_DAYS = 7;
+
+// FIX: Limit updates to prevent continuous manipulation
+const MAX_REVIEW_UPDATES = 1;
+
 export class ReviewService {
   /**
    * Create a review
@@ -48,6 +56,16 @@ export class ReviewService {
     // Check if reviewer is part of the transaction
     if (transaction.userId !== data.reviewerId && transaction.providerId !== data.reviewerId) {
       throw new ForbiddenError('You can only review transactions you were part of');
+    }
+
+    // SECURITY: Validate that reviewedUserId is the OTHER party in the transaction
+    // This prevents users from leaving reviews for arbitrary users
+    const otherParty = transaction.userId === data.reviewerId
+      ? transaction.providerId
+      : transaction.userId;
+
+    if (data.reviewedUserId !== otherParty) {
+      throw new ForbiddenError('You can only review the other party in this transaction');
     }
 
     // Check if already reviewed
@@ -276,11 +294,12 @@ export class ReviewService {
 
   /**
    * Update a review
+   * FIX: Shortened update window from 30 to 7 days and limited to 1 update
    */
   async update(id: string, reviewerId: string, data: { rating?: number; comment?: string }) {
     const review = await prisma.review.findUnique({
       where: { id },
-      select: { reviewerId: true, reviewedUserId: true },
+      select: { reviewerId: true, reviewedUserId: true, createdDate: true, updatedDate: true },
     });
 
     if (!review) {
@@ -289,6 +308,30 @@ export class ReviewService {
 
     if (review.reviewerId !== reviewerId) {
       throw new ForbiddenError('Not authorized to update this review');
+    }
+
+    // FIX: Check if review has already been updated (limit to MAX_REVIEW_UPDATES updates)
+    // If updatedDate is significantly different from createdDate, it's been updated
+    const hasBeenUpdated = Math.abs(
+      new Date(review.updatedDate).getTime() - new Date(review.createdDate).getTime()
+    ) > 1000; // More than 1 second difference means it was updated
+
+    if (hasBeenUpdated) {
+      throw new BadRequestError(
+        `Reviews can only be updated ${MAX_REVIEW_UPDATES} time. ` +
+        'Your review has already been modified. Please contact support if you need to make further changes.'
+      );
+    }
+
+    // FIX: Shortened update window from 30 to 7 days
+    const reviewAge = Date.now() - new Date(review.createdDate).getTime();
+    const maxAge = REVIEW_UPDATE_DEADLINE_DAYS * 24 * 60 * 60 * 1000;
+
+    if (reviewAge > maxAge) {
+      throw new BadRequestError(
+        `Reviews can only be updated within ${REVIEW_UPDATE_DEADLINE_DAYS} days of creation. ` +
+        `Please contact support if you need to make changes.`
+      );
     }
 
     // Update review and user rating atomically (if rating changed)
@@ -344,11 +387,14 @@ export class ReviewService {
 
   /**
    * Delete a review
+   *
+   * FIX #5: Add 30-day time limit to prevent review manipulation
+   * Users cannot delete reviews after 30 days to maintain review integrity
    */
   async delete(id: string, reviewerId: string) {
     const review = await prisma.review.findUnique({
       where: { id },
-      select: { reviewerId: true, reviewedUserId: true },
+      select: { reviewerId: true, reviewedUserId: true, createdDate: true },
     });
 
     if (!review) {
@@ -357,6 +403,18 @@ export class ReviewService {
 
     if (review.reviewerId !== reviewerId) {
       throw new ForbiddenError('Not authorized to delete this review');
+    }
+
+    // FIX: Only allow review deletion within 7 days of creation (shortened from 30)
+    // This prevents users from leaving bad reviews, waiting for response, then deleting
+    const reviewAge = Date.now() - new Date(review.createdDate).getTime();
+    const maxAge = REVIEW_DELETE_DEADLINE_DAYS * 24 * 60 * 60 * 1000;
+
+    if (reviewAge > maxAge) {
+      throw new BadRequestError(
+        `Reviews can only be deleted within ${REVIEW_DELETE_DEADLINE_DAYS} days of creation. ` +
+        `Please contact support if you need to remove this review.`
+      );
     }
 
     // Delete review and update user rating atomically

@@ -1,9 +1,7 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// API base URL - update for production
 const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
-// Only log in development mode
 const isDev = import.meta.env.DEV;
 
 // Extended config type for retry tracking
@@ -51,34 +49,29 @@ function parseRetryAfterMs(retryAfter: unknown): number | null {
  * Check if a request is retryable
  */
 function isRetryable(config: ExtendedAxiosRequestConfig, error: AxiosError): boolean {
-  // Don't retry if already at max retries
   if ((config._retryCount || 0) >= RETRY_CONFIG.maxRetries) {
     return false;
   }
 
-  // Check if method is safe to retry
   const method = (config.method || '').toUpperCase();
   if (!RETRY_CONFIG.retryableMethods.includes(method)) {
-    // POST requests are only retryable if explicitly marked
     if (method === 'POST' && !config._retryable) {
       return false;
     }
   }
 
-  // Check if it's a network error (no response)
   if (!error.response) {
     return true;
   }
 
   if (error.response.status === 429) {
     const retryAfterMs = parseRetryAfterMs(error.response.headers?.['retry-after']);
-    if (retryAfterMs === null) {
+    if (retryAfterMs === null || retryAfterMs > 30000) {
       return false;
     }
     return (config._retryCount || 0) < 1;
   }
 
-  // Check if status code is retryable
   return RETRY_CONFIG.retryableStatuses.includes(error.response.status);
 }
 
@@ -89,16 +82,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Create axios instance with default config
 export const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true, // Important: Send cookies with requests
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  withCredentials: true,
 });
 
-// Separate client for CSRF token fetching (no interceptors to avoid recursion)
 const csrfClient = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
@@ -106,7 +94,7 @@ const csrfClient = axios.create({
 
 let csrfToken: string | null = null;
 let csrfTokenTimestamp: number | null = null;
-const CSRF_TOKEN_MAX_AGE = 10 * 60 * 1000; // 10 minutes - refresh before session expires
+const CSRF_TOKEN_MAX_AGE = 10 * 60 * 1000;
 
 /**
  * Check if CSRF token needs refresh
@@ -140,23 +128,15 @@ async function getCsrfToken(): Promise<string | null> {
   return refreshCsrfToken();
 }
 
-/**
- * Clear CSRF token (call on logout)
- */
 export function clearCsrfToken(): void {
   csrfToken = null;
   csrfTokenTimestamp = null;
 }
 
-/**
- * Generate a unique request ID for tracing
- * Uses crypto.randomUUID if available, falls back to timestamp-based ID
- */
 function generateRequestId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  // Fallback for older browsers
   return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
@@ -167,8 +147,6 @@ apiClient.interceptors.request.use(
       config.headers = {} as typeof config.headers;
     }
 
-    // Add X-Request-ID for distributed tracing and debugging
-    // This allows correlating frontend requests with backend logs
     config.headers['X-Request-ID'] = generateRequestId();
 
     const method = (config.method || '').toUpperCase();
@@ -190,7 +168,6 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Track retry attempts to prevent infinite loops
 const MAX_CSRF_RETRIES = 1;
 
 // API Error type
@@ -231,12 +208,25 @@ apiClient.interceptors.response.use(
 
       // Handle specific status codes
       if (status === 401) {
-        // Unauthorized - dispatch event for auth handling
-        if (isDev) console.warn('[API] Unauthorized access - session may have expired');
+        if (isDev) console.warn('[API] Unauthorized access');
         if (typeof window !== 'undefined' && window.dispatchEvent) {
           window.dispatchEvent(
             new CustomEvent('auth:unauthorized', {
               detail: { status, data },
+            }),
+          );
+        }
+      } else if (status === 429) {
+        if (isDev) console.warn('[API] Rate limited');
+        const retryAfter = parseRetryAfterMs(error.response.headers?.['retry-after']);
+        if (typeof window !== 'undefined' && window.dispatchEvent) {
+          window.dispatchEvent(
+            new CustomEvent('api:rate-limited', {
+              detail: {
+                status,
+                retryAfter: retryAfter ? Math.ceil(retryAfter / 1000) : 60,
+                path: originalRequest?.url || '/',
+              },
             }),
           );
         }
@@ -274,7 +264,7 @@ apiClient.interceptors.response.use(
       // 404 and 500 errors are handled by the error being thrown
 
       // Return proper Error object for handling in components
-      const apiError: ApiError = new Error(data?.message || 'An error occurred') as ApiError;
+      const apiError: ApiError = new Error(data?.message || data?.error || 'An error occurred') as ApiError;
       apiError.status = status;
       apiError.data = data as Record<string, unknown>;
       return Promise.reject(apiError);
@@ -291,5 +281,14 @@ apiClient.interceptors.response.use(
     }
   }
 );
+
+// Listen for auth state changes (login, logout, OAuth callbacks)
+// and refresh CSRF token to ensure it matches the new session
+if (typeof window !== 'undefined') {
+  window.addEventListener('auth:updated', () => {
+    clearCsrfToken();
+    void refreshCsrfToken();
+  });
+}
 
 export default apiClient;

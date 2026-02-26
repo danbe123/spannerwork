@@ -53,7 +53,7 @@ function StatPill({ icon: Icon, value, label, color = "white" }: StatPillProps) 
     >
       <Icon className={`w-5 h-5 ${color === 'gold' ? 'fill-[#FFC107] text-[#FFC107]' : 'text-white'}`} />
       <span className="font-bold text-white">{value}</span>
-      <span className="text-orange-200 text-sm">{label}</span>
+      <span className="text-brand-200 text-sm">{label}</span>
     </motion.div>
   );
 }
@@ -90,10 +90,7 @@ export default function ProfileHero({
     <div className="bg-gradient-to-br from-brand-800 via-brand-700 to-brand-900 px-6 py-12 md:py-16 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-          backgroundSize: '40px 40px'
-        }} />
+        <div className="absolute inset-0 opacity-10 bg-dot-pattern" />
         {/* Floating orbs */}
         <motion.div 
           className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"
@@ -101,7 +98,7 @@ export default function ProfileHero({
           transition={{ duration: 8, repeat: Infinity }}
         />
         <motion.div 
-          className="absolute -bottom-32 -left-32 w-96 h-96 bg-orange-400/10 rounded-full blur-3xl"
+          className="absolute -bottom-32 -left-32 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl"
           animate={{ x: [0, -20, 0], y: [0, 30, 0] }}
           transition={{ duration: 10, repeat: Infinity }}
         />
@@ -156,7 +153,7 @@ export default function ProfileHero({
             </div>
 
             {/* Location & Member since */}
-            <div className="flex flex-wrap gap-3 justify-center md:justify-start mb-4 text-orange-100 text-sm">
+            <div className="flex flex-wrap gap-3 justify-center md:justify-start mb-4 text-brand-100 text-sm">
               {currentUser?.locationAddress && (
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
@@ -186,13 +183,13 @@ export default function ProfileHero({
 
             {/* Bio */}
             {currentUser?.bio && (
-              <p className="text-orange-100 max-w-2xl mb-4">{currentUser.bio}</p>
+              <p className="text-brand-100 max-w-2xl mb-4">{currentUser.bio}</p>
             )}
 
             {/* Profile completion progress */}
             {completionPercentage < 100 && (
               <div className="mb-4">
-                <div className="flex items-center justify-between text-sm text-orange-100 mb-2">
+                <div className="flex items-center justify-between text-sm text-brand-100 mb-2">
                   <span>Profile Completion</span>
                   <span className="font-bold">{completionPercentage}%</span>
                 </div>
@@ -234,7 +231,7 @@ export default function ProfileHero({
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Button
                 onClick={onEditProfile}
-                className="bg-white text-brand-800 hover:bg-orange-50 font-semibold shadow-xl px-6 py-5"
+                className="bg-white text-brand-800 hover:bg-brand-50 font-semibold shadow-xl px-6 py-5"
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Profile

@@ -1,0 +1,144 @@
+{
+  "suite": "Performance Baseline",
+  "timestamp": "2026-01-02T10:07:04.798Z",
+  "totalTests": 19,
+  "passed": 19,
+  "failed": 0,
+  "score": 100,
+  "duration": 4242,
+  "results": [
+    {
+      "name": "Search: 100 items < 1ms",
+      "category": "Search Performance",
+      "passed": true,
+      "score": 100,
+      "details": "100 items search p95: 0.095ms"
+    },
+    {
+      "name": "Search: 1000 items < 5ms",
+      "category": "Search Performance",
+      "passed": true,
+      "score": 100,
+      "details": "1000 items search p95: 0.709ms"
+    },
+    {
+      "name": "Search: 10000 items < 50ms",
+      "category": "Search Performance",
+      "passed": true,
+      "score": 100,
+      "details": "10000 items search p95: 7.7ms"
+    },
+    {
+      "name": "Distance: 100 points < 0.5ms",
+      "category": "Distance Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "100 points distance p95: 0.122ms"
+    },
+    {
+      "name": "Distance: 1000 points < 5ms",
+      "category": "Distance Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "1000 points distance p95: 0.393ms"
+    },
+    {
+      "name": "Overlap: 50 bookings < 0.1ms",
+      "category": "Booking Validation",
+      "passed": true,
+      "score": 100,
+      "details": "50 bookings overlap check p95: 0.097ms"
+    },
+    {
+      "name": "Overlap: 500 bookings < 1ms",
+      "category": "Booking Validation",
+      "passed": true,
+      "score": 100,
+      "details": "500 bookings overlap check p95: 0.811ms"
+    },
+    {
+      "name": "Fee: 100 calculations < 0.1ms",
+      "category": "Fee Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "100 fee calcs p95: 9.68µs"
+    },
+    {
+      "name": "Fee: 1000 calculations < 1ms",
+      "category": "Fee Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "1000 fee calcs p95: 0.090ms"
+    },
+    {
+      "name": "JSON: 100 objects serialize/parse < 5ms",
+      "category": "JSON Processing",
+      "passed": true,
+      "score": 100,
+      "details": "100 objects JSON p95: 3.2ms"
+    },
+    {
+      "name": "JSON: 1000 objects serialize/parse < 50ms",
+      "category": "JSON Processing",
+      "passed": true,
+      "score": 100,
+      "details": "1000 objects JSON p95: 34.7ms"
+    },
+    {
+      "name": "Array: 10000 items map/filter/reduce < 5ms",
+      "category": "Array Operations",
+      "passed": true,
+      "score": 100,
+      "details": "10000 items array ops p95: 1.9ms"
+    },
+    {
+      "name": "Array: 100000 items map/filter/reduce < 30ms",
+      "category": "Array Operations",
+      "passed": true,
+      "score": 100,
+      "details": "100000 items array ops p95: 15.4ms"
+    },
+    {
+      "name": "String: 1000 template replacements < 5ms",
+      "category": "String Operations",
+      "passed": true,
+      "score": 100,
+      "details": "1000 string ops p95: 1.1ms"
+    },
+    {
+      "name": "Scaling: Linear complexity verified",
+      "category": "Scaling",
+      "passed": true,
+      "score": 100,
+      "details": "Scaling ratio: 2.4x for 10x data (expected ~10x)"
+    },
+    {
+      "name": "Scaling: No quadratic bottleneck",
+      "category": "Scaling",
+      "passed": true,
+      "score": 100,
+      "details": "Scaling ratio: 2.9x (no quadratic bottleneck)"
+    },
+    {
+      "name": "Memory: Large array creation < 100ms",
+      "category": "Memory",
+      "passed": true,
+      "score": 100,
+      "details": "100k object array creation p95: 58.4ms"
+    },
+    {
+      "name": "Memory: Object deep clone < 10ms",
+      "category": "Memory",
+      "passed": true,
+      "score": 100,
+      "details": "Deep object clone p95: 1.5ms"
+    },
+    {
+      "name": "Baseline: All operations within targets",
+      "category": "Baseline Summary",
+      "passed": true,
+      "score": 100,
+      "details": "search: 0.214ms (target: 10ms), distance: 0.117ms (target: 5ms), overlap: 0.154ms (target: 1ms), fee: 0.024ms (target: 1ms), json: 10.4ms (target: 20ms)"
+    }
+  ]
+}

@@ -106,8 +106,8 @@ export default function TrustSignals({
       icon: Zap,
       label: 'Quick Responder',
       description: 'Typically responds within 1 hour',
-      color: 'text-orange-500',
-      bgColor: 'bg-orange-100 dark:bg-orange-900/30',
+      color: 'text-brand-500',
+      bgColor: 'bg-brand-100 dark:bg-brand-900/30',
     });
   }
 
@@ -195,7 +195,7 @@ export function TrustBadge({ type, size = 'sm' }: TrustBadgeProps) {
   const badges: Record<string, { icon: LucideIcon; label: string; color: string }> = {
     verified: { icon: CheckCircle2, label: 'Verified', color: 'text-blue-500 bg-blue-100' },
     'top-rated': { icon: Star, label: 'Top Rated', color: 'text-amber-500 bg-amber-100' },
-    'quick-responder': { icon: Zap, label: 'Fast', color: 'text-orange-500 bg-orange-100' },
+    'quick-responder': { icon: Zap, label: 'Fast', color: 'text-brand-500 bg-brand-100' },
     reliable: { icon: Shield, label: 'Reliable', color: 'text-emerald-500 bg-emerald-100' },
   };
 

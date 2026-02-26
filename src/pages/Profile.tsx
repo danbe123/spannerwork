@@ -5,29 +5,30 @@ import useAuth from "@/hooks/use-auth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wrench, Star, Warehouse, Loader2, Plus, Crown, CreditCard } from "lucide-react";
+import { Wrench, Star, Warehouse, Loader2, Plus, Crown, CreditCard, Briefcase, MapPin, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Profile sub-components - New redesigned components
+// Profile layout components
 import ProfileHeader from "../components/profile/ProfileHeader";
 import GettingStartedCard from "../components/profile/GettingStartedCard";
 import ActivityTimeline from "../components/profile/ActivityTimeline";
 import ReviewsSection from "../components/profile/ReviewsSection";
 
-// Legacy components still in use
+// Listing management components
 import MyTools from "../components/profile/MyTools";
 import MySpaces from "../components/profile/MySpaces";
 import EditProfileDialog from "../components/profile/EditProfileDialog";
 import BadgeDisplay from "../components/gamification/BadgeDisplay";
+import VerificationCard from "../components/profile/VerificationCard";
 
-// Auth page (shown when not logged in)
+// Authentication view for logged-out users
 import AuthPage from "../components/auth/AuthPage";
 import SEO from "@/components/SEO";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/queryKeys";
 
-import type { Tool, Space, Review, Transaction, PaginatedResponse } from "@/types";
+import type { Tool, Space, Review, Transaction, PaginatedResponse, Request } from "@/types";
 import type { UserListings } from "@/api/services/users";
 
 export default function Profile(): JSX.Element {
@@ -57,17 +58,20 @@ export default function Profile(): JSX.Element {
 
     setHasHandledWelcome(true);
 
+    // Extended user type includes additional address fields
+    const extendedUser = currentUser as typeof currentUser & { street?: string };
+
     const needsJobGateSetup =
       !currentUser?.emailVerified ||
       !currentUser?.name ||
-      !(currentUser?.locationAddress || currentUser?.postcode);
+      !(currentUser?.postcode && extendedUser?.street);
 
     if (needsJobGateSetup) {
       toast.success("Complete your profile to post a job.");
 
       const canFixInEditDialog =
         !currentUser?.name ||
-        !(currentUser?.locationAddress || currentUser?.postcode);
+        !(currentUser?.postcode && extendedUser?.street);
 
       if (canFixInEditDialog) {
         setIsWizardMode(true);
@@ -125,7 +129,7 @@ export default function Profile(): JSX.Element {
     }
   }, [currentUser, isLoading, isRedirecting, location.search]);
 
-  // If user is logged in and there's a redirect param, redirect them
+  // Handle post-authentication redirect to intended destination
   useEffect(() => {
     if (currentUser && !isLoading) {
       const params = new URLSearchParams(location.search);
@@ -141,19 +145,38 @@ export default function Profile(): JSX.Element {
     }
   }, [currentUser, isLoading, location.search, navigate]);
 
+  // Fetch user's listings with no caching to ensure newly created items appear immediately
   const { data: listingsData } = useQuery<UserListings>({
     queryKey: queryKeys.myListingsByUser(currentUserIdKey),
-    queryFn: () => usersService.getListings(currentUser!.id),
+    queryFn: () => usersService.getListings(currentUser?.id ?? ''),
     enabled: !!currentUser?.id,
+    staleTime: 0, // No caching - ensures newly created listings appear immediately
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const tools: Tool[] = listingsData?.tools ?? [];
   const spaces: Space[] = listingsData?.spaces ?? [];
 
+  // Fetch user's posted job requests
+  const { data: requestsData } = useQuery<{ requests: Request[] }>({
+    queryKey: ['myRequests', currentUserIdKey],
+    queryFn: () => usersService.getRequests(currentUser?.id ?? ''),
+    enabled: !!currentUser?.id,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  });
+
+  const myJobs: Request[] = requestsData?.requests ?? [];
+
   const { data: reviewsData } = useQuery<PaginatedResponse<Review>>({
     queryKey: queryKeys.myReviewsByUser(currentUserIdKey),
-    queryFn: () => reviewsService.getByUser(currentUser!.id),
+    queryFn: () => reviewsService.getByUser(currentUser?.id ?? ''),
     enabled: !!currentUser?.id,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const reviews: Review[] = reviewsData?.data ?? [];
@@ -169,6 +192,8 @@ export default function Profile(): JSX.Element {
       ];
     },
     enabled: !!currentUser?.id,
+    staleTime: 0, // Always fetch latest transaction status
+    refetchOnWindowFocus: true,
   });
 
   const transactions: Transaction[] = transactionsData || [];
@@ -333,6 +358,11 @@ export default function Profile(): JSX.Element {
           </Card>
         </div>
 
+        {/* Verification Section - Clickable card */}
+        <div className="mb-8">
+          <VerificationCard user={currentUser} />
+        </div>
+
         {/* Bento Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 lg:gap-6">
           
@@ -376,31 +406,96 @@ export default function Profile(): JSX.Element {
           {/* My Listings - Large card */}
           <div className="md:col-span-2 lg:col-span-8">
             <Card className="border-none shadow-lg h-full">
-              <Tabs defaultValue="tools" className="w-full">
+              <Tabs defaultValue="jobs" className="w-full">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-4">
-                    <TabsList className="bg-gray-100 p-1 rounded-lg">
-                      <TabsTrigger 
-                        value="tools" 
-                        className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-2 rounded-md text-sm"
+                    <TabsList className="bg-gray-100 p-1 rounded-lg w-full flex overflow-x-auto">
+                      <TabsTrigger
+                        value="jobs"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-2 rounded-md text-sm flex-shrink-0"
                       >
-                        <Wrench className="w-4 h-4 mr-2" />
-                        My Tools ({tools.length})
+                        <Briefcase className="w-4 h-4 mr-1.5" />
+                        <span className="hidden sm:inline">My </span>Jobs ({myJobs.length})
                       </TabsTrigger>
-                      <TabsTrigger 
-                        value="spaces"
-                        className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-2 rounded-md text-sm"
+                      <TabsTrigger
+                        value="tools"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-2 rounded-md text-sm flex-shrink-0"
                       >
-                        <Warehouse className="w-4 h-4 mr-2" />
-                        My Spaces ({spaces.length})
+                        <Wrench className="w-4 h-4 mr-1.5" />
+                        <span className="hidden sm:inline">My </span>Tools ({tools.length})
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="spaces"
+                        className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-2 rounded-md text-sm flex-shrink-0"
+                      >
+                        <Warehouse className="w-4 h-4 mr-1.5" />
+                        <span className="hidden sm:inline">My </span>Spaces ({spaces.length})
                       </TabsTrigger>
                     </TabsList>
                   </div>
                 </CardHeader>
                 <CardContent>
+                  <TabsContent value="jobs" className="mt-0">
+                    <div className="flex justify-end mb-4">
+                      <Button
+                        onClick={() => navigate('/create')}
+                        className="bg-brand-800 hover:bg-brand-900 text-white"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Post Job
+                      </Button>
+                    </div>
+                    {myJobs.length === 0 ? (
+                      <div className="text-center py-12 text-gray-500">
+                        <Briefcase className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p className="text-lg font-medium">No jobs posted yet</p>
+                        <p className="text-sm mt-1">Post a job to find help from the community</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {myJobs.map((job) => (
+                          <div
+                            key={job.id}
+                            onClick={() => navigate(`/request/${job.id}`)}
+                            className="p-4 border rounded-lg hover:border-brand-300 hover:bg-brand-50/50 cursor-pointer transition-colors"
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-medium text-gray-900">{job.title}</h4>
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                job.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                                job.status === 'FULFILLED' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {job.status}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 line-clamp-2 mb-3">{job.description}</p>
+                            <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {job.locationAddress || job.postcode}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {job.urgency?.replace(/_/g, ' ')}
+                              </span>
+                              <span className="font-medium text-brand-700">
+                                £{((job.budget || 0) / 100).toFixed(0)}
+                              </span>
+                              {job.responseCount > 0 && (
+                                <span className="text-brand-600">
+                                  {job.responseCount} response{job.responseCount !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
                   <TabsContent value="tools" className="mt-0">
                     <div className="flex justify-end mb-4">
-                      <Button 
+                      <Button
                         onClick={() => navigate('/create?type=tool')}
                         className="bg-brand-800 hover:bg-brand-900 text-white"
                       >

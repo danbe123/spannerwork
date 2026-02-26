@@ -45,17 +45,17 @@ export default function MarketingFooter() {
                   <Wrench className="w-8 h-8 text-[#FFC107]" />
                   Stay Connected
                 </h3>
-                <p className="text-gray-400 text-lg">Get weekly tips, success stories, and local job alerts</p>
+                <p className="text-gray-300 text-lg">Get weekly tips, success stories, and local job alerts</p>
               </div>
               <div>
-                <form className="flex gap-3" onSubmit={handleNewsletterSubmit}>
+                <form className="flex flex-col sm:flex-row gap-3" onSubmit={handleNewsletterSubmit}>
                   <input
                     type="email"
                     placeholder="your@email.com"
-                    className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-gray-400 focus:bg-white/20 focus:outline-none focus:ring-2 focus:ring-brand-800"
+                    className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-gray-300 focus:bg-white/20 focus:outline-none focus:ring-2 focus:ring-brand-800"
                     required
                   />
-                  <button type="submit" className="bg-gradient-to-r from-brand-800 to-brand-900 hover:from-brand-900 hover:to-[#A52A14] px-8 py-3 rounded-lg font-semibold shadow-lg transition-all flex items-center gap-2">
+                  <button type="submit" className="bg-gradient-to-r from-brand-800 to-brand-900 hover:from-brand-900 hover:to-[#A52A14] px-6 sm:px-8 py-3 rounded-lg font-semibold shadow-lg transition-all flex items-center justify-center gap-2">
                     <Send className="w-4 h-4" />
                     Subscribe
                   </button>
@@ -79,7 +79,7 @@ export default function MarketingFooter() {
                   <p className="text-[#FFC107] text-sm font-semibold">Tools. Skills. Space.</p>
                 </div>
               </div>
-              <p className="text-gray-400 leading-relaxed mb-4 md:mb-6">
+              <p className="text-gray-300 leading-relaxed mb-4 md:mb-6">
                 Your local network for tools, expertise, and workspace. Stop paying dealership prices—get what you need from neighbors who know their stuff.
               </p>
 
@@ -154,9 +154,10 @@ export default function MarketingFooter() {
             <div>
               <h3 className="font-bold text-lg mb-3 md:mb-4 text-[#FFC107]">Product</h3>
               <ul className="space-y-2 md:space-y-3">
-                <li><a href={createPageUrl("HowItWorks")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">How It Works</a></li>
-                <li><a href={createPageUrl("Pricing")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Pricing</a></li>
-                <li><a href={createPageUrl("Safety")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Safety</a></li>
+                <li><a href={createPageUrl("HowItWorks")} className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">How It Works</a></li>
+                <li><a href={createPageUrl("Pricing")} className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Pricing</a></li>
+                <li><a href={createPageUrl("Safety")} className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Safety</a></li>
+                <li><a href="/blog" className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Blog</a></li>
               </ul>
             </div>
 
@@ -164,9 +165,9 @@ export default function MarketingFooter() {
             <div>
               <h3 className="font-bold text-lg mb-3 md:mb-4 text-[#FFC107]">For Providers</h3>
               <ul className="space-y-2 md:space-y-3">
-                <li><a href="/resources/start-earning" className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Start Earning</a></li>
-                <li><a href="/resources/success-stories" className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Success Stories</a></li>
-                <li><a href={createPageUrl("Resources")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Resources</a></li>
+                <li><a href="/resources/start-earning" className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Start Earning</a></li>
+                <li><a href="/resources/success-stories" className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Success Stories</a></li>
+                <li><a href={createPageUrl("Resources")} className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Resources</a></li>
               </ul>
             </div>
 
@@ -174,11 +175,11 @@ export default function MarketingFooter() {
             <div className="md:col-span-1">
               <h3 className="font-bold text-lg mb-3 md:mb-4 text-[#FFC107]">Company</h3>
               <ul className="space-y-2 md:space-y-3">
-                <li><a href={createPageUrl("About")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">About Us</a></li>
-                <li><a href={createPageUrl("Contact")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Contact</a></li>
-                <li><a href={createPageUrl("Terms")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Terms</a></li>
-                <li><a href={createPageUrl("Privacy")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Privacy</a></li>
-                <li><a href={createPageUrl("Cookies")} className="block text-gray-400 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Cookies</a></li>
+                <li><a href={createPageUrl("About")} className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">About Us</a></li>
+                <li><a href={createPageUrl("Contact")} className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Contact</a></li>
+                <li><a href={createPageUrl("Terms")} className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Terms</a></li>
+                <li><a href={createPageUrl("Privacy")} className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Privacy</a></li>
+                <li><a href={createPageUrl("Cookies")} className="block text-gray-300 hover:text-white transition-colors md:hover:translate-x-1 md:inline-block truncate">Cookies</a></li>
               </ul>
             </div>
 
@@ -254,12 +255,12 @@ export default function MarketingFooter() {
 
           {/* Bottom bar */}
           <div className="border-t-0 md:border-t border-white/10 pt-4 md:pt-8 flex flex-col md:flex-row justify-between items-center gap-2 md:gap-4 text-center md:text-left">
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-300 text-sm">
               &copy; 2025 SpannerWork. Built by mechanics, for mechanics. All rights reserved.
             </p>
             <div className="flex items-center gap-2 justify-center">
-              <span className="text-xs text-gray-500">Built with a</span>
-              <Wrench className="w-4 h-4 text-brand-800 animate-pulse" />
+              <span className="text-xs text-gray-300">Built with a</span>
+              <Wrench className="w-4 h-4 text-[#FFC107] animate-pulse" />
             </div>
           </div>
         </div>

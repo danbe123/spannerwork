@@ -64,7 +64,10 @@ export default function ProviderDashboard() {
     refetchInterval: 30000,
   });
 
-  const pendingResponses = pendingData?.responses || [];
+  // Filter out any responses with null requests (edge case from deleted requests)
+  const pendingResponses = (pendingData?.responses || []).filter(
+    (r: PendingResponse) => r.request !== null && r.request !== undefined
+  );
 
   // Get gamification stats
   const { data: statsData } = useQuery({
@@ -86,7 +89,7 @@ export default function ProviderDashboard() {
       label: 'Active Requests',
       value: pendingResponses.length.toString(),
       icon: Inbox,
-      color: 'text-orange-600 bg-orange-100',
+      color: 'text-brand-600 bg-brand-100',
       urgent: pendingResponses.some((r: PendingResponse) => r.request?.urgency === 'ASAP'),
     },
     {
@@ -99,7 +102,7 @@ export default function ProviderDashboard() {
       label: 'Rating',
       value: stats?.rating?.toFixed(1) || '-',
       icon: Star,
-      color: 'text-amber-600 bg-amber-100',
+      color: 'text-brand-600 bg-brand-100',
       sub: `${stats?.totalReviews || 0} reviews`,
     },
   ];
@@ -129,14 +132,14 @@ export default function ProviderDashboard() {
 
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
+        <div className="bg-gradient-to-r from-brand-500 to-brand-600 text-white">
           <div className="max-w-7xl mx-auto px-4 py-8">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold mb-1">
                   Welcome back, {user?.name?.split(' ')[0] || 'Provider'}!
                 </h1>
-                <p className="text-orange-100">
+                <p className="text-brand-100">
                   You have {pendingResponses.length} pending request{pendingResponses.length !== 1 ? 's' : ''} to review
                 </p>
               </div>
@@ -195,7 +198,7 @@ export default function ProviderDashboard() {
                     <Inbox className="w-4 h-4 mr-2" />
                     Requests
                     {pendingResponses.length > 0 && (
-                      <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-orange-500">
+                      <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-brand-500">
                         {pendingResponses.length}
                       </Badge>
                     )}
@@ -234,8 +237,8 @@ export default function ProviderDashboard() {
                   ) : (
                     <Card>
                       <CardContent className="flex flex-col items-center justify-center py-16">
-                        <div className="w-16 h-16 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-4">
-                          <Inbox className="w-8 h-8 text-orange-500" />
+                        <div className="w-16 h-16 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center mb-4">
+                          <Inbox className="w-8 h-8 text-brand-500" />
                         </div>
                         <h3 className="text-lg font-semibold mb-2">No pending requests</h3>
                         <p className="text-muted-foreground text-center max-w-sm">

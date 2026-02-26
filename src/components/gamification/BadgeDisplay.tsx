@@ -198,7 +198,7 @@ export default function BadgeDisplay({ showProgress = true, compact = false, var
             {showProgress && nextBadges.length > 0 && (
               <div className="border-l pl-6">
                 <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-orange-500" />
+                  <Zap className="w-4 h-4 text-brand-500" />
                   Next Achievements
                 </h4>
                 <div className="space-y-3">
@@ -260,7 +260,7 @@ export default function BadgeDisplay({ showProgress = true, compact = false, var
             {showProgress && nextBadges.length > 0 && (
               <div className={badges.length === 0 ? "" : "border-t pt-4 mt-4"}>
                 <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-orange-500" />
+                  <Zap className="w-4 h-4 text-brand-500" />
                   Next Achievements
                 </h4>
                 <div className="space-y-2">

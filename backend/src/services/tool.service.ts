@@ -22,6 +22,7 @@ export class ToolService {
       photos: string[];
       condition: string;
       postcode: string;
+      sponsorCpaPercent?: number;
     }
   ): Promise<Tool> {
     // Geocode the postcode
@@ -47,6 +48,7 @@ export class ToolService {
         locationLng: location.lng,
         available: true,
         ownerId: userId,
+        sponsorCpaPercent: data.sponsorCpaPercent ?? 0,
       },
       include: {
         owner: {
@@ -68,10 +70,10 @@ export class ToolService {
    * List tools with filters and pagination (supports both cursor and offset)
    */
   async list(params: {
-    // Legacy offset pagination
+    // Offset pagination (page/limit)
     page?: number;
     limit?: number;
-    // New cursor pagination
+    // Cursor pagination (for infinite scroll)
     cursor?: string;
     direction?: 'forward' | 'backward';
     // Filters
@@ -142,34 +144,61 @@ export class ToolService {
             paramIndex++;
           }
           
-          const whereClause = conditions.length > 0 
-            ? `AND ${conditions.join(' AND ')}` 
+          const whereClause = conditions.length > 0
+            ? `AND ${conditions.join(' AND ')}`
             : '';
-          
-          // Query using PostGIS
-          const geoTools = await prisma.$queryRawUnsafe<Tool[]>(`
-            SELECT t.*, 
+
+          // FIX: Create separate params array for count query (without limit/skip)
+          const countParams = [...queryParams];
+
+          // Add LIMIT and OFFSET as parameterized values to prevent SQL injection
+          const limitParamIndex = paramIndex;
+          const skipParamIndex = paramIndex + 1;
+          queryParams.push(limit, skip);
+
+          // Query using PostGIS with JOIN to get owner details in one query (N+1 fix)
+          interface GeoToolWithOwner extends Tool {
+            distance_miles: number;
+            owner_id: string;
+            owner_name: string | null;
+            owner_avatar: string | null;
+            owner_rating: number | null;
+            owner_totalReviews: number | null;
+          }
+
+          const geoTools = await prisma.$queryRawUnsafe<GeoToolWithOwner[]>(`
+            SELECT t.*,
                    ST_Distance(
-                     ST_SetSRID(ST_MakePoint("locationLng", "locationLat"), 4326)::geography,
+                     ST_SetSRID(ST_MakePoint(t."locationLng", t."locationLat"), 4326)::geography,
                      ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
-                   ) / 1609.34 as distance_miles
+                   ) / 1609.34 as distance_miles,
+                   u.id as owner_id,
+                   u.name as owner_name,
+                   u.avatar as owner_avatar,
+                   u.rating as owner_rating,
+                   u."totalReviews" as "owner_totalReviews"
             FROM tools t
-            WHERE "locationLat" IS NOT NULL 
-              AND "locationLng" IS NOT NULL
+            LEFT JOIN users u ON t."ownerId" = u.id
+            WHERE t."locationLat" IS NOT NULL
+              AND t."locationLng" IS NOT NULL
               AND ST_DWithin(
-                ST_SetSRID(ST_MakePoint("locationLng", "locationLat"), 4326)::geography,
+                ST_SetSRID(ST_MakePoint(t."locationLng", t."locationLat"), 4326)::geography,
                 ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
                 $3
               )
               ${whereClause}
-            ORDER BY distance_miles ASC
-            LIMIT ${limit} OFFSET ${skip}
+            ORDER BY
+              CASE WHEN "sponsorCpaPercent" > 0 THEN 0 ELSE 1 END,
+              "sponsorCpaPercent" DESC,
+              distance_miles ASC
+            LIMIT $${limitParamIndex} OFFSET $${skipParamIndex}
           `, ...queryParams);
 
+          // FIX: Use countParams (without limit/skip) for the count query
           const countResult = await prisma.$queryRawUnsafe<[{count: bigint}]>(`
             SELECT COUNT(*) as count
             FROM tools t
-            WHERE "locationLat" IS NOT NULL 
+            WHERE "locationLat" IS NOT NULL
               AND "locationLng" IS NOT NULL
               AND ST_DWithin(
                 ST_SetSRID(ST_MakePoint("locationLng", "locationLat"), 4326)::geography,
@@ -177,32 +206,21 @@ export class ToolService {
                 $3
               )
               ${whereClause}
-          `, ...queryParams);
+          `, ...countParams);
 
           const total = Number(countResult[0]?.count || 0);
 
-          // Fetch owner details for the tools
-          const toolIds = geoTools.map(t => t.id);
-          const toolsWithOwners = toolIds.length > 0 
-            ? await prisma.tool.findMany({
-                where: { id: { in: toolIds } },
-                include: {
-                  owner: {
-                    select: {
-                      id: true,
-                      name: true,
-                      avatar: true,
-                      rating: true,
-                      totalReviews: true,
-                    },
-                  },
-                },
-              })
-            : [];
-
-          // Merge owner data with geo results (preserve distance ordering)
-          const ownerMap = new Map(toolsWithOwners.map(t => [t.id, t]));
-          const mergedTools = geoTools.map(t => ownerMap.get(t.id) || t);
+          // Transform raw results to include nested owner object
+          const mergedTools = geoTools.map(t => ({
+            ...t,
+            owner: {
+              id: t.owner_id,
+              name: t.owner_name,
+              avatar: t.owner_avatar,
+              rating: t.owner_rating,
+              totalReviews: t.owner_totalReviews,
+            },
+          }));
 
           return {
             data: mergedTools,
@@ -225,7 +243,10 @@ export class ToolService {
       return paginateWithCursor({
         model: prisma.tool,
         where,
-        orderBy: { createdDate: 'desc' },
+        orderBy: [
+          { sponsorCpaPercent: 'desc' }, // Sponsored first
+          { createdDate: 'desc' },
+        ],
         cursor: params.cursor,
         limit,
         direction: params.direction,
@@ -239,7 +260,10 @@ export class ToolService {
         where,
         skip,
         take: limit,
-        orderBy: { createdDate: 'desc' },
+        orderBy: [
+          { sponsorCpaPercent: 'desc' }, // Sponsored first
+          { createdDate: 'desc' },
+        ],
         include: {
           owner: {
             select: {
@@ -291,7 +315,8 @@ export class ToolService {
         },
         transactions: {
           where: {
-            status: { in: ['CONFIRMED', 'PENDING'] },
+            // FIX #2: Include IN_PROGRESS - active rentals block the calendar
+            status: { in: ['CONFIRMED', 'PENDING', 'IN_PROGRESS'] },
           },
           select: {
             startDate: true,
@@ -311,6 +336,7 @@ export class ToolService {
 
   /**
    * Update tool
+   * FIX: Prevents price/deposit changes when there are active bookings to avoid confusion
    */
   async update(
     id: string,
@@ -325,6 +351,7 @@ export class ToolService {
       photos: string[];
       condition: string;
       available: boolean;
+      sponsorCpaPercent: number;
     }>
   ): Promise<Tool> {
     // Verify ownership
@@ -338,6 +365,35 @@ export class ToolService {
 
     if (tool.ownerId !== userId) {
       throw new ForbiddenError('You do not have permission to update this tool');
+    }
+
+    // FIX: Check for active bookings if price-related fields or CPA% are being changed
+    const priceFieldsChanged = data.dailyRate !== undefined ||
+                                data.weeklyRate !== undefined ||
+                                data.deposit !== undefined;
+    const cpaChanged = data.sponsorCpaPercent !== undefined &&
+                       data.sponsorCpaPercent !== tool.sponsorCpaPercent;
+
+    if (priceFieldsChanged || cpaChanged) {
+      const activeBookings = await prisma.transaction.count({
+        where: {
+          toolId: id,
+          status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] },
+        },
+      });
+
+      if (activeBookings > 0) {
+        if (cpaChanged) {
+          throw new ConflictError(
+            'Cannot change sponsor CPA percentage while you have active bookings. ' +
+            'This ensures fairness for customers who booked based on the original terms.'
+          );
+        }
+        throw new ConflictError(
+          `Cannot change pricing while you have ${activeBookings} active booking${activeBookings > 1 ? 's' : ''}. ` +
+          'Please wait until all current bookings are completed or cancelled before updating rates.'
+        );
+      }
     }
 
     // Update tool
@@ -383,7 +439,8 @@ export class ToolService {
     const activeTransactions = await prisma.transaction.count({
       where: {
         toolId: id,
-        status: { in: ['CONFIRMED', 'PENDING'] },
+        // FIX #2: Include IN_PROGRESS - active rentals block deletion
+        status: { in: ['CONFIRMED', 'PENDING', 'IN_PROGRESS'] },
       },
     });
 
@@ -404,6 +461,9 @@ export class ToolService {
 
   /**
    * Get tool availability
+   *
+   * FIX #2: Added IN_PROGRESS to status check - active rentals should block new bookings
+   * FIX #7: Uses FOR UPDATE lock to prevent race conditions in concurrent availability checks
    */
   async getAvailability(id: string, startDate: Date, endDate: Date) {
     const tool = await prisma.tool.findUnique({
@@ -418,39 +478,25 @@ export class ToolService {
       return { available: false, reason: 'Tool is marked as unavailable' };
     }
 
-    // Check for conflicting transactions
-    const conflictingTransactions = await prisma.transaction.findMany({
-      where: {
-        toolId: id,
-        status: { in: ['CONFIRMED', 'PENDING'] },
-        OR: [
-          {
-            AND: [
-              { startDate: { lte: startDate } },
-              { endDate: { gte: startDate } },
-            ],
-          },
-          {
-            AND: [
-              { startDate: { lte: endDate } },
-              { endDate: { gte: endDate } },
-            ],
-          },
-          {
-            AND: [
-              { startDate: { gte: startDate } },
-              { endDate: { lte: endDate } },
-            ],
-          },
-        ],
-      },
-      select: {
-        id: true,
-        startDate: true,
-        endDate: true,
-        status: true,
-      },
-    });
+    // FIX #2 & #7: Use raw query with FOR UPDATE to prevent race conditions
+    // and include IN_PROGRESS status (active rentals must block new bookings)
+    const conflictingTransactions = await prisma.$queryRaw<{
+      id: string;
+      startDate: Date;
+      endDate: Date;
+      status: string;
+    }[]>`
+      SELECT id, "startDate", "endDate", status
+      FROM transactions
+      WHERE "toolId" = ${id}
+        AND status IN ('CONFIRMED', 'PENDING', 'IN_PROGRESS')
+        AND (
+          ("startDate" <= ${startDate} AND "endDate" >= ${startDate})
+          OR ("startDate" <= ${endDate} AND "endDate" >= ${endDate})
+          OR ("startDate" >= ${startDate} AND "endDate" <= ${endDate})
+        )
+      FOR UPDATE SKIP LOCKED
+    `;
 
     if (conflictingTransactions.length > 0) {
       return {

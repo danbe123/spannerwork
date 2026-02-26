@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { toolController } from '../controllers/tool.controller.js';
 import { requireAuth, requireEmailVerified, optionalAuth } from '../middleware/auth.middleware.js';
-import { validateBody } from '../middleware/validate.middleware.js';
+import { validateBody, validateQuery } from '../middleware/validate.middleware.js';
 import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
 import {
   createToolSchema,
   updateToolSchema,
+  listQuerySchema,
 } from '../utils/validation.schemas.js';
 
 const router = Router();
@@ -13,8 +14,9 @@ const router = Router();
 /**
  * GET /api/v1/tools
  * List all tools with filters and pagination
+ * Query parameters validated to prevent injection attacks
  */
-router.get('/', optionalAuth, toolController.list.bind(toolController));
+router.get('/', optionalAuth, validateQuery(listQuerySchema), toolController.list.bind(toolController));
 
 /**
  * POST /api/v1/tools

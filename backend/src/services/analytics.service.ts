@@ -10,7 +10,7 @@
  */
 
 import { prisma } from '../config/database.js';
-import { redis, isRedisAvailable } from '../config/redis.js';
+import { redis, isRedisAvailable, prefixKey } from '../config/redis.js';
 import { logger } from '../config/logger.js';
 import { subDays, startOfDay, endOfDay, format, eachDayOfInterval } from 'date-fns';
 
@@ -104,7 +104,7 @@ async function getCachedOrCompute<T>(
 ): Promise<T> {
   if (isRedisAvailable()) {
     try {
-      const cached = await redis.get(`${CACHE_PREFIX}:${key}`);
+      const cached = await redis.get(prefixKey(`${CACHE_PREFIX}:${key}`));
       if (cached) {
         return JSON.parse(cached);
       }
@@ -117,7 +117,7 @@ async function getCachedOrCompute<T>(
 
   if (isRedisAvailable()) {
     try {
-      await redis.setex(`${CACHE_PREFIX}:${key}`, ttl, JSON.stringify(result));
+      await redis.setex(prefixKey(`${CACHE_PREFIX}:${key}`), ttl, JSON.stringify(result));
     } catch (error) {
       logger.warn('Cache write error:', error);
     }
@@ -258,41 +258,48 @@ export async function getRevenueTimeSeries(
 
 /**
  * Get user growth over time
+ * Optimized: Uses SQL COUNT and GROUP BY instead of fetching all records
  */
 export async function getUserGrowthTimeSeries(
   range: DateRange
 ): Promise<UserGrowthDataPoint[]> {
   const cacheKey = `users:${format(range.startDate, 'yyyy-MM-dd')}:${format(range.endDate, 'yyyy-MM-dd')}`;
-  
+
   return getCachedOrCompute(cacheKey, async () => {
-    // Get all users created up to end date
-    const users = await prisma.user.findMany({
+    // Count users before start date using SQL (not fetching all records)
+    const usersBeforeStart = await prisma.user.count({
       where: {
-        createdDate: { lte: range.endDate },
+        createdDate: { lt: range.startDate },
         accountStatus: 'ACTIVE',
       },
-      select: { createdDate: true },
-      orderBy: { createdDate: 'asc' },
     });
 
-    // Count users before start date
-    const usersBeforeStart = users.filter(u => u.createdDate < range.startDate).length;
-    
-    // Group new users by date
+    // Get daily new user counts using raw SQL GROUP BY for efficiency
+    const dailyCounts = await prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+      SELECT DATE("createdDate") as date, COUNT(*) as count
+      FROM users
+      WHERE "createdDate" >= ${range.startDate}
+        AND "createdDate" <= ${range.endDate}
+        AND "accountStatus" = 'ACTIVE'
+      GROUP BY DATE("createdDate")
+      ORDER BY date
+    `;
+
+    // Convert to map for O(1) lookup
+    const countsByDate = new Map<string, number>();
+    for (const row of dailyCounts) {
+      countsByDate.set(format(row.date, 'yyyy-MM-dd'), Number(row.count));
+    }
+
+    // Build result with running total
     const allDates = eachDayOfInterval({ start: range.startDate, end: range.endDate });
     let runningTotal = usersBeforeStart;
-    
+
     return allDates.map((date: Date) => {
       const dateStr = format(date, 'yyyy-MM-dd');
-      const dayStart = startOfDay(date);
-      const dayEnd = endOfDay(date);
-      
-      const newUsers = users.filter(
-        u => u.createdDate >= dayStart && u.createdDate <= dayEnd
-      ).length;
-      
+      const newUsers = countsByDate.get(dateStr) || 0;
       runningTotal += newUsers;
-      
+
       return {
         date: dateStr,
         newUsers,
@@ -304,44 +311,66 @@ export async function getUserGrowthTimeSeries(
 
 /**
  * Get listing creation trends
+ * Optimized: Uses SQL GROUP BY instead of fetching all records
  */
 export async function getListingTrends(
   range: DateRange
 ): Promise<ListingTrendsDataPoint[]> {
   const cacheKey = `listings:${format(range.startDate, 'yyyy-MM-dd')}:${format(range.endDate, 'yyyy-MM-dd')}`;
-  
+
   return getCachedOrCompute(cacheKey, async () => {
-    const [tools, spaces, services, requests] = await Promise.all([
-      prisma.tool.findMany({
-        where: { createdDate: { gte: range.startDate, lte: range.endDate } },
-        select: { createdDate: true },
-      }),
-      prisma.space.findMany({
-        where: { createdDate: { gte: range.startDate, lte: range.endDate } },
-        select: { createdDate: true },
-      }),
-      prisma.service.findMany({
-        where: { createdDate: { gte: range.startDate, lte: range.endDate } },
-        select: { createdDate: true },
-      }),
-      prisma.request.findMany({
-        where: { createdDate: { gte: range.startDate, lte: range.endDate } },
-        select: { createdDate: true },
-      }),
+    // Get daily counts for each type using SQL GROUP BY
+    const [toolCounts, spaceCounts, serviceCounts, requestCounts] = await Promise.all([
+      prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+        SELECT DATE("createdDate") as date, COUNT(*) as count
+        FROM tools
+        WHERE "createdDate" >= ${range.startDate} AND "createdDate" <= ${range.endDate}
+        GROUP BY DATE("createdDate")
+      `,
+      prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+        SELECT DATE("createdDate") as date, COUNT(*) as count
+        FROM spaces
+        WHERE "createdDate" >= ${range.startDate} AND "createdDate" <= ${range.endDate}
+        GROUP BY DATE("createdDate")
+      `,
+      prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+        SELECT DATE("createdDate") as date, COUNT(*) as count
+        FROM services
+        WHERE "createdDate" >= ${range.startDate} AND "createdDate" <= ${range.endDate}
+        GROUP BY DATE("createdDate")
+      `,
+      prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+        SELECT DATE("createdDate") as date, COUNT(*) as count
+        FROM requests
+        WHERE "createdDate" >= ${range.startDate} AND "createdDate" <= ${range.endDate}
+        GROUP BY DATE("createdDate")
+      `,
     ]);
 
+    // Convert to maps for O(1) lookup
+    const toMap = (rows: Array<{ date: Date; count: bigint }>) => {
+      const map = new Map<string, number>();
+      for (const row of rows) {
+        map.set(format(row.date, 'yyyy-MM-dd'), Number(row.count));
+      }
+      return map;
+    };
+
+    const toolsByDate = toMap(toolCounts);
+    const spacesByDate = toMap(spaceCounts);
+    const servicesByDate = toMap(serviceCounts);
+    const requestsByDate = toMap(requestCounts);
+
     const allDates = eachDayOfInterval({ start: range.startDate, end: range.endDate });
-    
+
     return allDates.map((date: Date) => {
-      const dayStart = startOfDay(date);
-      const dayEnd = endOfDay(date);
-      
+      const dateStr = format(date, 'yyyy-MM-dd');
       return {
-        date: format(date, 'yyyy-MM-dd'),
-        tools: tools.filter(t => t.createdDate >= dayStart && t.createdDate <= dayEnd).length,
-        spaces: spaces.filter(s => s.createdDate >= dayStart && s.createdDate <= dayEnd).length,
-        services: services.filter(s => s.createdDate >= dayStart && s.createdDate <= dayEnd).length,
-        requests: requests.filter(r => r.createdDate >= dayStart && r.createdDate <= dayEnd).length,
+        date: dateStr,
+        tools: toolsByDate.get(dateStr) || 0,
+        spaces: spacesByDate.get(dateStr) || 0,
+        services: servicesByDate.get(dateStr) || 0,
+        requests: requestsByDate.get(dateStr) || 0,
       };
     });
   });
@@ -582,7 +611,7 @@ export async function snapshotDailyMetrics(): Promise<void> {
   const today = startOfDay(new Date());
   
   // Check if snapshot already exists
-  const existing = await prisma.dailyMetrics.findUnique({
+  const existing = await prisma.dailyMetric.findUnique({
     where: { date: today },
   });
   
@@ -618,7 +647,7 @@ export async function snapshotDailyMetrics(): Promise<void> {
     }),
   ]);
 
-  await prisma.dailyMetrics.create({
+  await prisma.dailyMetric.create({
     data: {
       date: today,
       totalUsers,
@@ -639,9 +668,9 @@ export async function snapshotDailyMetrics(): Promise<void> {
  */
 export async function clearAnalyticsCache(): Promise<void> {
   if (!isRedisAvailable()) return;
-  
+
   try {
-    const keys = await redis.keys(`${CACHE_PREFIX}:*`);
+    const keys = await redis.keys(prefixKey(`${CACHE_PREFIX}:*`));
     if (keys.length > 0) {
       await redis.del(...keys);
     }

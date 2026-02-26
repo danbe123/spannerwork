@@ -9,13 +9,17 @@ import { prisma } from '../config/database.js';
 import { logger } from '../config/logger.js';
 import { authService } from './auth.service.js';
 import { auditService } from './audit.service.js';
+import { randomBytes } from 'crypto';
 
 /**
  * Anonymize user data while preserving transaction history
+ * Uses cryptographically random identifier to prevent timing analysis
  */
 function anonymizeUserData() {
+  // Use random bytes instead of timestamp to prevent deletion time analysis
+  const randomId = randomBytes(8).toString('hex');
   return {
-    email: `deleted_${Date.now()}@anonymized.local`,
+    email: `deleted_${randomId}@anonymized.local`,
     passwordHash: null,
     name: 'Deleted User',
     username: null,
@@ -26,6 +30,10 @@ function anonymizeUserData() {
     locationAddress: null,
     locationLat: null,
     locationLng: null,
+    // Remove additional identifying information
+    stripeCustomerId: null,
+    stripeConnectAccountId: null,
+    lastActiveAt: null,
   };
 }
 
@@ -49,8 +57,7 @@ export class GdprService {
       where: { id: userId },
       data: {
         accountStatus: 'DELETED',
-        // Store deletion metadata using updatedDate for now
-        // In production, add deletedAt, deletedBy columns to schema
+        // Deletion timestamp tracked via updatedDate field
       },
     });
 
@@ -186,6 +193,14 @@ export class GdprService {
         data: {
           description: '[Content anonymized per GDPR request]',
           resolution: '[Resolution anonymized per GDPR request]',
+        },
+      });
+
+      // Anonymize audit logs (preserve action but remove identifying metadata)
+      await tx.auditLog.updateMany({
+        where: { userId },
+        data: {
+          metadata: {},
         },
       });
     });

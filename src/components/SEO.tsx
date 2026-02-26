@@ -99,8 +99,7 @@ export function generateLocalBusinessSchema(): Record<string, unknown> {
     "name": "SpannerWork",
     "description": "Community marketplace for tool rentals, mechanic services, and workshop space",
     "url": "https://spannerwork.co.uk",
-    // Note: Add telephone when a support line is set up
-    // "telephone": "+44-XXX-XXXXXXX",
+    // Telephone field available when support line is established
     "email": "hello@spannerwork.co.uk",
     "address": {
       "@type": "PostalAddress",

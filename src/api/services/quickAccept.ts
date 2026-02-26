@@ -18,6 +18,8 @@ export interface PendingResponse {
     category: string;
     budget: number;
     urgency: string;
+    createdDate: string;
+    locationAddress: string | null;
   };
   user: {
     id: string;

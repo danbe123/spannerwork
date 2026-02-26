@@ -85,7 +85,7 @@ export function SuccessCelebration({ isOpen, onClose, onReset, intent }: Success
         className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center relative overflow-hidden"
       >
         {/* Background decoration */}
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-50 to-amber-50 opacity-50" />
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-50 to-brand-100 opacity-50" />
         
         <div className="relative">
           {/* Success icon */}

@@ -1,0 +1,172 @@
+{
+  "suite": "Payment & Escrow Tests",
+  "timestamp": "2026-01-02T10:07:00.516Z",
+  "totalTests": 23,
+  "passed": 23,
+  "failed": 0,
+  "score": 100,
+  "duration": 6,
+  "results": [
+    {
+      "name": "FREE tier platform fee (5%)",
+      "category": "Fee Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "FREE tier: £100 rental → £5 fee"
+    },
+    {
+      "name": "PRO tier platform fee (3%)",
+      "category": "Fee Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "PRO tier: £100 rental → £3 fee"
+    },
+    {
+      "name": "BUSINESS tier platform fee (2%)",
+      "category": "Fee Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "BUSINESS tier: £100 rental → £2 fee"
+    },
+    {
+      "name": "Unknown tier defaults to FREE",
+      "category": "Fee Calculation",
+      "passed": true,
+      "score": 100,
+      "details": "Unknown tier should default to FREE tier rate"
+    },
+    {
+      "name": "Rounding: £10.01 at 5% → £0.50",
+      "category": "Rounding",
+      "passed": true,
+      "score": 100,
+      "details": "5% of 1001p = 50.05p → should round to 50p"
+    },
+    {
+      "name": "Rounding: £10.05 at 5% → £0.50",
+      "category": "Rounding",
+      "passed": true,
+      "score": 100,
+      "details": "5% of 1005p = 50.25p → should round to 50p"
+    },
+    {
+      "name": "Rounding: £10.10 at 5% → £0.51",
+      "category": "Rounding",
+      "passed": true,
+      "score": 100,
+      "details": "5% of 1010p = 50.5p → should round to 51p"
+    },
+    {
+      "name": "Minimum viable rental (£1)",
+      "category": "Rounding",
+      "passed": true,
+      "score": 100,
+      "details": "5% of 100p = 5p"
+    },
+    {
+      "name": "Edge: 1 penny rental",
+      "category": "Rounding",
+      "passed": true,
+      "score": 100,
+      "details": "5% of 1p = 0.05p → should round to 0p"
+    },
+    {
+      "name": "Large amount: £9,999.99",
+      "category": "Rounding",
+      "passed": true,
+      "score": 100,
+      "details": "5% of £9999.99 = £500"
+    },
+    {
+      "name": "Instant payout fee when selected",
+      "category": "Instant Payout",
+      "passed": true,
+      "score": 100,
+      "details": "Instant payout fee should be 1.5%"
+    },
+    {
+      "name": "No instant payout fee when not selected",
+      "category": "Instant Payout",
+      "passed": true,
+      "score": 100,
+      "details": "Should be 0 when not selected"
+    },
+    {
+      "name": "Total amount calculation (no insurance)",
+      "category": "Total Amount",
+      "passed": true,
+      "score": 100,
+      "details": "Total should be £105"
+    },
+    {
+      "name": "Application fee calculation",
+      "category": "Application Fee",
+      "passed": true,
+      "score": 100,
+      "details": "Application fee should be £8.5"
+    },
+    {
+      "name": "Escrow expiry: Day 6.9 (valid)",
+      "category": "Escrow Timing",
+      "passed": true,
+      "score": 100,
+      "details": "Capture at day 6.9 should be within expiry"
+    },
+    {
+      "name": "Escrow expiry: Day 7.0 (boundary)",
+      "category": "Escrow Timing",
+      "passed": true,
+      "score": 100,
+      "details": "Capture at day 7.0 is at boundary"
+    },
+    {
+      "name": "Escrow expiry: Day 7.1 (expired)",
+      "category": "Escrow Timing",
+      "passed": true,
+      "score": 100,
+      "details": "Capture at day 7.1 should be after expiry"
+    },
+    {
+      "name": "Fee never negative",
+      "category": "Boundary Validation",
+      "passed": true,
+      "score": 100,
+      "details": "All fees are non-negative"
+    },
+    {
+      "name": "Fee never exceeds rental amount",
+      "category": "Boundary Validation",
+      "passed": true,
+      "score": 100,
+      "details": "All fees are within bounds"
+    },
+    {
+      "name": "Fee percentage consistency across tiers",
+      "category": "Consistency",
+      "passed": true,
+      "score": 100,
+      "details": "FREE(500) > PRO(300) > BUSINESS(200)"
+    },
+    {
+      "name": "Sum verification: parts equal total",
+      "category": "Consistency",
+      "passed": true,
+      "score": 100,
+      "details": "All sums verified correct"
+    },
+    {
+      "name": "Provider earnings: FREE tier",
+      "category": "Provider Earnings",
+      "passed": true,
+      "score": 100,
+      "details": "FREE tier provider should get £95 from £100"
+    },
+    {
+      "name": "Provider earnings: BUSINESS tier advantage",
+      "category": "Provider Earnings",
+      "passed": true,
+      "score": 100,
+      "details": "BUSINESS tier saves £3 per £100 rental"
+    }
+  ]
+}

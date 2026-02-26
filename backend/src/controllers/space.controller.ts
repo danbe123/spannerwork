@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { spaceService } from '../services/space.service.js';
+import { activityFeedService } from '../services/activityFeed.service.js';
 import { logger } from '../config/logger.js';
 
 export class SpaceController {
@@ -67,6 +68,15 @@ export class SpaceController {
       const space = await spaceService.create(req.user.id, req.body);
 
       logger.info(`Space listing created: ${space.id} by user ${req.user.id}`);
+
+      // Log activity for live feed
+      activityFeedService.recordListingCreated(
+        req.user.id,
+        'space',
+        space.name,
+        space.postcode || undefined,
+        space.id
+      ).catch(err => logger.error('Failed to record activity:', err));
 
       return res.status(201).json({
         message: 'Space listing created successfully',

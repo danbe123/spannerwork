@@ -11,7 +11,7 @@ import * as Sentry from '@sentry/node';
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../config/logger.js';
 import { prisma } from '../config/database.js';
-import { redis, isRedisAvailable } from '../config/redis.js';
+import { redis, isRedisAvailable, prefixKey } from '../config/redis.js';
 import { env } from '../config/env.js';
 
 // Metric types
@@ -94,7 +94,7 @@ export async function incrementCounter(
   // Use Redis for distributed counting if available
   if (isRedisAvailable()) {
     try {
-      const key = `metrics:counter:${name}`;
+      const key = prefixKey(`metrics:counter:${name}`);
       await redis.incrby(key, increment);
       // Set expiry to prevent unbounded growth
       await redis.expire(key, 86400); // 24 hours
@@ -112,11 +112,7 @@ export async function incrementCounter(
 function flushMetrics(): void {
   if (metricsBuffer.length === 0) return;
 
-  // In production, you would send these to a metrics service like:
-  // - Prometheus
-  // - DataDog
-  // - CloudWatch
-  // For now, we log a summary
+  // Metrics are logged for monitoring - OpenTelemetry tracing handles detailed metrics when enabled
   const metricsSummary = metricsBuffer.reduce((acc, m) => {
     acc[m.name] = (acc[m.name] || 0) + m.value;
     return acc;

@@ -2,6 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom grid utilities for feed layout - must be after @tailwind utilities */
+@media (min-width: 1024px) {
+  .lg\:col-span-3 {
+    grid-column: span 3 / span 3;
+  }
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .xl\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Messages page - fill available space between header and bottom nav */
+.messages-container {
+  /* Mobile: viewport minus header (~56px) and bottom nav (~72px) */
+  height: calc(100dvh - 128px);
+}
+
+@media (min-width: 768px) {
+  /* Desktop: full height, no header/bottom nav in messages area */
+  .messages-container {
+    height: 100dvh;
+  }
+}
+
 
 /* :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -154,5 +183,441 @@ button:focus-visible {
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* CSP-safe background patterns (no inline styles needed) */
+@layer utilities {
+  .bg-dot-pattern {
+    background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0);
+    background-size: 40px 40px;
+  }
+
+  .bg-dot-pattern-sm {
+    background-image: radial-gradient(circle, white 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+
+  .bg-dot-pattern-md {
+    background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0);
+    background-size: 32px 32px;
+  }
+
+  .bg-dot-pattern-animated {
+    background-image: radial-gradient(circle at 20% 50%, white 2px, transparent 2px);
+    background-size: 30px 30px;
+  }
+
+  .bg-grid-pattern {
+    background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+
+  /* Category-specific patterns for RequestCard */
+  .bg-pattern-tools {
+    background-image: radial-gradient(circle at 20% 80%, rgba(255,255,255,0.15) 0%, transparent 40%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 30%);
+  }
+
+  .bg-pattern-expertise {
+    background-image: radial-gradient(circle at 30% 70%, rgba(255,255,255,0.12) 0%, transparent 35%), radial-gradient(circle at 70% 30%, rgba(255,255,255,0.08) 0%, transparent 25%);
+  }
+
+  .bg-pattern-space {
+    background-image: radial-gradient(circle at 25% 75%, rgba(255,255,255,0.1) 0%, transparent 30%), radial-gradient(circle at 75% 25%, rgba(255,255,255,0.12) 0%, transparent 35%);
+  }
+
+  /* SVG cross pattern for card overlays */
+  .bg-cross-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* Animation delays for staggered animations */
+  .animation-delay-100 {
+    animation-delay: 0.1s;
+  }
+  .animation-delay-200 {
+    animation-delay: 0.2s;
+  }
+  .animation-delay-300 {
+    animation-delay: 0.3s;
+  }
+  .animation-delay-400 {
+    animation-delay: 0.4s;
+  }
+
+  /* Fade in up animation */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-fade-in-up {
+    animation: fade-in-up 0.8s ease-out forwards;
+  }
+
+  /* Cookie wiggle animation */
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-10deg); }
+    50% { transform: rotate(10deg); }
+    75% { transform: rotate(-10deg); }
+  }
+  .animate-wiggle {
+    animation: wiggle 0.5s ease-in-out;
+    animation-delay: 0.5s;
+    animation-iteration-count: 2;
+  }
+
+  /* Pac-Man Cookie Animation - with turnaround for missed dot (4 dots) */
+  /* Dots at roughly: 15%, 40%, 65%, 90% */
+  @keyframes pacman-journey {
+    0% { left: 0; transform: translateY(-50%) scaleX(1); }
+    /* Eat dot 0 (~15%) and dot 1 (~40%) */
+    25% { left: 42%; transform: translateY(-50%) scaleX(1); }
+    /* Overshoot past dot 2 (~65%) */
+    35% { left: 75%; transform: translateY(-50%) scaleX(1); }
+    /* Quick stop and flip to face left */
+    40% { left: 75%; transform: translateY(-50%) scaleX(-1); }
+    /* Go back to get dot 2 at ~65% */
+    50% { left: 62%; transform: translateY(-50%) scaleX(-1); }
+    /* Flip back to face right */
+    55% { left: 62%; transform: translateY(-50%) scaleX(1); }
+    /* Continue right, eat dot 3 and exit */
+    100% { left: calc(100% + 30px); transform: translateY(-50%) scaleX(1); }
+  }
+
+  @keyframes cookie-munch {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(0.97) rotate(0deg); }
+  }
+
+  /* Bite mark chomping animation - grows/shrinks like mouth opening */
+  @keyframes bite-chomp {
+    0%, 100% {
+      transform: translateY(-50%) scale(1);
+    }
+    50% {
+      transform: translateY(-50%) scale(0.6, 0.4);
+    }
+  }
+
+  @keyframes dot-eat {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+    100% { opacity: 0; transform: scale(0); }
+  }
+
+  /* Animation track */
+  .pac-track {
+    position: relative;
+    height: 36px;
+    overflow: hidden;
+  }
+
+  /* Pac-Man container - complex journey with turnaround */
+  .pac-man-container {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    animation: pacman-journey 3.45s ease-in-out 1s forwards;
+    z-index: 10;
+  }
+
+  /* Cookie body - chocolate chip cookie with bite */
+  .pac-cookie {
+    width: 30px;
+    height: 30px;
+    background: radial-gradient(circle at 40% 40%, #E8C07D 0%, #D4A056 40%, #C4893B 70%, #A6702D 100%);
+    border-radius: 50%;
+    position: relative;
+    animation: cookie-munch 0.2s ease-in-out infinite;
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.3),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+      inset 0 2px 4px rgba(255, 255, 255, 0.2);
+  }
+
+  /* Cookie bite mark on the right side - animated chomp */
+  .pac-cookie::before {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #1f2937;
+    border-radius: 50%;
+    top: 50%;
+    right: -4px;
+    transform: translateY(-50%);
+    animation: bite-chomp 0.15s ease-in-out infinite;
+  }
+
+  /* Chocolate chips */
+  .pac-cookie::after {
+    content: '';
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    background: #4A3728;
+    border-radius: 40%;
+    top: 5px;
+    left: 7px;
+    box-shadow:
+      7px 4px 0 0 #4A3728,
+      2px 12px 0 0 #4A3728,
+      10px 14px 0 -1px #4A3728,
+      -2px 8px 0 -1px #4A3728;
+  }
+
+  /* ===== EXPRESSION CLASSES ===== */
+
+  /* Frustration shake animation on the cookie itself */
+  @keyframes cookie-frustration-shake {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    10% { transform: scale(1) rotate(-5deg) translateX(-2px); }
+    20% { transform: scale(1) rotate(5deg) translateX(2px); }
+    30% { transform: scale(1) rotate(-4deg) translateX(-1px); }
+    40% { transform: scale(1) rotate(4deg) translateX(1px); }
+    50% { transform: scale(1) rotate(-2deg); }
+    60% { transform: scale(1) rotate(2deg); }
+    70% { transform: scale(1) rotate(0deg); }
+  }
+
+  .expression-frustrated {
+    animation: cookie-frustration-shake 0.35s ease-in-out, cookie-munch 0.2s ease-in-out infinite;
+  }
+
+  /* Dots row - spread evenly */
+  .pac-dots {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 4px 0 32px;
+  }
+
+  /* Individual dot - cookie crumb style */
+  .pac-dot {
+    width: 8px;
+    height: 8px;
+    background: radial-gradient(circle at 30% 30%, #E8C07D 0%, #C4893B 60%, #A6702D 100%);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    flex-shrink: 0;
+  }
+
+  /* Dot eat timings synced to pacman journey (3.45s + 1s delay, 4 dots) */
+  /* Dot 0 eaten at ~10% = 0.35s + 1s delay */
+  .pac-dot.pac-dot-0 { animation: dot-eat 0.15s ease-out 1.3s forwards !important; }
+  /* Dot 1 eaten at ~25% = 0.86s + 1s delay */
+  .pac-dot.pac-dot-1 { animation: dot-eat 0.15s ease-out 1.8s forwards !important; }
+  /* Dot 2 is MISSED, eaten on return at 50% = 1.73s + 1s delay */
+  .pac-dot.pac-dot-2 { animation: dot-eat 0.15s ease-out 2.7s forwards !important; }
+  /* Dot 3 eaten at ~75% = 2.6s + 1s delay */
+  .pac-dot.pac-dot-3 { animation: dot-eat 0.15s ease-out 3.5s forwards !important; }
+
+  /* ===== BONUS ROUND ANIMATION ===== */
+
+  /* Bonus dot pop-in with elastic bounce */
+  @keyframes bonus-dot-appear {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0);
+    }
+    50% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.5);
+    }
+    70% {
+      transform: translate(-50%, -50%) scale(0.85);
+    }
+    85% {
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+    100% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  /* Subtle pulse to draw attention while waiting */
+  @keyframes bonus-dot-pulse {
+    0%, 100% {
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 6px rgba(232, 192, 125, 0.4);
+    }
+    50% {
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 14px rgba(232, 192, 125, 0.8);
+    }
+  }
+
+  /* Dot eaten - synced with cookie reaching it */
+  @keyframes bonus-dot-eat {
+    0% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    30% {
+      opacity: 0.8;
+      transform: translate(-50%, -50%) scale(1.4);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0);
+    }
+  }
+
+  /* Cookie enters from right, grabs bonus dot, exits right */
+  @keyframes bonus-cookie-journey {
+    0% {
+      left: calc(100% + 30px);
+      transform: translateY(-50%) scaleX(-1);
+    }
+    /* Slow approach towards dot */
+    35% {
+      left: 40%;
+      transform: translateY(-50%) scaleX(-1);
+    }
+    /* Reach the dot, brief pause for "eating" */
+    48% {
+      left: 32%;
+      transform: translateY(-50%) scaleX(-1);
+    }
+    52% {
+      left: 32%;
+      transform: translateY(-50%) scaleX(-1);
+    }
+    /* Turn around to face right */
+    60% {
+      left: 32%;
+      transform: translateY(-50%) scaleX(1);
+    }
+    /* Exit smoothly to the right */
+    100% {
+      left: calc(100% + 30px);
+      transform: translateY(-50%) scaleX(1);
+    }
+  }
+
+  /* Bonus round cookie container - faster 1.8s animation */
+  .pac-bonus-container {
+    position: absolute;
+    left: calc(100% + 30px);
+    top: 50%;
+    transform: translateY(-50%) scaleX(-1);
+    animation: bonus-cookie-journey 1.8s ease-in-out 0.3s forwards;
+    z-index: 10;
+  }
+
+  /* Bonus dot - appears left-of-center */
+  .pac-bonus-dot {
+    position: absolute;
+    left: 35%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 12px;
+    height: 12px;
+    background: radial-gradient(circle at 30% 30%, #E8C07D 0%, #C4893B 60%, #A6702D 100%);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 6px rgba(232, 192, 125, 0.4);
+    animation:
+      bonus-dot-appear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+      bonus-dot-eat 0.2s ease-out 1.2s forwards;
+  }
+
+  /* ===== BONUS ROUND 2 - Quick encore, half distance ===== */
+
+  @keyframes bonus-cookie-journey-2 {
+    0% {
+      left: calc(100% + 30px);
+      transform: translateY(-50%) scaleX(-1);
+    }
+    /* Quick approach - only goes to 65% (half the distance) */
+    40% {
+      left: 65%;
+      transform: translateY(-50%) scaleX(-1);
+    }
+    /* Brief pause for eating */
+    50% {
+      left: 65%;
+      transform: translateY(-50%) scaleX(-1);
+    }
+    /* Turn around */
+    60% {
+      left: 65%;
+      transform: translateY(-50%) scaleX(1);
+    }
+    /* Quick exit */
+    100% {
+      left: calc(100% + 30px);
+      transform: translateY(-50%) scaleX(1);
+    }
+  }
+
+  /* Bonus round 2 cookie container - faster animation */
+  .pac-bonus-container-2 {
+    position: absolute;
+    left: calc(100% + 30px);
+    top: 50%;
+    transform: translateY(-50%) scaleX(-1);
+    animation: bonus-cookie-journey-2 1.5s ease-in-out 0.3s forwards;
+    z-index: 10;
+  }
+
+  /* Bonus dot 2 - appears closer to the edge, pops in immediately */
+  .pac-bonus-dot-2 {
+    position: absolute;
+    left: 68%;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    background: radial-gradient(circle at 30% 30%, #E8C07D 0%, #C4893B 60%, #A6702D 100%);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 6px rgba(232, 192, 125, 0.4);
+    animation: bonus-dot-2-lifecycle 1.8s ease-out forwards;
+  }
+
+  @keyframes bonus-dot-2-lifecycle {
+    0% {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0;
+    }
+    15% {
+      transform: translate(-50%, -50%) scale(1.3);
+      opacity: 1;
+    }
+    25% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+    /* Stay visible until cookie reaches */
+    55% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+    /* Get eaten */
+    70% {
+      transform: translate(-50%, -50%) scale(1.2);
+      opacity: 0.5;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0;
+    }
+  }
+
+  /* Safe area padding for notch devices (iPhone X+, etc.) */
+  .safe-area-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  /* Dynamic viewport height utility */
+  .min-h-dvh {
+    min-height: 100dvh;
   }
 }

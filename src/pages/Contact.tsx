@@ -12,6 +12,7 @@ import MarketingFooter from "../components/MarketingFooter";
 import DocsSidebar from "@/components/docs/DocsSidebar";
 import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
 import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
+import SEO from "@/components/SEO";
 
 interface FormData {
   name: string;
@@ -47,7 +48,9 @@ export default function Contact() {
       setSubmitted(true);
     } catch (err) {
       setError("Failed to send message. Please try emailing us directly at support@spannerwork.co.uk");
-      console.error("Error sending contact form:", err);
+      if (import.meta.env.DEV) {
+        console.error("Error sending contact form:", err);
+      }
     } finally {
       setSending(false);
     }
@@ -62,6 +65,21 @@ export default function Contact() {
 
   return (
     <>
+      <SEO
+        title="Contact Us - SpannerWork Support"
+        description="Get in touch with the SpannerWork team. We're here to help with questions about tool rentals, mechanic services, and workshop bookings."
+        keywords="contact spannerwork, support, help, customer service, UK"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "ContactPage",
+          "mainEntity": {
+            "@type": "Organization",
+            "name": "SpannerWork",
+            "email": "support@spannerwork.co.uk",
+            "url": "https://spannerwork.co.uk"
+          }
+        }}
+      />
       <DocsMobileHeader />
       <div className="min-h-screen bg-white">
         <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
@@ -75,7 +93,7 @@ export default function Contact() {
             Back to Home
           </Button>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Get In Touch</h1>
-          <p className="text-xl text-orange-100">Questions? Feedback? We&apos;re here to help</p>
+          <p className="text-xl text-brand-100">Questions? Feedback? We&apos;re here to help</p>
         </div>
       </div>
 

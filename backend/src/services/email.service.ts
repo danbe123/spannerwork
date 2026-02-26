@@ -2,20 +2,23 @@ import { Resend } from 'resend';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
 import { renderEmailLayout } from './emailTemplates.js';
-
-/**
- * Escape HTML special characters to prevent XSS
- */
-function escapeHtml(text: string): string {
-  const htmlEntities: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  };
-  return text.replace(/[&<>"']/g, (char) => htmlEntities[char]);
-}
+import { escapeHtml } from '../utils/sanitize.js';
+import {
+  generateBookingReminderEmail,
+  type BookingReminderData
+} from '../emails/booking-reminder.template.js';
+import {
+  generateReviewRequestEmail,
+  type ReviewRequestData
+} from '../emails/review-request.template.js';
+import {
+  generatePayoutCompletedEmail,
+  type PayoutCompletedData
+} from '../emails/payout-completed.template.js';
+import {
+  generateWeeklyEarningsSummaryEmail,
+  type WeeklyEarningsSummaryData
+} from '../emails/weekly-earnings-summary.template.js';
 
 const hasResendApiKey = !!env.RESEND_API_KEY;
 const resend = hasResendApiKey ? new Resend(env.RESEND_API_KEY!) : null;
@@ -127,6 +130,72 @@ async function safeSend(params: SendEmailParams) {
 }
 
 export const emailService = {
+  /**
+   * Send magic link email for passwordless login
+   */
+  async sendMagicLinkEmail(to: string, token: string) {
+    const magicUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/magic-login?token=${encodeURIComponent(token)}`;
+
+    const subject = 'Your SpannerWork login link';
+    const previewText = 'Click to sign in to your SpannerWork account instantly.';
+    const text = [
+      'Hi,',
+      '',
+      'You requested a login link for your SpannerWork account.',
+      `Login link: ${magicUrl}`,
+      '',
+      'This link expires in 15 minutes and can only be used once.',
+      '',
+      "Didn't request this? You can safely ignore this email.",
+      '',
+      '- The SpannerWork Team',
+    ].join('\n');
+
+    const bodyHtml = `
+      <p style="margin: 0 0 20px; color: #4B5563;">
+        You requested a login link for your SpannerWork account. Click the button below to sign in instantly — no password needed.
+      </p>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px; background: #FEF3C7; border-radius: 12px; border-left: 4px solid #F59E0B;">
+        <tr>
+          <td style="padding: 16px 20px;">
+            <p style="margin: 0; font-size: 14px; color: #92400E;">
+              ⏱️ This link expires in <strong>15 minutes</strong> and can only be used once
+            </p>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin: 32px 0 12px; font-size: 13px; color: #9CA3AF; text-align: center;">
+        Button not working? Copy and paste this link:
+      </p>
+      <p style="margin: 0 0 24px; font-size: 12px; color: #C43B12; word-break: break-all; text-align: center;">
+        <a href="${magicUrl}" style="color: #C43B12;">${magicUrl}</a>
+      </p>
+
+      <p style="margin: 0; padding-top: 16px; border-top: 1px solid #F3E8E5; font-size: 13px; color: #9CA3AF;">
+        Didn't request this? No worries — your account is safe. Someone may have typed your email by mistake.
+      </p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: 'Sign In Instantly',
+        subheading: 'No password required',
+        bodyHtml,
+        ctaText: 'Sign In Now',
+        ctaUrl: magicUrl,
+      }),
+      text,
+      category: 'magic-link',
+      senderType: 'support',
+    });
+  },
+
   async sendPasswordResetEmail(to: string, token: string) {
     const resetUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(
       token,
@@ -165,8 +234,8 @@ export const emailService = {
       <p style="margin: 32px 0 12px; font-size: 13px; color: #9CA3AF; text-align: center;">
         Button not working? Copy and paste this link:
       </p>
-      <p style="margin: 0 0 24px; font-size: 12px; color: #D84315; word-break: break-all; text-align: center;">
-        <a href="${resetUrl}" style="color: #D84315;">${resetUrl}</a>
+      <p style="margin: 0 0 24px; font-size: 12px; color: #C43B12; word-break: break-all; text-align: center;">
+        <a href="${resetUrl}" style="color: #C43B12;">${resetUrl}</a>
       </p>
       
       <p style="margin: 0; padding-top: 16px; border-top: 1px solid #F3E8E5; font-size: 13px; color: #9CA3AF;">
@@ -188,6 +257,68 @@ export const emailService = {
       }),
       text,
       category: 'password-reset',
+      senderType: 'support',
+    });
+  },
+
+  /**
+   * Send password changed notification email
+   * Alerts user when their password has been changed for security awareness
+   */
+  async sendPasswordChangedEmail(to: string, userName?: string) {
+    const subject = 'Your SpannerWork password has been changed';
+    const previewText = 'Your password was successfully changed. If this wasn\'t you, please take action immediately.';
+    const text = [
+      `Hi${userName ? ` ${userName}` : ''},`,
+      '',
+      'Your SpannerWork password was just changed.',
+      '',
+      'If you made this change, no further action is needed.',
+      '',
+      'If you did NOT change your password, your account may have been compromised.',
+      'Please contact us immediately at support@spannerwork.com',
+      '',
+      '- The SpannerWork Security Team',
+    ].join('\n');
+
+    const bodyHtml = `
+      <p style="margin: 0 0 20px; color: #4B5563;">
+        Hi${userName ? ` ${escapeHtml(userName)}` : ''},
+      </p>
+
+      <p style="margin: 0 0 20px; color: #4B5563;">
+        Your SpannerWork password was just changed successfully.
+      </p>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px; background: #FEF3C7; border-radius: 12px; border-left: 4px solid #F59E0B;">
+        <tr>
+          <td style="padding: 16px 20px;">
+            <p style="margin: 0; font-size: 14px; color: #92400E;">
+              ⚠️ <strong>Didn't make this change?</strong><br>
+              Your account may be compromised. Please contact us immediately at
+              <a href="mailto:support@spannerwork.com" style="color: #92400E;">support@spannerwork.com</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin: 0; padding-top: 16px; border-top: 1px solid #F3E8E5; font-size: 13px; color: #9CA3AF;">
+        If you made this change, no further action is required.
+      </p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: 'Password Changed',
+        subheading: 'Your account password has been updated',
+        bodyHtml,
+      }),
+      text,
+      category: 'security-alert',
       senderType: 'support',
     });
   },
@@ -218,7 +349,7 @@ export const emailService = {
         Welcome to the community! You're just one click away from connecting with local mechanics, renting tools, and finding workshop space.
       </p>
       
-      <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px; background: #FFF8F6; border-radius: 12px; border-left: 4px solid #D84315;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px; background: #FFF8F6; border-radius: 12px; border-left: 4px solid #C43B12;">
         <tr>
           <td style="padding: 16px 20px;">
             <p style="margin: 0; font-size: 14px; color: #6B7280;">
@@ -231,8 +362,8 @@ export const emailService = {
       <p style="margin: 32px 0 12px; font-size: 13px; color: #9CA3AF; text-align: center;">
         Button not working? Copy and paste this link:
       </p>
-      <p style="margin: 0; font-size: 12px; color: #D84315; word-break: break-all; text-align: center;">
-        <a href="${verifyUrl}" style="color: #D84315;">${verifyUrl}</a>
+      <p style="margin: 0; font-size: 12px; color: #C43B12; word-break: break-all; text-align: center;">
+        <a href="${verifyUrl}" style="color: #C43B12;">${verifyUrl}</a>
       </p>
     `;
 
@@ -497,7 +628,7 @@ export const emailService = {
       </table>
       
       <p style="margin: 0; text-align: center; font-size: 14px; color: #6B7280;">
-        Ready to earn? <a href="${createListingUrl}" style="color: #D84315; font-weight: 500;">List your first tool or service →</a>
+        Ready to earn? <a href="${createListingUrl}" style="color: #C43B12; font-weight: 500;">List your first tool or service →</a>
       </p>
     `;
 
@@ -1025,6 +1156,695 @@ export const emailService = {
       text,
       category: 'dispute-alert',
       senderType: 'support',
+    });
+  },
+
+  /**
+   * Send insurance expiry reminder to provider
+   */
+  async sendInsuranceExpiryReminderEmail(
+    to: string,
+    data: {
+      userName: string | null;
+      documentType: string;
+      expiryDate: Date;
+      daysUntilExpiry: number;
+    }
+  ) {
+    const insuranceUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/verification`;
+
+    const safeName = data.userName ? escapeHtml(data.userName) : '';
+    const greeting = safeName ? `Hi ${safeName},` : 'Hi,';
+    const formattedDate = data.expiryDate.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const urgencyColor = data.daysUntilExpiry <= 7 ? '#ef4444' : '#f59e0b';
+    const urgencyBg = data.daysUntilExpiry <= 7 ? '#fef2f2' : '#fef3c7';
+
+    const subject = data.daysUntilExpiry <= 7
+      ? `⚠️ Urgent: Your insurance expires in ${data.daysUntilExpiry} days`
+      : `Reminder: Your insurance expires on ${formattedDate}`;
+
+    const previewText = `Your ${data.documentType.replace(/_/g, ' ').toLowerCase()} insurance will expire soon. Update it to continue offering services.`;
+
+    const text = [
+      greeting,
+      '',
+      `Your ${data.documentType.replace(/_/g, ' ').toLowerCase()} insurance will expire on ${formattedDate} (in ${data.daysUntilExpiry} days).`,
+      '',
+      'To continue offering services on SpannerWork, please upload your new insurance certificate before it expires.',
+      '',
+      `Update your insurance: ${insuranceUrl}`,
+      '',
+      'If you have already renewed your insurance, please upload the new certificate to keep your listings active.',
+      '',
+      'Best regards,',
+      'The SpannerWork Team',
+    ].join('\n');
+
+    const bodyHtml = `
+      <p>${greeting}</p>
+      <div style="margin: 20px 0; padding: 16px; background-color: ${urgencyBg}; border-radius: 8px; border-left: 4px solid ${urgencyColor};">
+        <p style="margin: 0 0 8px;"><strong>${data.daysUntilExpiry <= 7 ? '⚠️ ' : ''}Your ${escapeHtml(data.documentType.replace(/_/g, ' ').toLowerCase())} insurance will expire on ${formattedDate}</strong></p>
+        <p style="margin: 0;">That's in <strong>${data.daysUntilExpiry} day${data.daysUntilExpiry === 1 ? '' : 's'}</strong>.</p>
+      </div>
+      <p>To continue offering services on SpannerWork, please upload your new insurance certificate before it expires.</p>
+      <p style="margin: 24px 0;">
+        <a href="${insuranceUrl}" class="button-primary">Update Insurance</a>
+      </p>
+      <p>If you have already renewed your insurance, please upload the new certificate to keep your listings active.</p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: 'Insurance Renewal Reminder',
+        bodyHtml,
+      }),
+      text,
+      category: 'insurance-reminder',
+      senderType: 'support',
+    });
+  },
+
+  /**
+   * Send generic notification email
+   * Used by unified notification service for simple notifications
+   */
+  async sendNotificationEmail(to: string, userName: string, title: string, body: string) {
+    const safeName = escapeHtml(userName);
+    const safeTitle = escapeHtml(title);
+    const safeBody = escapeHtml(body);
+    const greeting = safeName ? `Hi ${safeName},` : 'Hi,';
+    const dashboardUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/feed`;
+
+    const subject = title;
+    const previewText = body.length > 100 ? body.slice(0, 97) + '...' : body;
+
+    const text = [
+      greeting,
+      '',
+      body,
+      '',
+      'Best regards,',
+      'The SpannerWork Team',
+    ].join('\n');
+
+    const bodyHtml = `
+      <p>${greeting}</p>
+      <p>${safeBody}</p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: safeTitle,
+        previewText,
+        heading: safeTitle,
+        bodyHtml,
+        ctaText: 'Go to SpannerWork',
+        ctaUrl: dashboardUrl,
+      }),
+      text,
+      category: 'notification',
+    });
+  },
+
+  /**
+   * Send booking reminder email
+   * Sent 24 hours before a booking to both provider and seeker
+   */
+  async sendBookingReminderEmail(to: string, data: BookingReminderData) {
+    const { subject, html } = generateBookingReminderEmail(data);
+
+    const text = [
+      `Hi ${data.recipientName},`,
+      '',
+      `Reminder: Your booking for ${data.resourceName} is tomorrow.`,
+      `${data.isProvider ? 'Customer' : 'Provider'}: ${data.otherPartyName}`,
+      `Date: ${data.bookingDate}${data.bookingTime ? ` at ${data.bookingTime}` : ''}`,
+      data.location ? `Location: ${data.location}` : '',
+      '',
+      `View booking: ${data.viewBookingUrl}`,
+      '',
+      'Best regards,',
+      'The SpannerWork Team',
+    ].filter(Boolean).join('\n');
+
+    await safeSend({
+      to,
+      subject,
+      html,
+      text,
+      category: 'booking-reminder',
+    });
+  },
+
+  /**
+   * Send review request email
+   * Sent after a booking is completed to request a review
+   */
+  async sendReviewRequestEmail(to: string, data: ReviewRequestData) {
+    const { subject, html } = generateReviewRequestEmail(data);
+
+    const text = [
+      `Hi ${data.recipientName},`,
+      '',
+      `How was your experience with ${data.otherPartyName}?`,
+      `Your booking for ${data.resourceName} has been completed.`,
+      '',
+      `We'd love to hear how it went. Leave a review to help others in the community.`,
+      '',
+      `Write your review: ${data.reviewUrl}`,
+      '',
+      'Best regards,',
+      'The SpannerWork Team',
+    ].join('\n');
+
+    await safeSend({
+      to,
+      subject,
+      html,
+      text,
+      category: 'review-request',
+    });
+  },
+
+  /**
+   * Send payout completed email
+   * Sent to providers when their payout has been processed
+   */
+  async sendPayoutCompletedEmail(to: string, data: PayoutCompletedData) {
+    const { subject, html } = generatePayoutCompletedEmail(data);
+
+    const text = [
+      `Hi ${data.recipientName},`,
+      '',
+      `Great news! Your payout of ${data.currency}${data.payoutAmount} has been processed.`,
+      '',
+      `Payout Date: ${data.payoutDate}`,
+      data.bankLast4 ? `Bank Account: ****${data.bankLast4}` : '',
+      `Bookings Included: ${data.transactionCount}`,
+      `Period: ${data.periodStart} - ${data.periodEnd}`,
+      '',
+      `Payouts typically arrive within 2-3 business days.`,
+      '',
+      `View your earnings: ${data.earningsUrl}`,
+      '',
+      'Best regards,',
+      'The SpannerWork Team',
+    ].filter(Boolean).join('\n');
+
+    await safeSend({
+      to,
+      subject,
+      html,
+      text,
+      category: 'payout',
+    });
+  },
+
+  /**
+   * Send weekly earnings summary email
+   * Sent to providers with a summary of their weekly activity
+   */
+  async sendWeeklyEarningsSummaryEmail(to: string, data: WeeklyEarningsSummaryData) {
+    const { subject, html } = generateWeeklyEarningsSummaryEmail(data);
+
+    const text = [
+      `Hi ${data.recipientName},`,
+      '',
+      `Here's your SpannerWork activity for ${data.weekStart} - ${data.weekEnd}:`,
+      '',
+      `Earnings: ${data.currency}${data.totalEarnings}`,
+      `Bookings: ${data.totalBookings}`,
+      `Pending Payouts: ${data.currency}${data.pendingPayouts}`,
+      `Upcoming Bookings: ${data.upcomingBookings}`,
+      data.averageRating ? `Your Rating: ${data.averageRating.toFixed(1)} stars` : '',
+      '',
+      data.topPerformingListing
+        ? `Top Listing: ${data.topPerformingListing.name} (${data.currency}${data.topPerformingListing.earnings})`
+        : '',
+      '',
+      `View your dashboard: ${data.dashboardUrl}`,
+      '',
+      'Best regards,',
+      'The SpannerWork Team',
+    ].filter(Boolean).join('\n');
+
+    await safeSend({
+      to,
+      subject,
+      html,
+      text,
+      category: 'weekly-summary',
+    });
+  },
+
+  /**
+   * Send rate limit alert to admins
+   * Sent when a user hits the rate limit and lands on the rate limit page
+   */
+  async sendRateLimitAlertEmail(
+    to: string,
+    data: {
+      timestamp: string;
+      returnPath: string;
+      userAgent?: string;
+      ip?: string;
+      userId?: string;
+      userEmail?: string;
+    }
+  ) {
+    const adminUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/admin`;
+    const safeReturnPath = escapeHtml(data.returnPath);
+    const safeUserAgent = data.userAgent ? escapeHtml(data.userAgent) : 'Unknown';
+    const safeIp = data.ip ? escapeHtml(data.ip) : 'Unknown';
+    const safeUserId = data.userId ? escapeHtml(data.userId) : 'Not logged in';
+    const safeUserEmail = data.userEmail ? escapeHtml(data.userEmail) : 'Unknown';
+
+    const subject = '⚠️ Rate Limit Alert: User hit rate limit';
+    const previewText = 'A user has hit the API rate limit and landed on the rate limit page.';
+
+    const text = [
+      'Rate Limit Alert',
+      '',
+      'A user has hit the API rate limit.',
+      '',
+      `Timestamp: ${data.timestamp}`,
+      `Path: ${data.returnPath}`,
+      `IP: ${data.ip || 'Unknown'}`,
+      `User ID: ${data.userId || 'Not logged in'}`,
+      `User Email: ${data.userEmail || 'Unknown'}`,
+      `User Agent: ${data.userAgent || 'Unknown'}`,
+      '',
+      'This could indicate:',
+      '- Legitimate heavy usage',
+      '- Polling intervals too short',
+      '- Potential abuse',
+      '',
+      'Please review the system metrics for more details.',
+    ].join('\n');
+
+    const bodyHtml = `
+      <p><strong>A user has hit the API rate limit and landed on the rate limit page.</strong></p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+        <p style="margin: 0 0 8px;"><strong>Timestamp:</strong> ${escapeHtml(data.timestamp)}</p>
+        <p style="margin: 0 0 8px;"><strong>Path:</strong> ${safeReturnPath}</p>
+        <p style="margin: 0 0 8px;"><strong>IP:</strong> ${safeIp}</p>
+        <p style="margin: 0 0 8px;"><strong>User ID:</strong> ${safeUserId}</p>
+        <p style="margin: 0 0 8px;"><strong>User Email:</strong> ${safeUserEmail}</p>
+        <p style="margin: 0;"><strong>User Agent:</strong> ${safeUserAgent}</p>
+      </div>
+      <p>This could indicate:</p>
+      <ul style="margin: 12px 0; padding-left: 20px;">
+        <li>Legitimate heavy usage</li>
+        <li>Polling intervals too short in the frontend</li>
+        <li>Potential abuse or scraping</li>
+      </ul>
+      <p>Please review the system metrics for more details.</p>
+      <p style="margin: 24px 0;">
+        <a href="${adminUrl}" class="button-primary">View Admin Panel</a>
+      </p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: '⚠️ Rate Limit Alert',
+        bodyHtml,
+      }),
+      text,
+      category: 'rate-limit-alert',
+      senderType: 'support',
+    });
+  },
+
+  /**
+   * Send team invitation email for B2B trade accounts
+   */
+  async sendTeamInvitation(data: {
+    to: string;
+    invitedByName: string;
+    companyName: string;
+    acceptUrl: string;
+  }) {
+    const subject = `You've been invited to join ${escapeHtml(data.companyName)} on SpannerWork`;
+    const previewText = `${data.invitedByName} has invited you to join their trade account`;
+
+    const text = [
+      `You've been invited to join ${data.companyName}`,
+      '',
+      `${data.invitedByName} has invited you to join their trade account on SpannerWork.`,
+      '',
+      'As a team member, you can:',
+      '- Book tools, spaces, and services on behalf of the company',
+      '- View shared transaction history',
+      '- Access team invoices',
+      '',
+      `Accept the invitation: ${data.acceptUrl}`,
+      '',
+      'This invitation will expire in 7 days.',
+    ].join('\n');
+
+    const bodyHtml = `
+      <p><strong>${escapeHtml(data.invitedByName)}</strong> has invited you to join <strong>${escapeHtml(data.companyName)}</strong> on SpannerWork.</p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #f0fdf4; border-radius: 8px; border-left: 4px solid #22c55e;">
+        <p style="margin: 0 0 12px; font-weight: 600;">As a team member, you can:</p>
+        <ul style="margin: 0; padding-left: 20px;">
+          <li>Book tools, spaces, and services on behalf of the company</li>
+          <li>View shared transaction history</li>
+          <li>Access team invoices</li>
+        </ul>
+      </div>
+      <p style="margin: 24px 0;">
+        <a href="${escapeHtml(data.acceptUrl)}" class="button-primary">Accept Invitation</a>
+      </p>
+      <p style="color: #666; font-size: 14px;">This invitation will expire in 7 days.</p>
+    `;
+
+    await safeSend({
+      to: data.to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: '🤝 Team Invitation',
+        bodyHtml,
+      }),
+      text,
+      category: 'team-invitation',
+    });
+  },
+
+  /**
+   * Send escrow auto-completed email
+   * Notifies customer when payment was auto-captured due to no action
+   */
+  async sendEscrowAutoCompletedEmail(to: string, data: {
+    userName?: string | null;
+    resourceName: string;
+    transactionId: string;
+    amount: number;
+  }) {
+    const safeName = escapeHtml(data.userName || 'User');
+    const safeResourceName = escapeHtml(data.resourceName);
+    const formattedAmount = `£${(data.amount / 100).toFixed(2)}`;
+    const transactionUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/transactions/${data.transactionId}`;
+
+    const subject = 'Your booking has been auto-completed';
+    const previewText = `Payment of ${formattedAmount} has been released for your booking`;
+
+    const text = [
+      `Hi ${data.userName || 'User'},`,
+      '',
+      `Your booking for "${data.resourceName}" has been automatically completed.`,
+      '',
+      `Since no action was taken within the review period, the payment of ${formattedAmount} has been released to the provider.`,
+      '',
+      `View transaction: ${transactionUrl}`,
+      '',
+      'Best regards,',
+      'The SpannerWork Team',
+    ].join('\n');
+
+    const bodyHtml = `
+      <p>Hi ${safeName},</p>
+      <p>Your booking for <strong>${safeResourceName}</strong> has been automatically completed.</p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #f0fdf4; border-radius: 8px; border-left: 4px solid #22c55e;">
+        <p style="margin: 0;">Since no action was taken within the review period, the payment of <strong>${formattedAmount}</strong> has been released to the provider.</p>
+      </div>
+      <p>If you experienced any issues with this booking, please contact support within 48 hours.</p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: '✅ Booking Auto-Completed',
+        bodyHtml,
+        ctaText: 'View Transaction',
+        ctaUrl: transactionUrl,
+      }),
+      text,
+      category: 'escrow-auto-completed',
+    });
+  },
+
+  /**
+   * Send payment released email
+   * Notifies provider when payment has been released to them
+   */
+  async sendPaymentReleasedEmail(to: string, data: {
+    providerName?: string | null;
+    resourceName: string;
+    transactionId: string;
+    amount: number;
+  }) {
+    const safeName = escapeHtml(data.providerName || 'Provider');
+    const safeResourceName = escapeHtml(data.resourceName);
+    const formattedAmount = `£${(data.amount / 100).toFixed(2)}`;
+    const transactionUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/transactions/${data.transactionId}`;
+
+    const subject = `Payment of ${formattedAmount} has been released`;
+    const previewText = `Your payment for ${data.resourceName} is on its way`;
+
+    const text = [
+      `Hi ${data.providerName || 'Provider'},`,
+      '',
+      `Great news! Payment of ${formattedAmount} for "${data.resourceName}" has been released to your account.`,
+      '',
+      'The funds will be available in your connected bank account within 2-7 business days.',
+      '',
+      `View transaction: ${transactionUrl}`,
+      '',
+      'Best regards,',
+      'The SpannerWork Team',
+    ].join('\n');
+
+    const bodyHtml = `
+      <p>Hi ${safeName},</p>
+      <p>Great news! Payment of <strong>${formattedAmount}</strong> for <strong>${safeResourceName}</strong> has been released to your account.</p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #f0fdf4; border-radius: 8px; border-left: 4px solid #22c55e;">
+        <p style="margin: 0;">The funds will be available in your connected bank account within 2-7 business days.</p>
+      </div>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: '💰 Payment Released',
+        bodyHtml,
+        ctaText: 'View Transaction',
+        ctaUrl: transactionUrl,
+      }),
+      text,
+      category: 'payment-released',
+    });
+  },
+
+  /**
+   * Send escrow expiry reminder email (48h warning)
+   */
+  async sendEscrowExpiryReminderEmail(to: string, data: {
+    userName?: string | null;
+    resourceName: string;
+    transactionId: string;
+    hoursRemaining: number;
+    providerName: string;
+  }) {
+    const safeName = escapeHtml(data.userName || 'User');
+    const safeResourceName = escapeHtml(data.resourceName);
+    const safeProviderName = escapeHtml(data.providerName);
+    const transactionUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/transactions/${data.transactionId}`;
+
+    const subject = `Action required: Review your booking within ${Math.round(data.hoursRemaining)} hours`;
+    const previewText = `Your booking payment will be auto-released soon`;
+
+    const text = [
+      `Hi ${data.userName || 'User'},`,
+      '',
+      `Reminder: Your booking for "${data.resourceName}" with ${data.providerName} is awaiting your review.`,
+      '',
+      `The payment will be automatically released to the provider in approximately ${Math.round(data.hoursRemaining)} hours unless you take action.`,
+      '',
+      'If everything went well, you can release the payment now.',
+      'If there was an issue, please open a dispute before the deadline.',
+      '',
+      `Review booking: ${transactionUrl}`,
+      '',
+      'Best regards,',
+      'The SpannerWork Team',
+    ].join('\n');
+
+    const bodyHtml = `
+      <p>Hi ${safeName},</p>
+      <p>Reminder: Your booking for <strong>${safeResourceName}</strong> with <strong>${safeProviderName}</strong> is awaiting your review.</p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+        <p style="margin: 0;"><strong>⏰ ${Math.round(data.hoursRemaining)} hours remaining</strong></p>
+        <p style="margin: 8px 0 0;">The payment will be automatically released to the provider unless you take action.</p>
+      </div>
+      <p><strong>If everything went well:</strong> Release the payment now</p>
+      <p><strong>If there was an issue:</strong> Open a dispute before the deadline</p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: '⏰ Payment Review Reminder',
+        bodyHtml,
+        ctaText: 'Review Booking',
+        ctaUrl: transactionUrl,
+      }),
+      text,
+      category: 'escrow-reminder',
+    });
+  },
+
+  /**
+   * Send urgent escrow expiry email (24h warning)
+   */
+  async sendEscrowExpiryUrgentEmail(to: string, data: {
+    userName?: string | null;
+    resourceName: string;
+    transactionId: string;
+    hoursRemaining: number;
+    providerName: string;
+  }) {
+    const safeName = escapeHtml(data.userName || 'User');
+    const safeResourceName = escapeHtml(data.resourceName);
+    const safeProviderName = escapeHtml(data.providerName);
+    const transactionUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/transactions/${data.transactionId}`;
+
+    const subject = `URGENT: Only ${Math.round(data.hoursRemaining)} hours left to review your booking`;
+    const previewText = `Your booking payment will be auto-released very soon`;
+
+    const text = [
+      `Hi ${data.userName || 'User'},`,
+      '',
+      `URGENT: Your booking for "${data.resourceName}" with ${data.providerName} needs your attention.`,
+      '',
+      `Only ${Math.round(data.hoursRemaining)} hours remain before the payment is automatically released.`,
+      '',
+      'Please review your booking now:',
+      '- If satisfied, release the payment',
+      '- If there was an issue, open a dispute immediately',
+      '',
+      `Review booking: ${transactionUrl}`,
+      '',
+      'Best regards,',
+      'The SpannerWork Team',
+    ].join('\n');
+
+    const bodyHtml = `
+      <p>Hi ${safeName},</p>
+      <p><strong>URGENT:</strong> Your booking for <strong>${safeResourceName}</strong> with <strong>${safeProviderName}</strong> needs your attention.</p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #fef2f2; border-radius: 8px; border-left: 4px solid #ef4444;">
+        <p style="margin: 0; font-size: 18px;"><strong>⚠️ Only ${Math.round(data.hoursRemaining)} hours remaining!</strong></p>
+        <p style="margin: 8px 0 0;">The payment will be automatically released unless you take action.</p>
+      </div>
+      <p><strong>Please review your booking now:</strong></p>
+      <ul>
+        <li>If satisfied, release the payment</li>
+        <li>If there was an issue, open a dispute immediately</li>
+      </ul>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: '🚨 Urgent: Review Required',
+        bodyHtml,
+        ctaText: 'Review Now',
+        ctaUrl: transactionUrl,
+      }),
+      text,
+      category: 'escrow-urgent',
+    });
+  },
+
+  /**
+   * Send admin action notification email
+   * Notifies users when an admin takes action on their account/transaction
+   */
+  async sendAdminActionNotificationEmail(to: string, data: {
+    userName?: string | null;
+    action: string;
+    resourceType: string;
+    resourceName: string;
+    reason: string;
+  }) {
+    const safeName = escapeHtml(data.userName || 'User');
+    const safeAction = escapeHtml(data.action);
+    const safeResourceType = escapeHtml(data.resourceType);
+    const safeResourceName = escapeHtml(data.resourceName);
+    const safeReason = escapeHtml(data.reason);
+    const dashboardUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/feed`;
+
+    const subject = `Admin Action: ${data.action}`;
+    const previewText = `An administrator has taken action on your ${data.resourceType}`;
+
+    const text = [
+      `Hi ${data.userName || 'User'},`,
+      '',
+      `An administrator has performed the following action:`,
+      '',
+      `Action: ${data.action}`,
+      `Resource: ${data.resourceName} (${data.resourceType})`,
+      '',
+      `Details: ${data.reason}`,
+      '',
+      'If you have questions about this action, please contact support.',
+      '',
+      'Best regards,',
+      'The SpannerWork Team',
+    ].join('\n');
+
+    const bodyHtml = `
+      <p>Hi ${safeName},</p>
+      <p>An administrator has performed the following action:</p>
+      <div style="margin: 20px 0; padding: 16px; background-color: #f3f4f6; border-radius: 8px; border-left: 4px solid #6366f1;">
+        <p style="margin: 0 0 8px;"><strong>Action:</strong> ${safeAction}</p>
+        <p style="margin: 0 0 8px;"><strong>Resource:</strong> ${safeResourceName} (${safeResourceType})</p>
+        <p style="margin: 0;"><strong>Details:</strong> ${safeReason}</p>
+      </div>
+      <p>If you have questions about this action, please contact support.</p>
+    `;
+
+    await safeSend({
+      to,
+      subject,
+      html: renderEmailLayout({
+        title: subject,
+        previewText,
+        heading: '🔔 Admin Action Notification',
+        bodyHtml,
+        ctaText: 'Go to SpannerWork',
+        ctaUrl: dashboardUrl,
+      }),
+      text,
+      category: 'admin-notification',
     });
   },
 };

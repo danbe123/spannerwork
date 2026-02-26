@@ -85,9 +85,9 @@ export default function PortfolioGallery({
           type: 'work',
           photo,
           title: tx.title || 'Completed Work',
-          category: tx.category,
+          category: tx.category ?? undefined,
           date: new Date(tx.createdDate),
-          rating: tx.rating,
+          rating: tx.rating ?? undefined,
         });
       });
     }
@@ -157,7 +157,7 @@ export default function PortfolioGallery({
               </SelectTrigger>
               <SelectContent>
                 {categories.map(cat => (
-                  <SelectItem key={cat} value={cat}>
+                  <SelectItem key={cat || 'unknown'} value={cat || 'unknown'}>
                     {cat === 'all' ? 'All Categories' : cat}
                   </SelectItem>
                 ))}

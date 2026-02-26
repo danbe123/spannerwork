@@ -121,7 +121,7 @@ export default function SuccessStories(): JSX.Element {
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Success Stories
             </h1>
-            <p className="text-xl text-orange-100 max-w-2xl mx-auto">
+            <p className="text-xl text-brand-100 max-w-2xl mx-auto">
               Real people, real results. See how our community is earning and saving with SpannerWork.
             </p>
           </div>
@@ -156,7 +156,7 @@ export default function SuccessStories(): JSX.Element {
                     <div className="flex items-center gap-3 mb-4">
                       <Avatar>
                         <AvatarImage src={story.avatar} />
-                        <AvatarFallback className="bg-orange-100 text-brand-800">
+                        <AvatarFallback className="bg-brand-100 text-brand-800">
                           {story.name.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>

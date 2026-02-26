@@ -1,6 +1,6 @@
 import { prisma } from '../config/database.js';
 import { logger } from '../config/logger.js';
-import { redis } from '../config/redis.js';
+import { redis, prefixKey } from '../config/redis.js';
 import websocketService from './websocket.service.js';
 import { ActivityType, Prisma } from '@prisma/client';
 
@@ -59,7 +59,7 @@ class ActivityFeedService {
       }
 
       // Invalidate cache
-      await redis.del('activity:feed:public');
+      await redis.del(prefixKey('activity:feed:public'));
     } catch (error) {
       logger.error('Error recording activity:', error);
     }
@@ -160,7 +160,7 @@ class ActivityFeedService {
    */
   async getPublicFeed(limit = 20): Promise<FormattedActivity[]> {
     // Check cache
-    const cacheKey = `activity:feed:public:${limit}`;
+    const cacheKey = prefixKey(`activity:feed:public:${limit}`);
     const cached = await redis.get(cacheKey);
     if (cached) {
       return JSON.parse(cached);
@@ -255,7 +255,7 @@ class ActivityFeedService {
    * Get live stats for display
    */
   async getLiveStats() {
-    const cacheKey = 'activity:live-stats';
+    const cacheKey = prefixKey('activity:live-stats');
     const cached = await redis.get(cacheKey);
     if (cached) {
       return JSON.parse(cached);

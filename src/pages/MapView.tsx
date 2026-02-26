@@ -17,24 +17,22 @@ import { queryKeys } from "@/lib/queryKeys";
 import MarketingFooter from "@/components/MarketingFooter";
 import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Leaflet component type workaround
+// Leaflet component type definitions
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MapContainerAny = MapContainer as unknown as ComponentType<any>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Leaflet component type workaround
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const TileLayerAny = TileLayer as unknown as ComponentType<any>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Leaflet component type workaround
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MarkerAny = Marker as unknown as ComponentType<any>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Leaflet component type workaround
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const PopupAny = Popup as unknown as ComponentType<any>;
 
 type LatLngTuple = [number, number];
 
-// Extended type for Leaflet's Icon.Default prototype which includes _getIconUrl
+// Leaflet marker icon configuration
 interface IconDefaultPrototype {
   _getIconUrl?: string;
 }
-
-// Fix for default marker icons in react-leaflet
-// The _getIconUrl property exists on the prototype but isn't in the type definitions
 delete (L.Icon.Default.prototype as IconDefaultPrototype)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
@@ -63,7 +61,7 @@ interface RequestWithCoords extends Request {
 export default function MapView() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [userLocation, setUserLocation] = useState<LatLngTuple | null>(null);
-  const [mapCenter] = useState<LatLngTuple>([52.2257, -2.7389]); // Default: Leominster, UK
+  const [mapCenter] = useState<LatLngTuple>([52.2257, -2.7389]); // Default centre: Leominster, UK
   const [mapZoom] = useState(13);
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
@@ -72,7 +70,7 @@ export default function MapView() {
     queryFn: () => requestsService.list({}),
   });
 
-  const requests: Request[] = requestsData?.data || [];
+  const requests: Request[] = useMemo(() => requestsData?.data || [], [requestsData?.data]);
 
   const { data: currentUserData } = useQuery({
     queryKey: queryKeys.currentUser(),
@@ -154,7 +152,7 @@ export default function MapView() {
 
   const urgencyColors: Record<string, string> = {
     ASAP: "bg-red-100 text-red-800",
-    TODAY: "bg-orange-100 text-orange-800",
+    TODAY: "bg-brand-100 text-brand-800",
     THIS_WEEKEND: "bg-yellow-100 text-yellow-800",
     FLEXIBLE: "bg-green-100 text-green-800"
   };
@@ -209,8 +207,7 @@ export default function MapView() {
           <MapContainerAny
             center={mapCenter}
             zoom={mapZoom}
-            style={{ height: "100%", width: "100%" }}
-            className="z-0"
+            className="h-full w-full z-0"
           >
             <TileLayerAny
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

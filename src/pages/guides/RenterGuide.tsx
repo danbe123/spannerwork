@@ -162,7 +162,7 @@ export default function RenterGuide(): JSX.Element {
             </div>
             <div>
               <h1 className="text-4xl md:text-5xl font-bold">Renter's Guide</h1>
-              <p className="text-xl text-orange-100 mt-2">Find what you need and save money on your projects</p>
+              <p className="text-xl text-brand-100 mt-2">Find what you need and save money on your projects</p>
             </div>
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function RenterGuide(): JSX.Element {
 
           <div className="min-w-0 flex-1">
             {/* Introduction */}
-        <Card className="mb-12 border-none shadow-lg bg-gradient-to-br from-orange-50 to-amber-50">
+        <Card className="mb-12 border-none shadow-lg bg-gradient-to-br from-brand-50 to-brand-100">
           <CardContent className="p-8">
             <div className="flex items-start gap-4">
               <Lightbulb className="w-8 h-8 text-brand-800 flex-shrink-0" />
@@ -271,14 +271,14 @@ export default function RenterGuide(): JSX.Element {
           <CardContent className="p-12 text-center">
             <Search className="w-16 h-16 mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-4">Ready to Find What You Need?</h2>
-            <p className="text-xl text-orange-100 mb-8">
+            <p className="text-xl text-brand-100 mb-8">
               Browse thousands of tools, equipment, and services near you
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => navigate("/feed")}
                 size="lg"
-                className="bg-white text-brand-800 hover:bg-orange-50 text-lg px-8 py-6 font-bold"
+                className="bg-white text-brand-800 hover:bg-brand-50 text-lg px-8 py-6 font-bold"
               >
                 Browse Listings
               </Button>

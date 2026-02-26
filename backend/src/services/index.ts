@@ -9,6 +9,7 @@ export { authService } from './auth.service.js';
 export { emailService } from './email.service.js';
 export { smsService } from './sms.service.js';
 export { notificationService } from './notification.service.js';
+export { unifiedNotificationService } from './unifiedNotification.service.js';
 
 // Business domain services
 export { toolService } from './tool.service.js';

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
+import { OptimizedImage } from "@/components/ui/optimized-image";
 import { 
   ArrowLeft, 
   Camera,
@@ -95,7 +96,9 @@ export default function TransactionDetail() {
         setReturnPhoto(fileUrl);
       }
     } catch (error) {
-      console.error("Error uploading photo:", error);
+      if (import.meta.env.DEV) {
+        console.error("Error uploading photo:", error);
+      }
     }
     setUploadingPhoto(false);
   };
@@ -127,7 +130,7 @@ export default function TransactionDetail() {
       if (rating > 0 && revieweeId) {
         await reviewsService.create({
           transactionId: transactionId,
-          reviewedUserId: revieweeId, // Fixed field name to match CreateReviewData
+          reviewedUserId: revieweeId,
           rating: rating,
           comment: review,
         });
@@ -207,7 +210,7 @@ export default function TransactionDetail() {
           <div className={`h-2 ${
             transaction.status === 'COMPLETED' ? 'bg-green-500' :
             (transaction.status as string) === 'ACTIVE' ? 'bg-blue-500' :
-            (transaction.status as string) === 'DISPUTED' ? 'bg-red-500' : // DISPUTED not in enum but might be used
+            (transaction.status as string) === 'DISPUTED' ? 'bg-red-500' :
             'bg-yellow-500'
           }`} />
           
@@ -246,7 +249,7 @@ export default function TransactionDetail() {
                 <h3 className="font-semibold mb-2">Tool</h3>
                 <div className="flex items-center gap-3">
                   {tool.photos?.[0] && (
-                    <img src={tool.photos[0]} alt={tool.name} className="w-16 h-16 object-cover rounded" />
+                    <OptimizedImage src={tool.photos[0]} alt={tool.name} sizes="thumbnail" className="w-16 h-16 rounded" />
                   )}
                   <div>
                     <p className="font-medium">{tool.name}</p>
@@ -263,7 +266,7 @@ export default function TransactionDetail() {
                 {provider && (
                   <div className="flex items-center gap-3">
                     <Avatar>
-                      <AvatarFallback className="bg-orange-100 text-brand-800">
+                      <AvatarFallback className="bg-brand-100 text-brand-800">
                         {provider.name?.[0]?.toUpperCase() || 'P'}
                       </AvatarFallback>
                     </Avatar>
@@ -365,20 +368,22 @@ export default function TransactionDetail() {
                   {pickupConditionPhoto && (
                     <div>
                       <p className="text-sm text-gray-600 mb-2">At Pickup</p>
-                      <img
+                      <OptimizedImage
                         src={pickupConditionPhoto}
                         alt="Pickup condition"
-                        className="w-full h-48 object-cover rounded-lg border"
+                        sizes="card"
+                        className="w-full h-48 rounded-lg border"
                       />
                     </div>
                   )}
                   {returnConditionPhoto && (
                     <div>
                       <p className="text-sm text-gray-600 mb-2">At Return</p>
-                      <img
+                      <OptimizedImage
                         src={returnConditionPhoto}
                         alt="Return condition"
-                        className="w-full h-48 object-cover rounded-lg border"
+                        sizes="card"
+                        className="w-full h-48 rounded-lg border"
                       />
                     </div>
                   )}
@@ -403,7 +408,7 @@ export default function TransactionDetail() {
                 />
                 
                 {pickupPhoto ? (
-                  <img src={pickupPhoto} alt="Pickup" className="w-full h-48 object-cover rounded-lg border" />
+                  <OptimizedImage src={pickupPhoto} alt="Pickup" sizes="card" className="w-full h-48 rounded-lg border" />
                 ) : (
                   <Button
                     variant="outline"
@@ -451,7 +456,7 @@ export default function TransactionDetail() {
                 />
                 
                 {returnPhoto ? (
-                  <img src={returnPhoto} alt="Return" className="w-full h-48 object-cover rounded-lg border" />
+                  <OptimizedImage src={returnPhoto} alt="Return" sizes="card" className="w-full h-48 rounded-lg border" />
                 ) : (
                   <Button
                     variant="outline"

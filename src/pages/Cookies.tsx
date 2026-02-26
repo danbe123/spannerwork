@@ -7,6 +7,7 @@ import MarketingFooter from "../components/MarketingFooter";
 import DocsSidebar from "@/components/docs/DocsSidebar";
 import DocsBreadcrumbs from "@/components/docs/DocsBreadcrumbs";
 import DocsMobileHeader from "@/components/docs/DocsMobileHeader";
+import SEO from "@/components/SEO";
 
 interface Subsection {
   subtitle: string;
@@ -108,6 +109,11 @@ export default function Cookies() {
 
   return (
     <>
+      <SEO
+        title="Cookie Policy - SpannerWork"
+        description="Learn about how SpannerWork uses cookies to improve your experience on our tool rental and mechanic services platform."
+        keywords="cookie policy, cookies, tracking, privacy, spannerwork"
+      />
       <DocsMobileHeader />
       <div className="min-h-screen bg-white">
         <div className="bg-gradient-to-r from-brand-800 to-brand-900 text-white px-6 py-16">
@@ -124,7 +130,7 @@ export default function Cookies() {
             <Cookie className="w-12 h-12" />
             <h1 className="text-4xl md:text-5xl font-bold">Cookie Policy</h1>
           </div>
-          <p className="text-orange-100">Last updated: January 2025</p>
+          <p className="text-brand-100">Last updated: January 2025</p>
         </div>
       </div>
 
@@ -188,7 +194,7 @@ export default function Cookies() {
         </div>
 
             {/* Fun fact box */}
-            <Card className="border-none shadow-lg bg-gradient-to-br from-orange-50 to-yellow-50 mt-8">
+            <Card className="border-none shadow-lg bg-gradient-to-br from-brand-50 to-yellow-50 mt-8">
               <CardContent className="p-8">
                 <div className="flex items-start gap-4">
                   <Cookie className="w-12 h-12 text-brand-800 flex-shrink-0" />

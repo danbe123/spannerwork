@@ -1,9 +1,5 @@
 import apiClient from '../client';
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface UploadedFile {
   fileUrl: string;
   filename: string;
@@ -33,10 +29,6 @@ export interface DeleteFileResponse {
   message: string;
 }
 
-// ============================================================================
-// Service
-// ============================================================================
-
 export const uploadService = {
   /**
    * Upload a single file
@@ -45,11 +37,7 @@ export const uploadService = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await apiClient.post<SingleUploadResponse>('/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await apiClient.post<SingleUploadResponse>('/upload', formData);
 
     return response.data;
   },
@@ -63,11 +51,7 @@ export const uploadService = {
       formData.append('files', file);
     });
 
-    const response = await apiClient.post<MultipleUploadResponse>('/upload/multiple', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await apiClient.post<MultipleUploadResponse>('/upload/multiple', formData);
 
     return response.data;
   },

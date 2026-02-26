@@ -1,11 +1,12 @@
 /**
  * Insurance Routes
- * 
+ *
  * Provider routes for managing insurance documents
  */
 
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware.js';
+import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
 import insuranceController from '../controllers/insurance.controller.js';
 
 const router = Router();
@@ -17,7 +18,7 @@ router.use(requireAuth);
  * POST /api/v1/insurance/upload
  * Upload a new insurance document
  */
-router.post('/upload', insuranceController.uploadDocument);
+router.post('/upload', verifyCsrfToken, insuranceController.uploadDocument);
 
 /**
  * GET /api/v1/insurance/my-documents
@@ -35,6 +36,6 @@ router.get('/status', insuranceController.getMyInsuranceStatus);
  * DELETE /api/v1/insurance/:id
  * Delete an insurance document (only pending/rejected)
  */
-router.delete('/:id', insuranceController.deleteDocument);
+router.delete('/:id', verifyCsrfToken, insuranceController.deleteDocument);
 
 export default router;

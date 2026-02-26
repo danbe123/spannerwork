@@ -8,10 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, differenceInDays, isPast } from "date-fns";
 import { Dispute, Transaction, User } from "@/types";
 import type { UploadedFile } from "@/api/services/upload";
 import SEO from "@/components/SEO";
@@ -163,7 +163,9 @@ export default function DisputeResolution() {
         toast.error(result.data.warning);
       }
     } catch (err) {
-      console.error('Evidence upload error:', err);
+      if (import.meta.env.DEV) {
+        console.error('Evidence upload error:', err);
+      }
       toast.error('Failed to upload images');
     } finally {
       setUploadingEvidence(false);
@@ -224,7 +226,7 @@ export default function DisputeResolution() {
         <div className="bg-gradient-to-br from-brand-800 to-brand-900 text-white py-16 px-4">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Dispute Resolution</h1>
-            <p className="text-xl text-orange-100">Raise a dispute, track progress, and get a fair outcome</p>
+            <p className="text-xl text-brand-100">Raise a dispute, track progress, and get a fair outcome</p>
             <div className="mt-6">
               <Link to="/resources">
                 <Button variant="ghost" className="text-white hover:bg-white/20">
@@ -253,7 +255,7 @@ export default function DisputeResolution() {
                   <CardContent className="p-8">
                     <h2 className="text-xl font-bold mb-2">Sign in to raise a dispute</h2>
                     <p className="text-gray-600 mb-6">
-                      Disputes are tied to a specific transaction, so you’ll need to be signed in to submit one.
+                      Disputes are linked to your transactions. Sign in to view your orders and submit a dispute for review by our team.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Link to="/profile">
@@ -360,7 +362,7 @@ export default function DisputeResolution() {
                           id="description"
                           value={newDescription}
                           onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNewDescription(e.target.value)}
-                          placeholder="Explain what happened, dates/times, and what outcome you're seeking..."
+                          placeholder="Describe what went wrong, when it happened, and how you'd like it resolved. Include any relevant dates, times, or communications..."
                           className="mt-2 h-28"
                         />
                       </div>
@@ -470,6 +472,58 @@ export default function DisputeResolution() {
                         </CardHeader>
 
                         <CardContent className="space-y-4">
+                          {/* SLA Countdown */}
+                          {dispute.deadlineDate && dispute.status === 'OPEN' && (
+                            <div className={`flex items-center gap-3 p-3 rounded-lg border ${
+                              isPast(new Date(dispute.deadlineDate))
+                                ? 'bg-red-50 border-red-200'
+                                : differenceInDays(new Date(dispute.deadlineDate), new Date()) <= 3
+                                  ? 'bg-amber-50 border-amber-200'
+                                  : 'bg-blue-50 border-blue-200'
+                            }`}>
+                              {isPast(new Date(dispute.deadlineDate)) ? (
+                                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                              ) : (
+                                <Clock className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                              )}
+                              <div className="flex-1">
+                                <p className={`text-sm font-medium ${
+                                  isPast(new Date(dispute.deadlineDate))
+                                    ? 'text-red-800'
+                                    : differenceInDays(new Date(dispute.deadlineDate), new Date()) <= 3
+                                      ? 'text-amber-800'
+                                      : 'text-blue-800'
+                                }`}>
+                                  {isPast(new Date(dispute.deadlineDate))
+                                    ? 'Resolution overdue'
+                                    : `Resolution deadline: ${differenceInDays(new Date(dispute.deadlineDate), new Date())} days remaining`
+                                  }
+                                </p>
+                                <p className="text-xs text-gray-600 mt-0.5">
+                                  {isPast(new Date(dispute.deadlineDate))
+                                    ? `Was due ${format(new Date(dispute.deadlineDate), 'MMM d, yyyy')}`
+                                    : `Due by ${format(new Date(dispute.deadlineDate), 'MMM d, yyyy')}`
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Resolution completed indicator */}
+                          {dispute.status === 'RESOLVED' && (
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-200">
+                              <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                              <div>
+                                <p className="text-sm font-medium text-green-800">Dispute resolved</p>
+                                {dispute.resolvedDate && (
+                                  <p className="text-xs text-gray-600">
+                                    Resolved on {format(new Date(dispute.resolvedDate), 'MMM d, yyyy')}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                           <div>
                             <h4 className="font-semibold mb-2">Details</h4>
                             <p className="text-gray-700">{dispute.description}</p>
@@ -509,7 +563,7 @@ export default function DisputeResolution() {
                                 <Textarea
                                   value={resolutionNotes}
                                   onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setResolutionNotes(e.target.value)}
-                                  placeholder="Explain the resolution..."
+                                  placeholder="Explain the decision, any refunds or actions taken, and next steps for both parties..."
                                   className="mt-2 h-24"
                                 />
                               </div>
@@ -534,7 +588,7 @@ export default function DisputeResolution() {
                           {dispute.status === 'OPEN' && currentUser?.role !== 'ADMIN' && (
                             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                               <p className="text-sm text-gray-700">
-                                This dispute is under review. Our team will investigate and reach out to both parties shortly.
+                                Your dispute is being reviewed. Our team will investigate the details and contact both parties within 48 hours with next steps.
                               </p>
                             </div>
                           )}

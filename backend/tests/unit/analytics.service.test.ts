@@ -18,6 +18,8 @@ vi.mock('../../src/config/redis.js', () => ({
     del: vi.fn(),
   },
   isRedisAvailable: vi.fn().mockReturnValue(false),
+  safeGet: vi.fn().mockResolvedValue(null),
+  safeSetex: vi.fn().mockResolvedValue('OK'),
 }));
 
 // Hoist prisma mocks
@@ -53,10 +55,11 @@ const mockPrisma = vi.hoisted(() => ({
   dispute: {
     count: vi.fn(),
   },
-  dailyMetrics: {
+  dailyMetric: {
     findUnique: vi.fn(),
     create: vi.fn(),
   },
+  $queryRaw: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../src/config/database.js', () => ({
@@ -101,6 +104,11 @@ describe('Analytics Service', () => {
     mockPrisma.transaction.findMany.mockResolvedValue([]);
     mockPrisma.transaction.groupBy.mockResolvedValue([]);
     mockPrisma.dispute.count.mockResolvedValue(5);
+    // Mock $queryRaw for raw SQL queries
+    mockPrisma.$queryRaw.mockResolvedValue([
+      { date: new Date('2024-01-02'), count: BigInt(10) },
+      { date: new Date('2024-01-03'), count: BigInt(5) },
+    ]);
   });
 
   afterEach(() => {
@@ -388,21 +396,21 @@ describe('Analytics Service', () => {
 
   describe('snapshotDailyMetrics', () => {
     it('should create a daily metrics snapshot', async () => {
-      mockPrisma.dailyMetrics.findUnique.mockResolvedValue(null);
-      mockPrisma.dailyMetrics.create.mockResolvedValue({ id: 'dm1' });
+      mockPrisma.dailyMetric.findUnique.mockResolvedValue(null);
+      mockPrisma.dailyMetric.create.mockResolvedValue({ id: 'dm1' });
 
       await snapshotDailyMetrics();
 
-      expect(mockPrisma.dailyMetrics.create).toHaveBeenCalled();
+      expect(mockPrisma.dailyMetric.create).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith('Daily metrics snapshot created');
     });
 
     it('should skip if snapshot already exists for today', async () => {
-      mockPrisma.dailyMetrics.findUnique.mockResolvedValue({ id: 'existing' });
+      mockPrisma.dailyMetric.findUnique.mockResolvedValue({ id: 'existing' });
 
       await snapshotDailyMetrics();
 
-      expect(mockPrisma.dailyMetrics.create).not.toHaveBeenCalled();
+      expect(mockPrisma.dailyMetric.create).not.toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith('Daily metrics snapshot already exists for today');
     });
   });

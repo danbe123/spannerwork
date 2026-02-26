@@ -77,56 +77,62 @@ function bufferStartsWith(buffer: Buffer, expectedBytes: number[], offset = 0): 
 }
 
 /**
- * Validate file magic bytes match the declared MIME type
- * 
+ * Validate file magic bytes match a known allowed image/file type
+ *
+ * This is more lenient than strict MIME matching - if the file is ANY valid
+ * allowed type, it passes. This handles cases where browsers report incorrect
+ * MIME types (common on mobile devices, especially iOS).
+ *
  * @param filePath - Path to the uploaded file
- * @param declaredMimeType - The MIME type declared by the upload
- * @returns True if magic bytes match, false otherwise
+ * @param declaredMimeType - The MIME type declared by the upload (used for logging)
+ * @returns True if magic bytes match any allowed type, false otherwise
  */
 export async function validateFileMagicBytes(
   filePath: string,
   declaredMimeType: string
 ): Promise<boolean> {
   try {
-    const normalizedType = normalizeMimeType(declaredMimeType);
-    const signatures = MAGIC_BYTES[normalizedType];
-    
-    if (!signatures) {
-      // If we don't have magic bytes for this type, reject it
-      logger.warn(`No magic byte signature defined for MIME type: ${declaredMimeType}`);
-      return false;
-    }
-    
     // Read the first 16 bytes of the file (enough for any signature we check)
     const fileHandle = await fs.open(filePath, 'r');
     const buffer = Buffer.alloc(16);
-    
+
     try {
       await fileHandle.read(buffer, 0, 16, 0);
     } finally {
       await fileHandle.close();
     }
-    
-    // Check if any of the valid signatures match
-    for (const signature of signatures) {
-      if (bufferStartsWith(buffer, signature.bytes, signature.offset || 0)) {
-        return true;
+
+    // Check if file matches ANY allowed type (lenient validation)
+    // This handles browser MIME type mismatches common on mobile devices
+    for (const [mimeType, signatures] of Object.entries(MAGIC_BYTES)) {
+      for (const signature of signatures) {
+        if (bufferStartsWith(buffer, signature.bytes, signature.offset || 0)) {
+          // Special handling for WebP - must also have 'WEBP' at offset 8
+          if (mimeType === 'image/webp') {
+            const webpBytes = [0x57, 0x45, 0x42, 0x50]; // 'WEBP'
+            if (bufferStartsWith(buffer, webpBytes, 8)) {
+              if (mimeType !== normalizeMimeType(declaredMimeType)) {
+                logger.info(`File type mismatch accepted: declared ${declaredMimeType}, actual ${mimeType}`);
+              }
+              return true;
+            }
+            // RIFF but not WebP - continue checking other types
+            continue;
+          }
+
+          if (mimeType !== normalizeMimeType(declaredMimeType)) {
+            logger.info(`File type mismatch accepted: declared ${declaredMimeType}, actual ${mimeType}`);
+          }
+          return true;
+        }
       }
     }
-    
-    // Special handling for WebP - need to check for 'WEBP' at offset 8
-    if (normalizedType === 'image/webp') {
-      const webpBytes = [0x57, 0x45, 0x42, 0x50]; // 'WEBP'
-      if (bufferStartsWith(buffer, webpBytes, 8)) {
-        return true;
-      }
-    }
-    
+
     logger.warn(`Magic byte validation failed for ${filePath}`, {
       declaredMimeType,
       actualBytes: buffer.slice(0, 8).toString('hex'),
     });
-    
+
     return false;
   } catch (error) {
     logger.error('Error validating file magic bytes:', error);

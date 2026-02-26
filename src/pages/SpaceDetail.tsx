@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  ArrowLeft, 
+import { useState } from "react";
+import {
+  ArrowLeft,
   Warehouse,
   Star,
   Shield,
@@ -17,8 +18,10 @@ import {
   Maximize,
   Car,
   Zap,
-  MapPin
+  MapPin,
+  Edit
 } from "lucide-react";
+import EditSpaceDialog from "@/components/EditSpaceDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import SEO, { generateProductSchema, generateBreadcrumbSchema } from "@/components/SEO";
 import { Space, User } from "@/types";
@@ -27,6 +30,7 @@ import { queryKeys } from "@/lib/queryKeys";
 export default function SpaceDetail() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const { id: spaceIdFromPath } = useParams<{ id: string }>();
   const urlParams = new URLSearchParams(location.search);
   const spaceIdFromQuery = urlParams.get('id');
@@ -116,7 +120,6 @@ export default function SpaceDetail() {
         title={`${space.name} - Workshop Space | SpannerWork`}
         description={space.description || `Rent ${space.name} from SpannerWork. Workshop space available for hire.`}
         keywords={`workshop rental, garage space, ${space.name}`}
-        // @ts-expect-error - Schema types from JSX component
         schema={[
           generateProductSchema(space),
           generateBreadcrumbSchema([
@@ -237,13 +240,13 @@ export default function SpaceDetail() {
                   </div>
                 )}
                 {space.supervisionRequired && (
-                  <div className="flex items-center gap-2 text-sm text-orange-600">
+                  <div className="flex items-center gap-2 text-sm text-brand-600">
                     <AlertCircle className="w-4 h-4" />
                     <span>Owner supervision required</span>
                   </div>
                 )}
                 {space.insuranceRequired && (
-                  <div className="flex items-center gap-2 text-sm text-orange-600">
+                  <div className="flex items-center gap-2 text-sm text-brand-600">
                     <AlertCircle className="w-4 h-4" />
                     <span>Insurance required</span>
                   </div>
@@ -305,11 +308,28 @@ export default function SpaceDetail() {
             )}
 
             {isOwner && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Your Listing:</strong> This is your space. Manage it from your profile.
-                </p>
+              <div className="space-y-3">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Your Listing:</strong> This is your space.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setShowEditDialog(true)}
+                  className="w-full bg-brand-800 hover:bg-brand-900"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Listing
+                </Button>
               </div>
+            )}
+
+            {/* Edit Dialog */}
+            {showEditDialog && space && (
+              <EditSpaceDialog
+                space={space}
+                onClose={() => setShowEditDialog(false)}
+              />
             )}
           </div>
         </div>

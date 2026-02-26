@@ -112,4 +112,14 @@ export const queryKeys = {
   ] as const,
 
   transaction: (transactionId: string) => ['transaction', transactionId] as const,
+
+  // Blog
+  blogPosts: () => ['blogPosts'] as const,
+  blogPost: (slug: string) => ['blogPost', slug] as const,
+  blogCategories: () => ['blogCategories'] as const,
+
+  // Bookmarks
+  bookmarks: () => ['bookmarks'] as const,
+  bookmarkIds: () => ['bookmarkIds'] as const,
+  isBookmarked: (requestId: string) => ['isBookmarked', requestId] as const,
 } as const;

@@ -9,6 +9,7 @@ import {
   idParamSchema,
 } from '../utils/validation.schemas.js';
 import { verifyCsrfToken } from '../middleware/csrf.middleware.js';
+import { noCache } from '../middleware/noCache.middleware.js';
 
 const router = Router();
 
@@ -31,15 +32,17 @@ router.post(
  * @route   GET /api/v1/transactions
  * @desc    List user's transactions
  * @access  Private
+ * @cache   No-cache - Transactions must always be fresh
  */
-router.get('/', requireAuth, transactionController.list.bind(transactionController));
+router.get('/', noCache, requireAuth, transactionController.list.bind(transactionController));
 
 /**
  * @route   GET /api/v1/transactions/:id
  * @desc    Get transaction by ID
  * @access  Private
+ * @cache   No-cache - Transaction details must always be fresh
  */
-router.get('/:id', requireAuth, validateParams(idParamSchema), transactionController.getById.bind(transactionController));
+router.get('/:id', noCache, requireAuth, validateParams(idParamSchema), transactionController.getById.bind(transactionController));
 
 /**
  * @route   PATCH /api/v1/transactions/:id/status

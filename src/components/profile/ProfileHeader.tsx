@@ -142,10 +142,7 @@ export default function ProfileHeader({
           <div className="absolute inset-0 bg-gradient-to-br from-brand-800 via-brand-700 to-brand-900" />
           
           {/* Animated background elements */}
-          <div className="absolute inset-0 opacity-20" style={{
-            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-            backgroundSize: '32px 32px'
-          }} />
+          <div className="absolute inset-0 opacity-20 bg-dot-pattern-md" />
           
           {/* Floating orbs */}
           <motion.div 
@@ -154,7 +151,7 @@ export default function ProfileHeader({
             transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.div 
-            className="absolute -bottom-32 -left-32 w-80 h-80 bg-orange-300/10 rounded-full blur-3xl"
+            className="absolute -bottom-32 -left-32 w-80 h-80 bg-brand-300/10 rounded-full blur-3xl"
             animate={{ x: [0, -20, 0], y: [0, 30, 0] }}
             transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
           />
@@ -219,7 +216,7 @@ export default function ProfileHeader({
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-800 to-[#FF6F00] rounded-full blur-lg opacity-30 scale-110" />
                     <Avatar className="w-28 h-28 md:w-36 md:h-36 border-4 border-white shadow-2xl relative">
-                      <AvatarImage src={currentUser?.avatar} />
+                      <AvatarImage src={currentUser?.avatar ?? undefined} />
                       <AvatarFallback className="bg-gradient-to-br from-brand-800 to-[#FF6F00] text-white text-4xl font-bold">
                         {currentUser?.name?.[0]?.toUpperCase() || currentUser?.email?.[0]?.toUpperCase() || 'U'}
                       </AvatarFallback>
@@ -228,7 +225,7 @@ export default function ProfileHeader({
                     {/* Trusted member badge */}
                     {isTrustedMember && (
                       <motion.div 
-                        className="absolute -bottom-2 -right-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full p-2 shadow-lg"
+                        className="absolute -bottom-2 -right-2 bg-gradient-to-br from-amber-400 to-brand-500 rounded-full p-2 shadow-lg"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ delay: 0.5, type: "spring" }}
@@ -257,7 +254,7 @@ export default function ProfileHeader({
                           {currentUser?.name || currentUser?.email?.split('@')[0] || 'User'}
                         </h1>
                         {isTrustedMember && (
-                          <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white w-fit mx-auto md:mx-0 shadow-md">
+                          <Badge className="bg-gradient-to-r from-amber-400 to-brand-500 text-white w-fit mx-auto md:mx-0 shadow-md">
                             <Sparkles className="w-3 h-3 mr-1" />
                             Trusted Member
                           </Badge>
@@ -350,9 +347,9 @@ export default function ProfileHeader({
                     
                     {/* New member badge if no stats yet */}
                     {reviews.length === 0 && completedCount === 0 && tools.length === 0 && (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 rounded-full text-sm">
-                        <Sparkles className="w-3.5 h-3.5 text-orange-500" />
-                        <span className="font-medium text-orange-700">New Member</span>
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 rounded-full text-sm">
+                        <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+                        <span className="font-medium text-brand-700">New Member</span>
                       </div>
                     )}
                   </div>

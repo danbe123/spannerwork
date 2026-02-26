@@ -277,6 +277,28 @@ export function notifyNewMessage(recipientId: string, message: {
 }
 
 /**
+ * Send message read receipt notification
+ */
+export function notifyMessageRead(senderId: string, data: {
+  messageId: string;
+  recipientId: string;
+  readAt: string;
+}): void {
+  sendToUser(senderId, 'message:read', data);
+}
+
+/**
+ * Send bulk message read receipt notification (for conversation read)
+ */
+export function notifyConversationRead(senderId: string, data: {
+  recipientId: string;
+  readAt: string;
+  count: number;
+}): void {
+  sendToUser(senderId, 'conversation:read', data);
+}
+
+/**
  * Send booking status update
  */
 export function notifyBookingUpdate(userId: string, booking: {
@@ -402,6 +424,8 @@ export default {
   getConnectionStats,
   sendToUser,
   notifyNewMessage,
+  notifyMessageRead,
+  notifyConversationRead,
   notifyBookingUpdate,
   notifyTransactionUpdate,
   notifyUser,
