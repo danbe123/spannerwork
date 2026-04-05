@@ -310,6 +310,10 @@ The best contributions are the ones that make it easier for real people to find 
 
 **SpannerWork connects people who need tools, skills, or workspace with local providers who have them.**
 
+## Disclaimer
+
+This project is provided as-is, without warranty of any kind. See the LICENSE file for the full terms.
+
 ## Domain availability
 
 The original SpannerWork domain is owned by the project maintainer and is available for use by anyone looking to launch, continue, or support the project. Access to the domain can be arranged by agreement with the maintainer so the project can continue under the SpannerWork name.
