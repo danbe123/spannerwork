@@ -310,6 +310,10 @@ The best contributions are the ones that make it easier for real people to find 
 
 **SpannerWork connects people who need tools, skills, or workspace with local providers who have them.**
 
+## Domain availability
+
+The original SpannerWork domain is owned by the project maintainer and is available for use by anyone looking to launch, continue, or support the project. Access to the domain can be arranged by agreement with the maintainer so the project can continue under the SpannerWork name.
+
 ## License
 
-Add your chosen open-source license here.
+This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
